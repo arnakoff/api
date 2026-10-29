@@ -31,15 +31,15 @@ func readFixture(tb testing.TB, name string) []byte {
 
 func TestParseFixture(t *testing.T) {
 	t.Parallel()
-	snap, err := Parse(bytes.NewReader(readFixture(t, csvFixture)))
+	snap, err := ParseBlacklist(bytes.NewReader(readFixture(t, csvFixture)))
 	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
+		t.Fatalf("ParseBlacklist() error = %v", err)
 	}
-	if snap.Source != Source {
-		t.Errorf("Source = %q, want %q", snap.Source, Source)
+	if snap.Source != BlacklistSource {
+		t.Errorf("BlacklistSource = %q, want %q", snap.Source, BlacklistSource)
 	}
-	if !slices.Equal(snap.Header, columns) {
-		t.Errorf("Header = %q, want %q", snap.Header, columns)
+	if !slices.Equal(snap.Header, blacklistColumns) {
+		t.Errorf("Header = %q, want %q", snap.Header, blacklistColumns)
 	}
 	// 27 entries, 4 free-text names left out.
 	if len(snap.Rows) != 23 {
@@ -57,9 +57,9 @@ func TestParseFixture(t *testing.T) {
 
 func TestParseRows(t *testing.T) {
 	t.Parallel()
-	snap, err := Parse(bytes.NewReader(readFixture(t, csvFixture)))
+	snap, err := ParseBlacklist(bytes.NewReader(readFixture(t, csvFixture)))
 	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
+		t.Fatalf("ParseBlacklist() error = %v", err)
 	}
 	tests := []struct {
 		entry string
@@ -85,9 +85,9 @@ func TestParseRows(t *testing.T) {
 
 func TestParseKeepsEveryListing(t *testing.T) {
 	t.Parallel()
-	snap, err := Parse(bytes.NewReader(readFixture(t, csvFixture)))
+	snap, err := ParseBlacklist(bytes.NewReader(readFixture(t, csvFixture)))
 	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
+		t.Fatalf("ParseBlacklist() error = %v", err)
 	}
 	var dates []string
 	for _, r := range snap.Rows {
@@ -118,8 +118,8 @@ func TestParseErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := Parse(strings.NewReader(tt.in)); !errors.Is(err, tt.want) {
-				t.Errorf("Parse() error = %v, want %v", err, tt.want)
+			if _, err := ParseBlacklist(strings.NewReader(tt.in)); !errors.Is(err, tt.want) {
+				t.Errorf("ParseBlacklist() error = %v, want %v", err, tt.want)
 			}
 		})
 	}
@@ -135,9 +135,9 @@ func TestParseErrorsLeaveValuesOut(t *testing.T) {
 	for name, in := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			_, err := Parse(strings.NewReader(in))
+			_, err := ParseBlacklist(strings.NewReader(in))
 			if !errors.Is(err, ErrFormat) || strings.Contains(err.Error(), "exemple") {
-				t.Errorf("Parse() error = %v, want ErrFormat without the value", err)
+				t.Errorf("ParseBlacklist() error = %v, want ErrFormat without the value", err)
 			}
 		})
 	}
@@ -146,20 +146,20 @@ func TestParseErrorsLeaveValuesOut(t *testing.T) {
 func TestParseWithoutBOM(t *testing.T) {
 	t.Parallel()
 	in := "\"nom\";\"categorie\";\"date_inscription\"\n\"armen.ltd\";\"Usurpation\";\"2026-10-08\"\n"
-	snap, err := Parse(strings.NewReader(in))
+	snap, err := ParseBlacklist(strings.NewReader(in))
 	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
+		t.Fatalf("ParseBlacklist() error = %v", err)
 	}
 	if len(snap.Rows) != 1 {
 		t.Errorf("len(Rows) = %d, want 1", len(snap.Rows))
 	}
 }
 
-func BenchmarkParse(b *testing.B) {
+func BenchmarkParseBlacklist(b *testing.B) {
 	in := readFixture(b, csvFixture)
 	b.ReportAllocs()
 	for b.Loop() {
-		if _, err := Parse(bytes.NewReader(in)); err != nil {
+		if _, err := ParseBlacklist(bytes.NewReader(in)); err != nil {
 			b.Fatal(err)
 		}
 	}
