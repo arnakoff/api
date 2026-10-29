@@ -60,6 +60,6 @@ Outils de développement épinglés avec la directive `tool` de `go.mod` (`go to
 ## Chaîne d'approvisionnement et CI
 
 - Actions GitHub épinglées par SHA complet (commentaire avec la version), `permissions: {}` au niveau du workflow puis le minimum par job, aucun `pull_request_target` sur du code de fork.
-- Dependabot pour `gomod`, `github-actions` et `docker`, hebdomadaire, regroupé.
+- Dependabot pour `gomod`, `github-actions` et `docker`, hebdomadaire, regroupé, avec un délai de carence (`cooldown`) de 7 jours par défaut et de 30 jours pour les versions majeures des modules Go (#90). Le délai ne s'applique qu'aux mises à jour de version, jamais aux mises à jour de sécurité ([référence des options Dependabot](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference), consultée le 29/10/2026).
 - CodeQL (Go), [OpenSSF Scorecard](https://github.com/ossf/scorecard), analyse des secrets et protection au push activées.
 - Image : build multi-étapes, exécution sur `gcr.io/distroless/static-debian13:nonroot` (Debian 13, tag vérifié le 29/10/2026) épinglée par digest, utilisateur non root, système de fichiers en lecture seule. SBOM (syft), signature sans clé (cosign), attestation de provenance [SLSA](https://slsa.dev/) niveau 3 visé.
