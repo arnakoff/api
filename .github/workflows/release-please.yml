@@ -1,7 +1,7 @@
 # Release Please: opens the release pull request from Conventional Commits on
 # main, then tags vX.Y.Z and publishes the GitHub release when it is merged.
 # Configuration in release-please-config.json (docs/standards.md, verified
-# 29/10/2026 against release-please-action v5.0.0 and release-please v17.11.2).
+# 29/10/2026 against release-please-action v5.0.0 and the release-please 17.6.0 it bundles).
 #
 # The token comes from the arnakoff GitHub App, not GITHUB_TOKEN: pull requests
 # opened with GITHUB_TOKEN do not trigger workflows, so the required CI check
