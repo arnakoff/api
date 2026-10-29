@@ -44,7 +44,7 @@ Outils de développement épinglés avec la directive `tool` de `go.mod` (`go to
 
 - [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) (sémantique HTTP) : méthodes, codes de statut, cache.
 - [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) : toutes les erreurs en `application/problem+json` (`type`, `title`, `status`, `detail`, `instance`, extension `code`).
-- [RFC 9745](https://www.rfc-editor.org/rfc/rfc9745) (`Deprecation`) et [RFC 8594](https://www.rfc-editor.org/rfc/rfc8594) (`Sunset`) pour retirer une version.
+- [RFC 9745](https://www.rfc-editor.org/rfc/rfc9745) (`Deprecation`) et [RFC 8594](https://www.rfc-editor.org/rfc/rfc8594) (`Sunset`) pour retirer une version ou un champ du contrat public, avec un préavis de six mois minimum entre la date de `Deprecation` et celle de `Sunset`.
 - En-têtes de quota : `RateLimit-Policy` et `RateLimit` selon [draft-ietf-httpapi-ratelimit-headers-11](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) (brouillon, pas encore une RFC : suivre ses révisions), `Retry-After` sur `429`.
 - Contrat OpenAPI dans `api/openapi.yaml`, versionné par chemin (`/v1`). Champs JSON en `snake_case`, dates en [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339).
 - [OWASP API Security Top 10 (2023)](https://owasp.org/API-Security/editions/2023/en/0x00-header/) comme grille de revue.
