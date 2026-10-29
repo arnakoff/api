@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/arnakoff/api/compare/v0.9.0...v0.10.0) (2026-10-29)
+
+
+### Features
+
+* **platform:** add the typed configuration from environment variables ([#118](https://github.com/arnakoff/api/issues/118)) ([8974e2c](https://github.com/arnakoff/api/commit/8974e2c498539af8cf5c17dae909997212f8153e)), closes [#23](https://github.com/arnakoff/api/issues/23)
+
 ## [0.9.0](https://github.com/arnakoff/api/compare/v0.8.0...v0.9.0) (2026-10-29)
 
 
