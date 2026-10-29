@@ -14,6 +14,8 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | govulncheck (`golang.org/x/vuln`) | v1.9.0 | `proxy.golang.org` |
 | SDK MCP Go | v1.8.0 | `proxy.golang.org` |
 | oapi-codegen | v2.8.1 | `proxy.golang.org` |
+| benchstat (`golang.org/x/perf`, sans tag : pseudo-version) | v0.0.0-20261009192801-be2c69fb417e | `proxy.golang.org` |
+| `getkin/kin-openapi` (dépendance d'oapi-codegen) | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
 | Numéros de téléphone (`nyaruka/phonenumbers`) | v1.8.1 | `proxy.golang.org` |
 | IBAN (`jacoelho/banking`) | v1.13.0 | `proxy.golang.org` |
 | JSON Schema (`santhosh-tekuri/jsonschema/v6`) | v6.0.3 | `proxy.golang.org` |
@@ -26,7 +28,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | cosign / syft | v3.1.4 / v1.55.0 | GitHub releases |
 | OpenAPI | 3.2.1 publiée ; **à vérifier** : prise en charge par oapi-codegen, sinon 3.1.1 | `OAI/OpenAPI-Specification` |
 
-Outils de développement épinglés avec la directive `tool` de `go.mod` (`go tool govulncheck`, `go tool gofumpt`, `go tool benchstat`, `go tool oapi-codegen`). golangci-lint s'installe en binaire à la version ci-dessus, comme le recommande son projet.
+Outils de développement épinglés avec la directive `tool` de `go.mod` (`go tool govulncheck`, `go tool gofumpt`, `go tool benchstat`, `go tool oapi-codegen`). Leurs dépendances se vérifient avec `go tool govulncheck tool`. golangci-lint s'installe en binaire à la version ci-dessus, comme le recommande son projet.
 
 ## Go
 
