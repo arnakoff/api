@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arnakoff/api/compare/v0.4.0...v0.5.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** add the IBAN value object ([#107](https://github.com/arnakoff/api/issues/107)) ([666e7f7](https://github.com/arnakoff/api/commit/666e7f7d03b4138a9e5dd6b1b1cacf7f30a11758)), closes [#17](https://github.com/arnakoff/api/issues/17)
+
 ## [0.4.0](https://github.com/arnakoff/api/compare/v0.3.0...v0.4.0) (2026-10-29)
 
 
