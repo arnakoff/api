@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/arnakoff/api/compare/v0.11.0...v0.12.0) (2026-10-29)
+
+
+### Features
+
+* **platform:** wire the redacting logger into every command ([#122](https://github.com/arnakoff/api/issues/122)) ([cbed709](https://github.com/arnakoff/api/commit/cbed7098a752bdfbb1df6db2761d260530d6810f)), closes [#117](https://github.com/arnakoff/api/issues/117)
+
 ## [0.11.0](https://github.com/arnakoff/api/compare/v0.10.0...v0.11.0) (2026-10-29)
 
 
