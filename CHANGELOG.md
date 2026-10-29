@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/arnakoff/api/compare/v0.10.0...v0.11.0) (2026-10-29)
+
+
+### Features
+
+* **platform:** add the bounded in-memory cache with call deduplication ([#120](https://github.com/arnakoff/api/issues/120)) ([835aca8](https://github.com/arnakoff/api/commit/835aca8b3f1463d38bc856a10ee5777912569aea)), closes [#24](https://github.com/arnakoff/api/issues/24)
+
 ## [0.10.0](https://github.com/arnakoff/api/compare/v0.9.0...v0.10.0) (2026-10-29)
 
 
