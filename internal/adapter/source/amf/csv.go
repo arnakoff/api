@@ -5,12 +5,12 @@ package amf
 import (
 	"bufio"
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"time"
+
+	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // ErrFormat means a file is not laid out as docs/sources.md records it.
@@ -22,37 +22,12 @@ var bom = []byte("\xef\xbb\xbf")
 
 // newReader returns a reader of the AMF CSV r, past its byte order mark if
 // any, after checking that its header is want.
-func newReader(r io.Reader, want []string) (*csv.Reader, error) {
+func newReader(r io.Reader, want []string) (*csvfile.Reader, error) {
 	br := bufio.NewReader(r)
 	if b, err := br.Peek(len(bom)); err == nil && bytes.Equal(b, bom) {
 		_, _ = br.Discard(len(bom))
 	}
-	cr := csv.NewReader(br)
-	cr.Comma = ';'
-	cr.ReuseRecord = true
-	head, err := cr.Read()
-	if err != nil || !slices.Equal(head, want) {
-		return nil, fmt.Errorf("%w: header of %d fields", ErrFormat, len(head))
-	}
-	return cr, nil
-}
-
-// eachRecord calls add with every record after the header, and stops at the
-// first error, located by line.
-func eachRecord(cr *csv.Reader, add func(rec []string) error) error {
-	for {
-		rec, err := cr.Read()
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("%w: %w", ErrFormat, err)
-		}
-		if err := add(rec); err != nil {
-			line, _ := cr.FieldPos(0)
-			return fmt.Errorf("line %d: %w", line, err)
-		}
-	}
+	return csvfile.Open(br, want, ErrFormat)
 }
 
 // parseDate reads the AAAA-MM-JJ date of the named column.
