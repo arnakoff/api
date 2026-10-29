@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/arnakoff/api/compare/v0.8.0...v0.9.0) (2026-10-29)
+
+
+### Features
+
+* **platform:** add the redacting structured logger ([#115](https://github.com/arnakoff/api/issues/115)) ([119b2ce](https://github.com/arnakoff/api/commit/119b2ce0c210fea3d0e3641d905aa3bdd281ef0d)), closes [#22](https://github.com/arnakoff/api/issues/22)
+
 ## [0.8.0](https://github.com/arnakoff/api/compare/v0.7.0...v0.8.0) (2026-10-29)
 
 
