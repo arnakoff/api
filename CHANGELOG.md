@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/arnakoff/api/compare/v0.3.0...v0.4.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** add the phone value object ([#104](https://github.com/arnakoff/api/issues/104)) ([19c4ea2](https://github.com/arnakoff/api/commit/19c4ea2058a0e2fd0e85cafff3fce6671d7afca1)), closes [#16](https://github.com/arnakoff/api/issues/16)
+
 ## [0.3.0](https://github.com/arnakoff/api/compare/v0.2.0...v0.3.0) (2026-10-29)
 
 
