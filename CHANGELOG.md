@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/arnakoff/api/compare/v0.14.0...v0.15.0) (2026-10-29)
+
+
+### Features
+
+* **source:** add the amf blacklist connector ([#128](https://github.com/arnakoff/api/issues/128)) ([dfaa19e](https://github.com/arnakoff/api/commit/dfaa19e6b2fb2ff401e845aa982d1b7b13961868)), closes [#28](https://github.com/arnakoff/api/issues/28)
+
 ## [0.14.0](https://github.com/arnakoff/api/compare/v0.13.0...v0.14.0) (2026-10-29)
 
 
