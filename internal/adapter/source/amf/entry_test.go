@@ -15,6 +15,8 @@ func TestClassify(t *testing.T) {
 		{nom: "www.BourseBinaire.fr", kind: "domain", key: "www.boursebinaire.fr", ok: true},
 		{nom: "https://www.groupe-ytria.com", kind: "domain", key: "www.groupe-ytria.com", ok: true},
 		{nom: "http://audubert-conseil.com", kind: "domain", key: "audubert-conseil.com", ok: true},
+		{nom: "ttps://www.alphacap.fr/", kind: "domain", key: "www.alphacap.fr", ok: true},
+		{nom: "ftp://armen.ltd"},
 		{nom: "optimalduck.autos/?", kind: "domain", key: "optimalduck.autos", ok: true},
 		{nom: "calendly.com/amf-france", kind: "domain", key: "calendly.com", path: "/amf-france", ok: true},
 		{nom: "www.vantagemarkets.com/fr/", kind: "domain", key: "www.vantagemarkets.com", path: "/fr/", ok: true},
@@ -32,10 +34,10 @@ func TestClassify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.nom, func(t *testing.T) {
 			t.Parallel()
-			kind, key, path, ok := classify(tt.nom)
-			if kind != tt.kind || key != tt.key || path != tt.path || ok != tt.ok {
-				t.Errorf("classify(%q) = %q, %q, %q, %v, want %q, %q, %q, %v",
-					tt.nom, kind, key, path, ok, tt.kind, tt.key, tt.path, tt.ok)
+			k, ok := classify(tt.nom)
+			if k.kind != tt.kind || k.value != tt.key || k.path != tt.path || ok != tt.ok {
+				t.Errorf("classify(%q) = %+v, %v, want %q, %q, %q, %v",
+					tt.nom, k, ok, tt.kind, tt.key, tt.path, tt.ok)
 			}
 		})
 	}

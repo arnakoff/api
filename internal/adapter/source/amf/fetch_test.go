@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/httpclient"
 )
 
@@ -50,6 +51,13 @@ func serveFixture(t *testing.T) http.HandlerFunc {
 
 func newFetcher(t *testing.T, srv *httptest.Server, cfg httpclient.Config) *Fetcher {
 	t.Helper()
+	return NewBlacklist(newClient(t, srv, cfg), srv.URL+"/dataset/")
+}
+
+// newClient returns a client that trusts and allows srv only, with one
+// attempt per call.
+func newClient(t *testing.T, srv *httptest.Server, cfg httpclient.Config) *httpclient.Client {
+	t.Helper()
 	u, err := url.Parse(srv.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +71,7 @@ func newFetcher(t *testing.T, srv *httptest.Server, cfg httpclient.Config) *Fetc
 	if err != nil {
 		t.Fatalf("httpclient.New() error = %v", err)
 	}
-	return NewFetcher(c, srv.URL+"/dataset/")
+	return c
 }
 
 func TestFetch(t *testing.T) {
@@ -74,8 +82,8 @@ func TestFetch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Fetch() error = %v", err)
 	}
-	if snap.Source != Source || len(snap.Rows) != 23 {
-		t.Errorf("Fetch() = %s with %d rows, want %s with 23", snap.Source, len(snap.Rows), Source)
+	if snap.Source != BlacklistSource || len(snap.Rows) != 23 {
+		t.Errorf("Fetch() = %s with %d rows, want %s with 23", snap.Source, len(snap.Rows), BlacklistSource)
 	}
 }
 
@@ -149,10 +157,45 @@ func TestFetchErrors(t *testing.T) {
 	}
 }
 
+// lists are the three AMF lists with their trimmed fixture and the rows it
+// gives.
+var lists = []struct {
+	source  domain.Source
+	newList func(Getter, string) *Fetcher
+	fixture string
+	rows    int
+}{
+	{BlacklistSource, NewBlacklist, csvFixture, 23},
+	{PSANSource, NewPSAN, psanFixture, 28},
+	{OffersSource, NewOffers, offersFixture, 8},
+}
+
+func TestFetchEachList(t *testing.T) {
+	t.Parallel()
+	for _, l := range lists {
+		t.Run(string(l.source), func(t *testing.T) {
+			t.Parallel()
+			body := readFixture(t, l.fixture)
+			meta := datasetPointingTo(t, func(srvURL string) string { return srvURL + "/file.csv" })
+			srv := upstream(t, meta, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) })
+			f := l.newList(newClient(t, srv, httpclient.Config{}), srv.URL+"/dataset/")
+			snap, err := f.Fetch(t.Context())
+			if err != nil {
+				t.Fatalf("Fetch() error = %v", err)
+			}
+			if snap.Source != l.source || len(snap.Rows) != l.rows {
+				t.Errorf("Fetch() = %s with %d rows, want %s with %d", snap.Source, len(snap.Rows), l.source, l.rows)
+			}
+		})
+	}
+}
+
 func TestSpec(t *testing.T) {
 	t.Parallel()
-	spec := NewFetcher(nil, DatasetURL).Spec()
-	if spec.Source != Source || len(spec.Columns) == 0 || spec.MinRows <= 0 {
-		t.Errorf("Spec() = %+v", spec)
+	for _, l := range lists {
+		spec := l.newList(nil, "").Spec()
+		if spec.Source != l.source || len(spec.Columns) == 0 || spec.MinRows <= l.rows/2 {
+			t.Errorf("Spec() = %+v", spec)
+		}
 	}
 }

@@ -15,10 +15,18 @@ Inventaire contraignant : une source absente de ce fichier n'est pas utilisée. 
 
 ## Listes blanches AMF
 
-- **Éditeur** : AMF. **Licence** : Licence Ouverte 2.0.
-- **Accès** : data.gouv.fr, jeux `653135cf052c9a87787413c2` (PSAN, prestataires sur actifs numériques) et `65709c9cae162fbc34e7ec05` (offres en biens divers).
-- **Fraîcheur** : quotidienne.
-- **Usage** : signal `info` « acteur enregistré auprès de l'AMF », jamais une garantie.
+Deux sources distinctes, chacune avec son instantané, son minimum de lignes et son contrôle de baisse de 20 % (décision du propriétaire, 29/10/2026) : « AMF PSAN » et « AMF biens divers ».
+
+- **Éditeur** : AMF. **Licence** : Licence Ouverte 2.0 (`lov2`), réutilisation commerciale autorisée.
+- **Accès** : data.gouv.fr, un seul fichier CSV `main` par jeu, URL horodatée à résoudre via l'API comme pour la liste noire : jeux `653135cf052c9a87787413c2` (PSAN) et `65709c9cae162fbc34e7ec05` (biens divers). Fichiers servis par `object-api.infra.data.gouv.fr`.
+- **Format** : UTF-8 avec BOM, champs entre guillemets, séparateur `;`, fin de ligne `LF`, dates ISO.
+  - PSAN : `no_amf;entite_nom;forme_juridique;pays_siege;site_internet;email;telephone;no_registre_national;lei;nature_autorisation;date_debut_autorisation;date_fin_autorisation;motif_fin_autorisation;statut;libelle_type_activite;libelle_activite;date_debut_activite;date_fin_activite;date_de_publication`. Une ligne par activité d'un prestataire. `statut` vaut `Agréé` ou `Radié` ; `nature_autorisation` `Enregistrement`, `Agrément MICA` ou `Agrément Pacte` ; `date_fin_autorisation` vide tant que l'autorisation court. `forme_juridique` est toujours vide.
+  - Biens divers : `no_amf;offre_nom;url_offre;telephone;date_enregistrement;date_de_publication`. Une ligne par offre ; `url_offre` et `telephone` souvent vides.
+- **Contenu PSAN** : `no_registre_national` est un SIREN pour les prestataires français (135, tous valides) et un numéro de registre étranger sinon ; les prestataires passeportés depuis un autre pays de l'UE partagent le numéro `N/A - Passeport` (164). La colonne `email` contient parfois l'URL d'un formulaire de contact (10 prestataires), `site_internet` parfois deux sites séparés par une espace, une fois une faute (`ttps://`, corrigée). Un champ `telephone` contient deux numéros et est écarté ; un autre finit par une espace insécable.
+- **Fraîcheur** : quotidienne annoncée ; dernière autorisation PSAN observée le 23/10/2026, dernière offre enregistrée le 27/01/2026.
+- **Référence** (29/10/2026) : PSAN 1 168 lignes, 158 numéros AMF (37 agréés, 121 radiés), 607 lignes retenues (314 sites, 101 adresses, 57 numéros, 135 SIREN) ; biens divers 12 offres, 12 lignes retenues (6 sites, 6 numéros).
+- **Données personnelles** : non, les entrées sont des personnes morales.
+- **Usage** : signal `info` « acteur enregistré auprès de l'AMF », jamais une garantie ; un prestataire `Radié` reste listé avec sa date de fin.
 
 ## Liste noire ACPR (ABE Info Service)
 
