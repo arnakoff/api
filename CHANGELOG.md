@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/arnakoff/api/compare/v0.13.0...v0.14.0) (2026-10-29)
+
+
+### Features
+
+* **sync:** store snapshots on disk with a checksum and atomic replace ([#126](https://github.com/arnakoff/api/issues/126)) ([fdfc6c5](https://github.com/arnakoff/api/commit/fdfc6c5c93fd20fea3723b295648f9cffe009fe8)), closes [#27](https://github.com/arnakoff/api/issues/27)
+
 ## [0.13.0](https://github.com/arnakoff/api/compare/v0.12.0...v0.13.0) (2026-10-29)
 
 
