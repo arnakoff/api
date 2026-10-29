@@ -143,7 +143,10 @@ func inFrenchPlan(code int) bool {
 }
 
 // Redacted returns a form safe for logs, the country code and the last two
-// digits only: "+33***78".
+// digits only: "+33***78". The zero value gives "***".
 func (p Phone) Redacted() string {
+	if p.national == "" {
+		return "***"
+	}
 	return "+" + strconv.Itoa(p.code) + "***" + p.national[len(p.national)-2:]
 }

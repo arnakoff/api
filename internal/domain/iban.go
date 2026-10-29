@@ -89,7 +89,10 @@ func (i IBAN) FrenchBankCode() (string, bool) {
 }
 
 // Redacted returns a form safe for logs, the country and the last four
-// characters only: "FR***2606".
+// characters only: "FR***2606". The zero value gives "***".
 func (i IBAN) Redacted() string {
+	if i.value == "" {
+		return "***"
+	}
 	return i.value[:2] + "***" + i.value[len(i.value)-4:]
 }
