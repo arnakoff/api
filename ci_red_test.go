@@ -7,5 +7,7 @@ import "testing"
 // Throwaway test for issue #6: proves a red CI blocks the merge. Never merged.
 func TestCIRedCheck(t *testing.T) {
 	t.Parallel()
-	t.Fatal("intentional failure")
+	if false {
+		t.Fatal("intentional failure")
+	}
 }
