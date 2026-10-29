@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/arnakoff/api/compare/v0.1.0...v0.2.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** add the domain value object ([#98](https://github.com/arnakoff/api/issues/98)) ([9902fe7](https://github.com/arnakoff/api/commit/9902fe76e17888cac4ab96efcc4d81129763d89a)), closes [#14](https://github.com/arnakoff/api/issues/14)
+
 ## 0.1.0 (2026-10-29)
 
 
