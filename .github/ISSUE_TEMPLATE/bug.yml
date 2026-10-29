@@ -1,0 +1,45 @@
+name: Bogue
+description: Une réponse incorrecte de l'API, un signal faux ou manquant, une erreur de synchronisation ou du serveur MCP.
+labels: [type:bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de ton signalement. Vérifie d'abord qu'aucune issue ouverte ne décrit déjà ce problème.
+        **N'écris ici aucune donnée personnelle** : ni e-mail, ni numéro de téléphone, ni IBAN réels. Remplace-les par des valeurs fictives qui reproduisent le problème.
+        Une faille de sécurité se signale [en privé](https://github.com/arnakoff/api/security/advisories/new), jamais ici.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Composant
+      options:
+        - API HTTP
+        - Signal faux ou manquant
+        - Synchronisation des sources
+        - Serveur MCP
+        - Autre
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Ce qui se passe
+      description: La requête envoyée, la réponse reçue (code HTTP, corps), et ce que tu attendais à la place.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire
+      placeholder: |
+        1. Appelle…
+        2. Avec l'entrée…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version ou commit
+      description: La version de l'API (ou le commit si tu l'héberges toi-même), et la date de l'appel.
+    validations:
+      required: true

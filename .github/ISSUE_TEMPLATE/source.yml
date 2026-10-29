@@ -1,0 +1,53 @@
+name: Demande de source
+description: Proposer une liste noire, un registre ou un jeu de données ouvert comme nouvelle source de signaux.
+labels: [source]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Une source n'est utilisée que si sa licence autorise la réutilisation commerciale, et chaque signal cite son éditeur. Les sources déjà utilisées ou étudiées sont dans [`docs/sources.md`](https://github.com/arnakoff/api/blob/main/docs/sources.md).
+  - type: input
+    id: name
+    attributes:
+      label: Nom de la source
+      placeholder: Liste noire des sites de trading non autorisés
+    validations:
+      required: true
+  - type: input
+    id: publisher
+    attributes:
+      label: Éditeur
+      description: L'organisme qui publie et tient à jour les données.
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      description: La page du jeu de données ou du fichier téléchargeable.
+      placeholder: https://www.data.gouv.fr/datasets/…
+    validations:
+      required: true
+  - type: input
+    id: licence
+    attributes:
+      label: Licence
+      description: Le nom de la licence et le lien vers la mention qui l'indique. Si aucune licence n'est indiquée, écris-le.
+      placeholder: Licence Ouverte 2.0
+    validations:
+      required: true
+  - type: input
+    id: frequency
+    attributes:
+      label: Fréquence de mise à jour
+      description: Annoncée par l'éditeur ou constatée, en précisant laquelle.
+      placeholder: Quotidienne (annoncée)
+    validations:
+      required: true
+  - type: textarea
+    id: signal
+    attributes:
+      label: Signal attendu
+      description: Quelles entrées (site, e-mail, téléphone, IBAN, SIREN) la source permettrait de vérifier, et ce qu'elle indiquerait.
+    validations:
+      required: true
