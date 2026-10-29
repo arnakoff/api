@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/arnakoff/api/compare/v0.6.0...v0.7.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** detect the kind of a pasted input ([#111](https://github.com/arnakoff/api/issues/111)) ([6df76cf](https://github.com/arnakoff/api/commit/6df76cf6e2ab849de65c902f3f5845d9b8164446)), closes [#19](https://github.com/arnakoff/api/issues/19)
+
 ## [0.6.0](https://github.com/arnakoff/api/compare/v0.5.0...v0.6.0) (2026-10-29)
 
 
