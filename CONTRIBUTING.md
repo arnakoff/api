@@ -13,7 +13,11 @@ En participant, tu acceptes le [code de conduite](https://github.com/arnakoff/.g
 
 ## Accord de contribution (CLA)
 
-Avant la fusion de ta première pull request, tu signes un accord de contribution ([ADR 0003](docs/adr/0003-licences.md)). Sa mise en place est en cours ([#11](https://github.com/arnakoff/api/issues/11)) ; d'ici là, aucune contribution externe n'est fusionnée.
+Avant la fusion de ta première pull request, tu signes l'[accord de contribution](https://gist.github.com/EnO33/bd7ba34d77c8cd46555bfbdc53a1401d) ([ADR 0003](docs/adr/0003-licences.md)). Tu gardes tes droits sur ta contribution et tu accordes au projet une licence non exclusive, qui lui permet de la distribuer sous AGPL-3.0 et, en parallèle, sous une licence commerciale. Seul le texte de l'accord fait foi.
+
+- À l'ouverture de ta pull request, CLA assistant y ajoute un commentaire avec un lien de signature ; tu signes avec ton compte GitHub. Tu peux aussi signer d'avance sur [cla-assistant.io/arnakoff/api](https://cla-assistant.io/arnakoff/api).
+- Si tu as écrit la contribution dans le cadre de ton emploi, ton employeur doit approuver l'accord avant que tu le signes.
+- Si l'accord change, CLA assistant te demande de le signer à nouveau à ta pull request suivante.
 
 ## Règles de code
 

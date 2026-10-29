@@ -15,6 +15,7 @@
 - [ ] `golangci-lint run`
 - [ ] `go test -race -shuffle=on ./...`
 - [ ] `go tool govulncheck ./... tool`
+- [ ] External contributors: I have signed the [contributor licence agreement](https://cla-assistant.io/arnakoff/api)
 
 Part of #
 
