@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/arnakoff/api/compare/v0.2.0...v0.3.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** add the email value object ([#102](https://github.com/arnakoff/api/issues/102)) ([7bb9a4e](https://github.com/arnakoff/api/commit/7bb9a4e2ee272947be65f0e39485006f62a5c396)), closes [#15](https://github.com/arnakoff/api/issues/15)
+
 ## [0.2.0](https://github.com/arnakoff/api/compare/v0.1.0...v0.2.0) (2026-10-29)
 
 
