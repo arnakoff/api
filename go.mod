@@ -15,6 +15,7 @@ require (
 	github.com/jacoelho/banking v1.13.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	golang.org/x/net v0.62.0
+	golang.org/x/sync v0.24.0
 )
 
 require (
@@ -33,7 +34,6 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e // indirect
-	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261010193011-f71dc92da45e // indirect
 	golang.org/x/text v0.43.0 // indirect
