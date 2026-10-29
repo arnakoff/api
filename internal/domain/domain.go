@@ -54,6 +54,11 @@ func ParseDomain(s string) (Domain, error) {
 	if err != nil {
 		return Domain{}, err
 	}
+	return parseHostname(host)
+}
+
+// parseHostname normalises a bare host name, with no URL around it.
+func parseHostname(host string) (Domain, error) {
 	name, err := normaliseName(host)
 	if err != nil {
 		return Domain{}, err
