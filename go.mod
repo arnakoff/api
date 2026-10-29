@@ -12,6 +12,7 @@ tool (
 )
 
 require (
+	github.com/jacoelho/banking v1.13.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	golang.org/x/net v0.62.0
 )
