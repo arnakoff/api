@@ -3,10 +3,10 @@
 package api_test
 
 import (
-	"bufio"
+	"bytes"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 )
 
@@ -18,18 +18,19 @@ var skippedDirs = map[string]bool{".git": true, ".claude": true, "var": true, "d
 func TestGoFiles_startWithSPDXHeader(t *testing.T) {
 	t.Parallel()
 
-	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+	module := os.DirFS(".")
+	err := fs.WalkDir(module, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() && skippedDirs[d.Name()] {
-			return filepath.SkipDir
+			return fs.SkipDir
 		}
-		if d.IsDir() || filepath.Ext(path) != ".go" {
+		if d.IsDir() || path.Ext(name) != ".go" {
 			return nil
 		}
-		if line := firstLine(t, path); line != spdxHeader {
-			t.Errorf("%s: first line is %q, want %q", path, line, spdxHeader)
+		if line := firstLine(t, module, name); line != spdxHeader {
+			t.Errorf("%s: first line is %q, want %q", name, line, spdxHeader)
 		}
 		return nil
 	})
@@ -38,18 +39,13 @@ func TestGoFiles_startWithSPDXHeader(t *testing.T) {
 	}
 }
 
-func firstLine(t *testing.T, path string) string {
+func firstLine(t *testing.T, fsys fs.FS, name string) string {
 	t.Helper()
 
-	f, err := os.Open(path)
+	data, err := fs.ReadFile(fsys, name)
 	if err != nil {
-		t.Fatalf("open %s: %v", path, err)
+		t.Fatalf("read %s: %v", name, err)
 	}
-	defer f.Close()
-
-	sc := bufio.NewScanner(f)
-	if !sc.Scan() {
-		return ""
-	}
-	return sc.Text()
+	line, _, _ := bytes.Cut(data, []byte("\n"))
+	return string(bytes.TrimSuffix(line, []byte("\r")))
 }

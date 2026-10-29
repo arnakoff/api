@@ -1,0 +1,104 @@
+# golangci-lint v2.15.0 configuration (docs/standards.md).
+# Options checked against .golangci.reference.yml at tag v2.15.0.
+version: "2"
+
+run:
+  # Paths in exclusions are relative to go.mod.
+  relative-path-mode: gomod
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - exhaustive
+    - funlen
+    - gocognit
+    - gocritic
+    - gosec
+    - noctx
+    - nolintlint
+    - revive
+
+  settings:
+    # Clean architecture layer rule (ADR 0002): dependencies point inwards only.
+    depguard:
+      rules:
+        domain:
+          list-mode: lax
+          files:
+            - "**/internal/domain/**"
+          deny:
+            - pkg: github.com/arnakoff/api/internal/app
+              desc: domain is the innermost layer (ADR 0002)
+            - pkg: github.com/arnakoff/api/internal/adapter
+              desc: domain is the innermost layer (ADR 0002)
+            - pkg: github.com/arnakoff/api/internal/platform
+              desc: domain is pure Go, no technical helpers (ADR 0002)
+        app:
+          list-mode: lax
+          files:
+            - "**/internal/app/**"
+          deny:
+            - pkg: github.com/arnakoff/api/internal/adapter
+              desc: app declares ports, adapters implement them (ADR 0002)
+            - pkg: github.com/arnakoff/api/internal/platform
+              desc: app depends on domain only (ADR 0002)
+        platform:
+          list-mode: lax
+          files:
+            - "**/internal/platform/**"
+          deny:
+            - pkg: github.com/arnakoff/api/internal/domain
+              desc: platform holds technical helpers only (ADR 0002)
+            - pkg: github.com/arnakoff/api/internal/app
+              desc: platform holds technical helpers only (ADR 0002)
+            - pkg: github.com/arnakoff/api/internal/adapter
+              desc: platform holds technical helpers only (ADR 0002)
+        cmd:
+          list-mode: lax
+          deny:
+            - pkg: github.com/arnakoff/api/cmd
+              desc: cmd holds composition roots, never imported (ADR 0002)
+
+    exhaustive:
+      check:
+        - switch
+        - mapliteral
+
+    # CLAUDE.md: a function fits on a screen, aim under 40 lines.
+    funlen:
+      lines: 40
+      statements: 40
+
+    # Not set by CLAUDE.md; the low end of the 10-20 range the linter recommends.
+    gocognit:
+      min-complexity: 15
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+  exclusions:
+    rules:
+      # Table-driven tests keep their cases in one literal.
+      - path: _test\.go
+        linters:
+          - funlen
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      module-path: github.com/arnakoff/api
+    goimports:
+      local-prefixes:
+        - github.com/arnakoff/api
