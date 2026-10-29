@@ -52,7 +52,7 @@ func ParseBlacklist(r io.Reader) (domain.Snapshot, error) {
 		return domain.Snapshot{}, err
 	}
 	snap := domain.Snapshot{Source: BlacklistSource, Header: blacklistColumns}
-	if err := eachRecord(cr, func(rec []string) error { return addListing(&snap, rec) }); err != nil {
+	if err := cr.Each(func(rec []string) error { return addListing(&snap, rec) }); err != nil {
 		return domain.Snapshot{}, err
 	}
 	return snap, nil

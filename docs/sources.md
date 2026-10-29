@@ -58,10 +58,18 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 
 ## Numérotation ARCEP (MAJNUM)
 
-- **Éditeur** : ARCEP. **Licence** : à confirmer sur le site de l'ARCEP.
-- **Accès** : `https://extranet.arcep.fr/uploads/MAJNUM.csv` (environ 1,1 Mo).
-- **Format** : Latin-1, séparateur `;`, colonnes `EZABPQM;Tranche_Debut;Tranche_Fin;Mnémo;Territoire;Date_Attribution`.
-- **Usage** : opérateur attributaire d'une tranche, numéro non attribué. Ne dit rien de la réputation d'un numéro.
+Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier des opérateurs pour nommer l'attributaire de chaque tranche.
+
+- **Éditeur** : Autorité de régulation des communications électroniques, des postes et de la distribution de la presse (ARCEP).
+- **Licence** : Licence Ouverte (`fr-lo`, version 1.0), réutilisation commerciale autorisée avec mention de la source, relevée sur les jeux data.gouv.fr `575067fe88ee382bfa84e966` (« Ressources en numérotation téléphonique ») et `5750609f88ee3808bf84e966` (« Identifiants de communications électroniques ») le 29/10/2026.
+- **Accès** : `https://extranet.arcep.fr/uploads/MAJNUM.csv` (environ 1,1 Mo) et `https://extranet.arcep.fr/uploads/identifiants_CE.csv` (environ 170 Ko), URL fixes, exports complets (pas de delta).
+- **Format** : « ANSI » d'après l'éditeur, lu en Windows-1252 (aucun octet de 0x80 à 0x9F observé : identique à Latin-1 sur les fichiers actuels), séparateur `;`, fin de ligne `CRLF`, champs entre guillemets seulement quand nécessaire, dates `JJ/MM/AAAA`.
+  - MAJNUM : `EZABPQM;Tranche_Debut;Tranche_Fin;Mnémo;Territoire;Date_Attribution`. Bornes de même longueur et commençant par le préfixe : 10 chiffres (20 631 tranches), 4 ou 6 chiffres pour les numéros courts (`3620`, `118218`), 13 ou 14 chiffres pour les numéros `070` des objets connectés. Aucune tranche ne chevauche une autre. `Territoire` : `Métropole`, `National`, `Guadeloupe, St Martin et St Barthélemy`, `La Réunion`, `La Réunion - Océan indien`, `Martinique`, `Guyane`, `Mayotte`, `Saint Pierre et Miquelon`.
+  - Opérateurs : `IDENTITE_OPERATEUR;CODE_OPERATEUR;SIRET_ACTEUR;RCS_ACTEUR;ADRESSE_COMPLETE_ACTEUR;ATTRIB_RESS_NUM;DATE_DECLARATION_OPERATEUR`. `CODE_OPERATEUR` est le `Mnémo` de MAJNUM, unique. `SIRET_ACTEUR` contient un SIRET (parfois en groupes), parfois un SIREN seul, vide pour un opérateur étranger.
+- **Fraîcheur** : MAJNUM mis à jour après chaque collège de l'ARCEP (fréquence data.gouv.fr : hebdomadaire), dernière attribution observée le 16/10/2026, fichier du 19/10/2026 ; opérateurs hebdomadaire.
+- **Référence** (29/10/2026) : 20 931 tranches de 424 opérateurs, tous présents dans le fichier des opérateurs (1 598 opérateurs) ; 20 105 tranches avec un SIREN, 826 d'opérateurs sans SIRET. Une discussion du jeu (12/04/2025) signale dans la mise à jour du 11/04/2025 des bornes en notation scientifique et des « 0 » initiaux perdus, corrigés le 26/05/2025 ; une autre (14/03/2025) des mnémoniques absents du fichier des opérateurs. Un fichier dont une borne n'est pas un nombre, ou dont la longueur sort du plan (un numéro commençant par 0 a au moins 10 chiffres, un numéro court au plus 6), est rejeté ; un attributaire absent du fichier des opérateurs est gardé avec son seul mnémonique.
+- **Données personnelles** : le fichier des opérateurs vise des personnes morales mais cite au moins un entrepreneur individuel (non attributaire de numéros). Décision du propriétaire (29/10/2026) : seuls le nom et le SIREN des attributaires d'une tranche entrent dans l'instantané ; l'adresse n'est pas gardée.
+- **Usage** : opérateur attributaire de la tranche d'un numéro, numéro hors de toute tranche attribuée. Ne dit rien de l'utilisateur d'un numéro, qui a pu être porté chez un autre opérateur, ni de sa réputation.
 
 ## Refusées
 

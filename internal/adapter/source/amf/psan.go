@@ -93,7 +93,7 @@ func ParsePSAN(r io.Reader) (domain.Snapshot, error) {
 	}
 	snap := domain.Snapshot{Source: PSANSource, Header: psanColumns}
 	seen := make(map[string]bool)
-	err = eachRecord(cr, func(rec []string) error {
+	err = cr.Each(func(rec []string) error {
 		rows, from, err := psanRows(rec)
 		if err != nil {
 			return err

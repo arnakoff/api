@@ -50,7 +50,7 @@ func ParseOffers(r io.Reader) (domain.Snapshot, error) {
 		return domain.Snapshot{}, err
 	}
 	snap := domain.Snapshot{Source: OffersSource, Header: offersColumns}
-	if err := eachRecord(cr, func(rec []string) error { return addOffer(&snap, rec) }); err != nil {
+	if err := cr.Each(func(rec []string) error { return addOffer(&snap, rec) }); err != nil {
 		return domain.Snapshot{}, err
 	}
 	return snap, nil

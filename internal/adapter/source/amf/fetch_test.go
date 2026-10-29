@@ -4,17 +4,16 @@ package amf
 
 import (
 	"context"
-	"crypto/x509"
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/httpclient"
+	"github.com/arnakoff/api/internal/platform/httpclient/httpclienttest"
 )
 
 // realFileURL is the file URL in the dataset fixture, swapped for the test
@@ -51,27 +50,7 @@ func serveFixture(t *testing.T) http.HandlerFunc {
 
 func newFetcher(t *testing.T, srv *httptest.Server, cfg httpclient.Config) *Fetcher {
 	t.Helper()
-	return NewBlacklist(newClient(t, srv, cfg), srv.URL+"/dataset/")
-}
-
-// newClient returns a client that trusts and allows srv only, with one
-// attempt per call.
-func newClient(t *testing.T, srv *httptest.Server, cfg httpclient.Config) *httpclient.Client {
-	t.Helper()
-	u, err := url.Parse(srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pool := x509.NewCertPool()
-	pool.AddCert(srv.Certificate())
-	cfg.RootCAs = pool
-	cfg.AllowedHosts = []string{u.Host}
-	cfg.Attempts = 1
-	c, err := httpclient.New(cfg)
-	if err != nil {
-		t.Fatalf("httpclient.New() error = %v", err)
-	}
-	return c
+	return NewBlacklist(httpclienttest.NewClient(t, srv, cfg), srv.URL+"/dataset/")
 }
 
 func TestFetch(t *testing.T) {
@@ -178,7 +157,7 @@ func TestFetchEachList(t *testing.T) {
 			body := readFixture(t, l.fixture)
 			meta := datasetPointingTo(t, func(srvURL string) string { return srvURL + "/file.csv" })
 			srv := upstream(t, meta, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) })
-			f := l.newList(newClient(t, srv, httpclient.Config{}), srv.URL+"/dataset/")
+			f := l.newList(httpclienttest.NewClient(t, srv, httpclient.Config{}), srv.URL+"/dataset/")
 			snap, err := f.Fetch(t.Context())
 			if err != nil {
 				t.Fatalf("Fetch() error = %v", err)
