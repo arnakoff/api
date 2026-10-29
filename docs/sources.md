@@ -7,10 +7,11 @@ Inventaire contraignant : une source absente de ce fichier n'est pas utilisée. 
 - **Éditeur** : Autorité des marchés financiers.
 - **Licence** : Licence Ouverte 2.0 (`lov2`), réutilisation commerciale autorisée.
 - **Accès** : fichier CSV sur data.gouv.fr, jeu `641d5dab1d84b530f7720b08`. URL du fichier horodatée (`export_od_listesnoires_<début>_<fin>.csv`) : la résoudre via `https://www.data.gouv.fr/api/1/datasets/641d5dab1d84b530f7720b08/`.
-- **Format** : UTF-8 avec BOM, séparateur `;`, colonnes `nom;categorie;date_inscription` (date ISO). Catégories multiples séparées par `|`.
+- **Format** : UTF-8 avec BOM, champs entre guillemets, séparateur `;`, fin de ligne `LF`, colonnes `nom;categorie;date_inscription` (date ISO). Catégories multiples séparées par `|` (76 lignes), libellés avec `_` (`Produits_dérivés_sur_crypto-actifs`, `Biens_divers/Or`). Le fichier est servi par `object-api.infra.data.gouv.fr`, environ 190 Ko.
+- **Contenu de `nom`** : un site (`armen.ltd`, parfois avec `https://`, 146 avec un chemin vers une page précise comme `calendly.com/amf-france`), une adresse e-mail (souvent générique, `prénom.nom@<domaine>`), ou un nom libre. Quelques fautes de saisie : point final (`prénom.nom@lgt-bp.com.`, corrigé), extension inexistante (`support@amf-france.tram`, écartée). Des entrées figurent plusieurs fois avec des dates différentes ; chaque inscription est gardée.
 - **Fraîcheur** : quotidienne annoncée et observée.
-- **Référence** : 3 499 lignes (2 550 domaines, 919 e-mails, 30 noms) ; 350 à 430 inscriptions par an.
-- **Données personnelles** : non (sites, adresses génériques, sociétés).
+- **Référence** (29/10/2026) : 3 499 lignes (2 550 domaines, 919 e-mails, 30 noms), dernière inscription le 08/10/2026 ; 3 466 lignes retenues dans l'instantané. 350 à 430 inscriptions par an.
+- **Données personnelles** : oui pour une partie des noms libres, qui citent des personnes physiques. Décision du propriétaire (29/10/2026) : les noms libres sont écartés de l'instantané et des fixtures ; seuls les sites et les adresses e-mail sont gardés.
 
 ## Listes blanches AMF
 
