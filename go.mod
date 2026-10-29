@@ -11,7 +11,10 @@ tool (
 	mvdan.cc/gofumpt
 )
 
-require golang.org/x/net v0.62.0
+require (
+	github.com/nyaruka/phonenumbers v1.8.1
+	golang.org/x/net v0.62.0
+)
 
 require (
 	github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 // indirect
@@ -35,6 +38,7 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/vuln v1.9.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mvdan.cc/gofumpt v0.12.0 // indirect
 )
