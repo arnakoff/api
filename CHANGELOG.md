@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/arnakoff/api/compare/v0.7.0...v0.8.0) (2026-10-29)
+
+
+### Features
+
+* **platform:** add the outbound HTTP client ([#113](https://github.com/arnakoff/api/issues/113)) ([8ff1b03](https://github.com/arnakoff/api/commit/8ff1b0333d6a7bf64ac5913076bab6f5542489cf)), closes [#21](https://github.com/arnakoff/api/issues/21)
+
 ## [0.7.0](https://github.com/arnakoff/api/compare/v0.6.0...v0.7.0) (2026-10-29)
 
 
