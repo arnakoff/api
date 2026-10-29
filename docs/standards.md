@@ -23,7 +23,8 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | `golangci/golangci-lint-action` | v9.3.0, épinglée par SHA | GitHub releases |
 | `github/codeql-action` | v4.39.1, épinglée par SHA | GitHub tags |
 | `docker/build-push-action` | v7.4.0, épinglée par SHA | GitHub releases |
-| `googleapis/release-please-action` | v5.0.0, épinglée par SHA | GitHub releases |
+| `googleapis/release-please-action` | v5.0.0 (moteur release-please `^17.6.0`, schéma de configuration lu en v17.11.2), épinglée par SHA | GitHub releases |
+| `actions/create-github-app-token` | v3.3.0, épinglée par SHA | GitHub releases |
 | `ossf/scorecard-action` | v2.5.0, épinglée par SHA | GitHub releases |
 | cosign / syft | v3.1.4 / v1.55.0 | GitHub releases |
 | OpenAPI | 3.2.1 publiée ; **à vérifier** : prise en charge par oapi-codegen, sinon 3.1.1 | `OAI/OpenAPI-Specification` |

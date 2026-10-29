@@ -1,0 +1,44 @@
+# Release Please: opens the release pull request from Conventional Commits on
+# main, then tags vX.Y.Z and publishes the GitHub release when it is merged.
+# Configuration in release-please-config.json (docs/standards.md, verified
+# 29/10/2026 against release-please-action v5.0.0 and release-please v17.11.2).
+#
+# The token comes from the arnakoff GitHub App, not GITHUB_TOKEN: pull requests
+# opened with GITHUB_TOKEN do not trigger workflows, so the required CI check
+# would never run on the release pull request (release-please-action README).
+# Setup is described in CONTRIBUTING.md.
+# Actions are pinned by full commit SHA (docs/standards.md).
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Least privilege, as listed in the release-please-action README:
+          # tags and releases, the release pull request and its labels.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
