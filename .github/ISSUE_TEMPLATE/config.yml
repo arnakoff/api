@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Signaler une faille de sécurité
+    url: https://github.com/arnakoff/api/security/advisories/new
+    about: En privé, par le signalement de vulnérabilités de GitHub, jamais dans une issue publique. Voir la politique de sécurité de l'organisation.
+  - name: Tu penses être victime d'une arnaque
+    url: https://github.com/arnakoff/.github/blob/main/SUPPORT.md
+    about: Arnakoff ne traite pas les signalements individuels. Cette page liste les services officiels.
+  - name: Un problème sur le site ou la documentation
+    url: https://github.com/arnakoff/web/issues/new/choose
+    about: Le site arnakoff.com a son propre dépôt.

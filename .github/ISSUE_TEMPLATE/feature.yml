@@ -1,0 +1,28 @@
+name: Fonctionnalité
+description: Un nouveau signal, un nouveau type d'entrée, un changement de l'API ou du serveur MCP.
+labels: [type:feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vérifie d'abord qu'aucune issue ouverte ne décrit déjà ce besoin, et regarde la [feuille de route](https://github.com/orgs/arnakoff/projects/1).
+        Pour proposer une nouvelle source de données, utilise plutôt le formulaire « Demande de source ».
+  - type: textarea
+    id: need
+    attributes:
+      label: Besoin
+      description: Le problème que tu rencontres, et pour qui.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposition
+      description: Ce que l'API ou le serveur MCP devrait faire, avec un exemple de requête et de réponse si possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: Ce que tu fais aujourd'hui à la place, ou d'autres solutions possibles.
