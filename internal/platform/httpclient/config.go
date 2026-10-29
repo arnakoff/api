@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"time"
+
+	"github.com/arnakoff/api/internal/platform/defaults"
 )
 
 // DefaultUserAgent identifies Arnakoff to upstreams and points to the
@@ -102,13 +104,11 @@ func (cfg Config) withDefaults() (Config, error) {
 	return cfg, nil
 }
 
-// orDefault sets a zero *field to def and rejects a negative one.
-func orDefault[T int | int64 | time.Duration](name string, field *T, def T) error {
-	switch {
-	case *field < 0:
-		return fmt.Errorf("%w: negative %s %v", ErrInvalidConfig, name, *field)
-	case *field == 0:
-		*field = def
+// orDefault sets a zero *field to def and rejects a negative one with
+// ErrInvalidConfig.
+func orDefault[T ~int | ~int64](name string, field *T, def T) error {
+	if err := defaults.Set(name, field, def); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 	}
 	return nil
 }
