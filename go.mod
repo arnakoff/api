@@ -11,6 +11,8 @@ tool (
 	mvdan.cc/gofumpt
 )
 
+require golang.org/x/net v0.62.0
+
 require (
 	github.com/aclements/go-moremath v0.0.0-20210112150236-f10218a38794 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
