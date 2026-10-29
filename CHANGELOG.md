@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arnakoff/api/compare/v0.5.0...v0.6.0) (2026-10-29)
+
+
+### Features
+
+* **domain:** add the SIREN and SIRET value objects ([#109](https://github.com/arnakoff/api/issues/109)) ([33eddf5](https://github.com/arnakoff/api/commit/33eddf5fd7cf600128a2f5f567172ccb6f4b478f)), closes [#18](https://github.com/arnakoff/api/issues/18)
+
 ## [0.5.0](https://github.com/arnakoff/api/compare/v0.4.0...v0.5.0) (2026-10-29)
 
 
