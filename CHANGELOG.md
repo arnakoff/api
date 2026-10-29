@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/arnakoff/api/compare/v0.16.0...v0.17.0) (2026-10-29)
+
+
+### Features
+
+* **source:** add the arcep numbering plan connector ([#132](https://github.com/arnakoff/api/issues/132)) ([77be82e](https://github.com/arnakoff/api/commit/77be82e42dbde8075b871c497e1b01f5021415da)), closes [#32](https://github.com/arnakoff/api/issues/32)
+
 ## [0.16.0](https://github.com/arnakoff/api/compare/v0.15.0...v0.16.0) (2026-10-29)
 
 
