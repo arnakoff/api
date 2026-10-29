@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/arnakoff/api/compare/v0.15.0...v0.16.0) (2026-10-29)
+
+
+### Features
+
+* **source:** add the amf psan and biens divers white lists ([#130](https://github.com/arnakoff/api/issues/130)) ([8ae444c](https://github.com/arnakoff/api/commit/8ae444c617e4a4b4a778f93fd69aacb6182b3bae))
+
 ## [0.15.0](https://github.com/arnakoff/api/compare/v0.14.0...v0.15.0) (2026-10-29)
 
 
