@@ -9,7 +9,7 @@ import "os"
 // syncDir flushes the directory entry of a renamed file to disk, so the
 // rename survives a crash.
 func syncDir(dir string) error {
-	f, err := os.Open(dir)
+	f, err := os.Open(dir) //nolint:gosec // G304: dir is the store directory from the configuration.
 	if err != nil {
 		return err
 	}
