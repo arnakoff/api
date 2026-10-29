@@ -19,6 +19,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | Numéros de téléphone (`nyaruka/phonenumbers`) | v1.8.1 | `proxy.golang.org` |
 | IBAN (`jacoelho/banking`) | v1.13.0 | `proxy.golang.org` |
 | JSON Schema (`santhosh-tekuri/jsonschema/v6`) | v6.0.3 | `proxy.golang.org` |
+| Noms de domaine (`golang.org/x/net` : `idna`, `publicsuffix`) | v0.62.0 (publiée le 27/10/2026, retenue malgré le délai de carence : la v0.61.0 est touchée par GO-2026-6860 et GO-2026-6866, dans `x/net/html`) | `proxy.golang.org`, `vuln.go.dev` |
 | `actions/checkout` / `actions/setup-go` | v7.0.1 / v7.0.0, épinglées par SHA | GitHub releases |
 | `golangci/golangci-lint-action` | v9.3.0, épinglée par SHA | GitHub releases |
 | `github/codeql-action` | v4.39.1, épinglée par SHA | GitHub tags |
