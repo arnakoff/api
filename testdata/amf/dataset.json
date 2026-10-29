@@ -1,0 +1,18 @@
+{
+  "id": "641d5dab1d84b530f7720b08",
+  "title": "Listes noires des entités non autorisées à proposer des produits ou services financiers en France ",
+  "license": "lov2",
+  "frequency": "daily",
+  "last_update": "2026-10-29T07:30:01+00:00",
+  "resources": [
+    {
+      "id": "d2d9df6d-1cd2-41a8-96f5-684cb3057ecb",
+      "title": "listes-noires",
+      "format": "csv",
+      "type": "main",
+      "url": "https://object-api.infra.data.gouv.fr/amf/LISTES_NOIRES/export_od_listesnoires_20261029080000_20261029083000.csv",
+      "last_modified": "2026-10-29T07:30:01+00:00",
+      "mime": "string"
+    }
+  ]
+}
