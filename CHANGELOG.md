@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/arnakoff/api/compare/v0.12.0...v0.13.0) (2026-10-29)
+
+
+### Features
+
+* **app:** add the sync use case with validation and atomic swap ([#124](https://github.com/arnakoff/api/issues/124)) ([1f48990](https://github.com/arnakoff/api/commit/1f489905ffb58fa5d27ca700dd1593ed84c51b97)), closes [#26](https://github.com/arnakoff/api/issues/26)
+
 ## [0.12.0](https://github.com/arnakoff/api/compare/v0.11.0...v0.12.0) (2026-10-29)
 
 
