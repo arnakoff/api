@@ -1,0 +1,38 @@
+# Dependabot version updates (docs/standards.md, supply chain).
+# Options checked on 29/10/2026 against the GitHub "Dependabot options reference".
+# Commit prefixes follow Conventional Commits: `prefix` plus `include: scope`
+# gives `build(deps): …` and `ci(deps): …`.
+# The `docker` ecosystem joins once the Dockerfile exists (#68): Dependabot
+# requires a manifest in the directory it scans.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    labels:
+      - type:chore
+    groups:
+      gomod-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    labels:
+      - type:chore
+      - area:ci
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - minor
+          - patch
