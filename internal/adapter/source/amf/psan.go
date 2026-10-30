@@ -10,12 +10,13 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // PSANSource is the name of the AMF white list of digital asset service
 // providers (PSAN and MiCA providers), as shown to users.
-const PSANSource domain.Source = "AMF PSAN"
+const PSANSource = signal.PSANSource
 
 // PSANDatasetURL is the data.gouv.fr API page of the PSAN dataset.
 const PSANDatasetURL = "https://www.data.gouv.fr/api/1/datasets/653135cf052c9a87787413c2/"
@@ -62,8 +63,17 @@ const (
 	psanStatus    = 13
 )
 
+// Statuses of a PSAN authorisation.
+const (
+	// StatusAuthorised is the status of a running authorisation.
+	StatusAuthorised = "Agréé"
+	// StatusWithdrawn is the status of an authorisation that ended; its row
+	// gives the end date.
+	StatusWithdrawn = "Radié"
+)
+
 // psanStatuses are the statuses the file uses.
-var psanStatuses = []string{"Agréé", "Radié"}
+var psanStatuses = []string{StatusAuthorised, StatusWithdrawn}
 
 // psanMinRows is the least number of rows a sane file gives. On 29/10/2026
 // the file gave 607: withdrawn providers stay listed as "Radié", so the
@@ -145,10 +155,13 @@ func psanAuthorisation(rec []string) ([]string, time.Time, error) {
 	if err != nil {
 		return nil, time.Time{}, err
 	}
-	if until := rec[psanUntil]; until != "" {
+	switch until := rec[psanUntil]; {
+	case until != "":
 		if _, err := parseDate(psanHeader[psanUntil], until); err != nil {
 			return nil, time.Time{}, err
 		}
+	case rec[psanStatus] == StatusWithdrawn:
+		return nil, time.Time{}, errEmpty(psanHeader[psanUntil])
 	}
 	return []string{
 		rec[psanAMFNumber], strings.TrimSpace(rec[psanName]), rec[psanCountry],

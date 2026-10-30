@@ -98,6 +98,7 @@ func TestParsePSANErrors(t *testing.T) {
 		{"no authorisation", header + row(func(r []string) { r[9] = "" })},
 		{"French start date", header + row(func(r []string) { r[10] = "17/03/2020" })},
 		{"French end date", header + row(func(r []string) { r[11] = "07/05/2026" })},
+		{"withdrawn without an end date", header + row(func(r []string) { r[11] = "" })},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

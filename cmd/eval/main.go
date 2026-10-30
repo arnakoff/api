@@ -44,7 +44,7 @@ func main() {
 	}))
 }
 
-// run scores the corpus against the blacklists stored in snapshotDir and
+// run scores the corpus against the lists stored in snapshotDir and
 // writes the report to out. Online, it records the registries' answers to
 // the corpus's replay directory.
 func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) error {
@@ -60,7 +60,7 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 	if err != nil {
 		return err
 	}
-	lists, err := blacklists(ctx, snapshotDir)
+	lists, err := storedLists(ctx, snapshotDir)
 	if err != nil {
 		return err
 	}
@@ -78,9 +78,9 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 	return corpus.WriteReport(out, score, opts.without)
 }
 
-// registries returns the blacklists and the live registries recorded on
-// the tape, or the tape's alone offline, less those the run leaves out.
-func registries(opts options, tape *replay.Tape, lists []app.Blacklist) (app.Registries, error) {
+// registries returns the lists and the live registries recorded on the
+// tape, or the tape's alone offline, less those the run leaves out.
+func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Registries, error) {
 	var live app.Registries
 	if !opts.offline {
 		var err error
@@ -89,28 +89,29 @@ func registries(opts options, tape *replay.Tape, lists []app.Blacklist) (app.Reg
 		}
 	}
 	regs := tape.Registries(live)
-	regs.Blacklists = lists
+	regs.Blacklists, regs.Whitelists = lists.Blacklists, lists.Whitelists
 	return regs.Without(opts.leftOut), nil
 }
 
-// blacklists returns the AMF and ACPR blacklists of the snapshots stored in
-// dir, as the API serves them. The ACPR one is read whatever the
-// configuration: the corpus measures it (testdata/corpus/README.md). A
-// blacklist without a stored snapshot is reported unavailable.
-func blacklists(ctx context.Context, dir string) ([]app.Blacklist, error) {
+// storedLists returns the AMF and ACPR blacklists and the AMF white lists
+// of the snapshots stored in dir, as the API serves them. The ACPR
+// blacklist is read whatever the configuration: the corpus measures it
+// (testdata/corpus/README.md). A list without a stored snapshot is
+// reported unavailable.
+func storedLists(ctx context.Context, dir string) (app.Registries, error) {
 	disk, err := store.NewDisk(dir)
 	if err != nil {
-		return nil, err
+		return app.Registries{}, err
 	}
 	opts := catalog.Options{ACPR: true}
 	s, err := app.NewSync(disk, clock.System{}, catalog.New(catalog.Offline{}, opts).Fetchers()...)
 	if err != nil {
-		return nil, err
+		return app.Registries{}, err
 	}
 	if err := s.Restore(ctx); err != nil {
-		return nil, err
+		return app.Registries{}, err
 	}
-	return catalog.Blacklists(opts, s), nil
+	return app.Registries{Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s)}, nil
 }
 
 // liveRegistries returns the RDAP, SIRENE and BODACC clients, each with an

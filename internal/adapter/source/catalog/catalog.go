@@ -15,6 +15,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/source/arcep"
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/domain/signal"
 )
 
@@ -149,6 +150,27 @@ func Blacklists(opts Options, snaps listing.Snapshots) []app.Blacklist {
 			rule := b.rule()
 			out = append(out, app.Blacklist{Rule: rule, Reader: listing.NewReader(snaps, rule.Source())})
 		}
+	}
+	return out
+}
+
+// whitelists are the white lists among the sources, with the rule each
+// one's authorisations follow and how its snapshot is indexed.
+var whitelists = []struct {
+	rule  func() signal.Whitelist
+	build func(domain.Snapshot) (*domain.Whitelist, error)
+}{
+	{signal.AMFPSANWhitelist, amf.PSANWhitelist},
+	{signal.AMFOffersWhitelist, amf.OffersWhitelist},
+}
+
+// Whitelists returns the white lists, each read from the snapshot of its
+// source in snaps, for app.Registries.
+func Whitelists(snaps listing.Snapshots) []app.Whitelist {
+	out := make([]app.Whitelist, 0, len(whitelists))
+	for _, w := range whitelists {
+		rule := w.rule()
+		out = append(out, app.Whitelist{Rule: rule, Reader: listing.NewWhitelistReader(snaps, rule.Source(), w.build)})
 	}
 	return out
 }

@@ -7,11 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain"
 )
 
@@ -29,61 +26,18 @@ type Snapshots interface {
 // snapshot in service once, at the first read after it is swapped in, and
 // is safe for concurrent use.
 type Reader struct {
-	snapshots Snapshots
-	source    domain.Source
-
-	build   sync.Mutex // one indexing at a time
-	current atomic.Pointer[index]
-}
-
-// index is the blacklist of the snapshot fetched at fetchedAt, or why it
-// could not be built.
-type index struct {
-	fetchedAt time.Time
-	list      *domain.Blacklist
-	err       error
+	cache cache[*domain.Blacklist]
 }
 
 // NewReader returns the Reader of the blacklist of source in snapshots.
 func NewReader(snapshots Snapshots, source domain.Source) *Reader {
-	return &Reader{snapshots: snapshots, source: source}
+	return &Reader{cache: cache[*domain.Blacklist]{snapshots: snapshots, source: source, build: blacklistOf}}
 }
 
 // Blacklist returns the blacklist in service and when it was fetched,
 // app.ErrNoSnapshot when none is, or ErrSnapshot when it is malformed.
 func (r *Reader) Blacklist() (*domain.Blacklist, time.Time, error) {
-	snap, ok := r.snapshots.Snapshot(r.source)
-	if !ok {
-		return nil, time.Time{}, fmt.Errorf("blacklist %s: %w", r.source, app.ErrNoSnapshot)
-	}
-	idx := r.current.Load()
-	if idx == nil || !idx.fetchedAt.Equal(snap.FetchedAt) {
-		idx = r.index(snap)
-	}
-	return idx.list, idx.fetchedAt, idx.err
-}
-
-// index builds and keeps the index of snap, unless another read did. While
-// one read builds it, the others keep the previous index, if any, rather
-// than wait.
-func (r *Reader) index(snap domain.Snapshot) *index {
-	if !r.build.TryLock() {
-		if idx := r.current.Load(); idx != nil {
-			return idx
-		}
-		r.build.Lock()
-	}
-	defer r.build.Unlock()
-	if idx := r.current.Load(); idx != nil && idx.fetchedAt.Equal(snap.FetchedAt) {
-		return idx
-	}
-	idx := &index{fetchedAt: snap.FetchedAt}
-	idx.list, idx.err = blacklistOf(snap)
-	if idx.err != nil {
-		idx.err = fmt.Errorf("blacklist %s: %w", r.source, idx.err)
-	}
-	r.current.Store(idx)
-	return idx
+	return r.cache.get()
 }
 
 // Positions of the blacklist columns in a row.
@@ -120,9 +74,9 @@ func add(list *domain.Blacklist, row []string) error {
 	if row[posPath] != "" {
 		return nil
 	}
-	listedOn, err := time.Parse(time.DateOnly, row[posListedOn])
+	listedOn, err := ParseDate(ColumnListedOn, row[posListedOn])
 	if err != nil {
-		return fmt.Errorf("%w: %s not AAAA-MM-JJ", ErrSnapshot, ColumnListedOn)
+		return err
 	}
 	l := domain.Listing{ListedOn: listedOn}
 	if cats := row[posCategories]; cats != "" {
@@ -150,4 +104,13 @@ func addEntry(list *domain.Blacklist, kind, key string, l domain.Listing) error 
 		return fmt.Errorf("%w: kind neither %s nor %s", ErrSnapshot, domain.KindDomain, domain.KindEmail)
 	}
 	return nil
+}
+
+// ParseDate reads the AAAA-MM-JJ date of column in a snapshot row.
+func ParseDate(column, s string) (time.Time, error) {
+	t, err := time.Parse(time.DateOnly, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%w: %s not AAAA-MM-JJ", ErrSnapshot, column)
+	}
+	return t, nil
 }

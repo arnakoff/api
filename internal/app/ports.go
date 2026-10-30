@@ -99,3 +99,11 @@ type BlacklistReader interface {
 	// read-only.
 	Blacklist() (*domain.Blacklist, time.Time, error)
 }
+
+// WhitelistReader reads a white list held in memory.
+type WhitelistReader interface {
+	// Whitelist returns the white list in service and when it was fetched,
+	// or ErrNoSnapshot when none is. The white list is shared: treat it as
+	// read-only.
+	Whitelist() (*domain.Whitelist, time.Time, error)
+}
