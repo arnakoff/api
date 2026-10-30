@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/arnakoff/api/compare/v0.18.0...v0.19.0) (2026-10-30)
+
+
+### Features
+
+* **sync:** schedule source syncs, alert on failure and hot-reload snapshots ([#136](https://github.com/arnakoff/api/issues/136)) ([e728ff2](https://github.com/arnakoff/api/commit/e728ff25e7fc5215f467e7fb8e2347dc963a185a)), closes [#33](https://github.com/arnakoff/api/issues/33)
+
 ## [0.18.0](https://github.com/arnakoff/api/compare/v0.17.0...v0.18.0) (2026-10-30)
 
 
