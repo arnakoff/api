@@ -15,7 +15,10 @@ import (
 	"github.com/arnakoff/api/internal/adapter/registry/rdap"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
 	"github.com/arnakoff/api/internal/adapter/registry/sirene"
+	"github.com/arnakoff/api/internal/adapter/source/catalog"
+	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/httpclient"
 	"github.com/arnakoff/api/internal/platform/startup"
@@ -36,14 +39,15 @@ func main() {
 	if err != nil {
 		os.Exit(exitUsage)
 	}
-	os.Exit(startup.Run("eval", os.LookupEnv, os.Stderr, func(ctx context.Context, _ config.Config) error {
-		return run(ctx, opts, os.Stdout)
+	os.Exit(startup.Run("eval", os.LookupEnv, os.Stderr, func(ctx context.Context, cfg config.Config) error {
+		return run(ctx, opts, cfg.SnapshotDir(), os.Stdout)
 	}))
 }
 
-// run scores the corpus and writes the report to out. Online, it records
-// the registries' answers to the corpus's replay directory.
-func run(ctx context.Context, opts options, out io.Writer) error {
+// run scores the corpus against the blacklists stored in snapshotDir and
+// writes the report to out. Online, it records the registries' answers to
+// the corpus's replay directory.
+func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) error {
 	cases, err := corpus.Load(opts.corpus)
 	if err != nil {
 		return err
@@ -56,7 +60,11 @@ func run(ctx context.Context, opts options, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	regs, err := registries(opts, tape)
+	lists, err := blacklists(ctx, snapshotDir)
+	if err != nil {
+		return err
+	}
+	regs, err := registries(opts, tape, lists)
 	if err != nil {
 		return err
 	}
@@ -70,9 +78,9 @@ func run(ctx context.Context, opts options, out io.Writer) error {
 	return corpus.WriteReport(out, score, opts.without)
 }
 
-// registries returns the live registries recorded on the tape, or the
-// tape's alone offline, less those the run leaves out.
-func registries(opts options, tape *replay.Tape) (app.Registries, error) {
+// registries returns the blacklists and the live registries recorded on
+// the tape, or the tape's alone offline, less those the run leaves out.
+func registries(opts options, tape *replay.Tape, lists []app.Blacklist) (app.Registries, error) {
 	var live app.Registries
 	if !opts.offline {
 		var err error
@@ -80,7 +88,29 @@ func registries(opts options, tape *replay.Tape) (app.Registries, error) {
 			return app.Registries{}, err
 		}
 	}
-	return tape.Registries(live).Without(opts.leftOut), nil
+	regs := tape.Registries(live)
+	regs.Blacklists = lists
+	return regs.Without(opts.leftOut), nil
+}
+
+// blacklists returns the AMF and ACPR blacklists of the snapshots stored in
+// dir, as the API serves them. The ACPR one is read whatever the
+// configuration: the corpus measures it (testdata/corpus/README.md). A
+// blacklist without a stored snapshot is reported unavailable.
+func blacklists(ctx context.Context, dir string) ([]app.Blacklist, error) {
+	disk, err := store.NewDisk(dir)
+	if err != nil {
+		return nil, err
+	}
+	opts := catalog.Options{ACPR: true}
+	s, err := app.NewSync(disk, clock.System{}, catalog.New(catalog.Offline{}, opts).Fetchers()...)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Restore(ctx); err != nil {
+		return nil, err
+	}
+	return catalog.Blacklists(opts, s), nil
 }
 
 // liveRegistries returns the RDAP, SIRENE and BODACC clients, each with an

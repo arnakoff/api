@@ -44,7 +44,7 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 				t.Errorf("Sources() = %v, want %v", got.Sources(), tt.want)
 			}
 			if len(got.Signals()) != 0 {
-				t.Errorf("Signals() = %v, want none: no rule is wired yet", got.Signals())
+				t.Errorf("Signals() = %v, want none: no registry rule is wired yet", got.Signals())
 			}
 			r.assertAsked(t, tt.domains, tt.sirens)
 		})
@@ -117,7 +117,7 @@ func states(rdap, sirene, bodacc domain.SourceStatus) []domain.SourceState {
 }
 
 // parse parses in, detecting its kind.
-func parse(t *testing.T, in string) domain.Input {
+func parse(t testing.TB, in string) domain.Input {
 	t.Helper()
 	v, err := domain.ParseInput(in, domain.KindAuto)
 	if err != nil {
@@ -130,18 +130,29 @@ func TestRegistriesWithout(t *testing.T) {
 	t.Parallel()
 
 	r := newRegistries().all()
-	got := r.Without(func(s domain.Source) bool { return s == "RDAP" || s == "BODACC" })
+	r.Blacklists = blacklists(fakeBlacklist{}, fakeBlacklist{})
+	got := r.Without(func(s domain.Source) bool { return s == "RDAP" || s == "BODACC" || s == "AMF" })
 
 	if got.Domains != nil || got.Companies == nil || got.Notices != nil {
 		t.Errorf("Without(RDAP, BODACC) = %+v, want SIRENE only", got)
 	}
-	if none := (app.Registries{}).Without(func(domain.Source) bool { return true }); none != (app.Registries{}) {
+	if len(got.Blacklists) != 1 || got.Blacklists[0].Rule.Source() != "ACPR" {
+		t.Errorf("Without(AMF) blacklists = %+v, want ACPR only", got.Blacklists)
+	}
+	if len(r.Blacklists) != 2 {
+		t.Errorf("Without changed the receiver's blacklists to %+v", r.Blacklists)
+	}
+	none := (app.Registries{}).Without(func(domain.Source) bool { return true })
+	if none.Domains != nil || none.Companies != nil || none.Notices != nil || len(none.Blacklists) != 0 {
 		t.Errorf("Without on no registry = %+v, want none", none)
 	}
 }
 
 func BenchmarkCheck(b *testing.B) {
-	check := app.NewCheck(benchRegistries{}.all())
+	regs := benchRegistries{}.all()
+	list := fakeBlacklist{list: blacklistOf(b, "Forex", "armen.ltd", "contact@paris-majeste.com")}
+	regs.Blacklists = blacklists(list, list)
+	check := app.NewCheck(regs)
 	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678"} {
 		v, err := domain.ParseInput(in, domain.KindAuto)
 		if err != nil {

@@ -25,7 +25,7 @@ func TestRunOfflineScoresTheCorpus(t *testing.T) {
 		`{"impots.gouv.fr": {"value": {"registered": "1999-01-01T00:00:00Z"}}}`)
 	var out strings.Builder
 
-	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr"}}, &out)
+	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr"}}, t.TempDir(), &out)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestRunOfflineLeavesOutTheRegistries(t *testing.T) {
 	writeFile(t, dir, "legit.csv", corpusHeader+"120027016,siren,legit,2026-10-30,\n")
 	var out strings.Builder
 
-	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"rdap", "sirene", "bodacc"}}, &out)
+	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr", "rdap", "sirene", "bodacc"}}, t.TempDir(), &out)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -60,10 +60,28 @@ func TestRunOfflineLeavesOutTheRegistries(t *testing.T) {
 	}
 }
 
+func TestRunReadsTheStoredBlacklists(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeFile(t, dir, "scam.csv", corpusHeader+"armen.ltd,domain,scam,2026-10-08,\n")
+	writeFile(t, dir, "legit.csv", corpusHeader+"120027016,siren,legit,2026-10-30,\n")
+	var out strings.Builder
+
+	// No snapshot is stored: the blacklists are consulted and unavailable.
+	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"rdap", "sirene", "bodacc"}}, t.TempDir(), &out)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if want := "| cases with a source unavailable | 1 / 2 |"; !strings.Contains(out.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, out.String())
+	}
+}
+
 func TestRunRejectsAMissingCorpus(t *testing.T) {
 	t.Parallel()
 
-	err := run(context.Background(), options{corpus: filepath.Join(t.TempDir(), "missing"), offline: true}, &strings.Builder{})
+	err := run(context.Background(), options{corpus: filepath.Join(t.TempDir(), "missing"), offline: true}, t.TempDir(), &strings.Builder{})
 	if err == nil {
 		t.Error("run of a missing corpus: want an error")
 	}

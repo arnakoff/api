@@ -4,6 +4,10 @@
 // testdata/corpus (scam.csv and legit.csv) and writes the eval-signals
 // table to standard output.
 //
+// It reads the AMF and ACPR blacklists from the snapshots cmd/sync stored in
+// ARNAKOFF_DATA_DIR/snapshots, as the API serves them; a blacklist
+// without a stored snapshot is reported unavailable.
+//
 // Online, the default, it asks the registries (RDAP, SIRENE, BODACC) and
 // records their answers to <corpus>/replay: an answer replaces the one
 // recorded for the same query, a failure keeps it. With

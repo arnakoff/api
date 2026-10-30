@@ -13,7 +13,9 @@ import (
 	"github.com/arnakoff/api/internal/adapter/source/acpr"
 	"github.com/arnakoff/api/internal/adapter/source/amf"
 	"github.com/arnakoff/api/internal/adapter/source/arcep"
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain/signal"
 )
 
 // Sync intervals, chosen from the freshness of each source
@@ -126,4 +128,27 @@ func (c *Catalog) Plans() []app.Plan {
 		ps[i] = app.Plan{Source: e.fetcher.Spec().Source, Every: e.every}
 	}
 	return ps
+}
+
+// blacklists are the blacklists among the sources, with the rule each
+// one's listings follow.
+var blacklists = []struct {
+	rule func() signal.Blacklist
+	on   func(Options) bool
+}{
+	{signal.AMFBlacklist, always},
+	{signal.ACPRBlacklist, acprOn},
+}
+
+// Blacklists returns the blacklists opts turns on, each read from the
+// snapshot of its source in snaps, for app.Registries.
+func Blacklists(opts Options, snaps listing.Snapshots) []app.Blacklist {
+	var out []app.Blacklist
+	for _, b := range blacklists {
+		if b.on(opts) {
+			rule := b.rule()
+			out = append(out, app.Blacklist{Rule: rule, Reader: listing.NewReader(snaps, rule.Source())})
+		}
+	}
+	return out
 }
