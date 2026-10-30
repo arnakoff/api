@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/arnakoff/api/compare/v0.20.0...v0.21.0) (2026-10-30)
+
+
+### Features
+
+* **registry:** add the sirene client for the api recherche d'entreprises ([#140](https://github.com/arnakoff/api/issues/140)) ([eba1868](https://github.com/arnakoff/api/commit/eba186844a26f158efe5eb3fcf025d35b48e4290)), closes [#36](https://github.com/arnakoff/api/issues/36)
+
 ## [0.20.0](https://github.com/arnakoff/api/compare/v0.19.0...v0.20.0) (2026-10-30)
 
 
