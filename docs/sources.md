@@ -48,8 +48,9 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 ## SIRENE (API Recherche d'entreprises)
 
 - **Éditeur** : DINUM, données INSEE. **Licence** : Licence Ouverte 2.0.
-- **Accès** : `https://recherche-entreprises.api.gouv.fr/search?q=<siren>`, sans clé, quotas publics à respecter.
-- **Champs utilisés** : `nom_complet`, `siege.etat_administratif` (`A` active, `F` fermée), `date_creation`.
+- **Accès** : `https://recherche-entreprises.api.gouv.fr/search?q=<siren>&minimal=true&include=siege&per_page=5`, sans clé. `minimal=true&include=siege` exclut les dirigeants (données personnelles), qui ne sont donc jamais téléchargés. La recherche est textuelle : seul le résultat dont le `siren` est celui demandé est retenu.
+- **Quotas** (documentation officielle, relevée le 30/10/2026) : au plus 7 requêtes par seconde par adresse IP et 30 par ASN ; au-delà, réponse 429 avec `Retry-After`. Le client s'en tient à 7 requêtes par seconde et respecte `Retry-After`. Les entreprises non diffusibles ne sont pas accessibles par cette API.
+- **Champs utilisés** : `siren`, `nom_complet`, `date_creation`, `siege.etat_administratif` (`A` active, `F` fermée), `siege.date_fermeture`.
 
 ## BODACC
 

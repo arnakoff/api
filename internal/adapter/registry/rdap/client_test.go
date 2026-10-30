@@ -267,14 +267,3 @@ func TestBootstrapHosts(t *testing.T) {
 		t.Errorf("BootstrapHosts() = %v, want [%s]", got, u.Host)
 	}
 }
-
-func TestThrottleCapsTheWait(t *testing.T) {
-	t.Parallel()
-	now := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
-	th := newThrottle(func() time.Time { return now })
-	th.wait("rdap.nic.fr", 365*24*time.Hour)
-	now = now.Add(maxThrottle)
-	if !th.allows("rdap.nic.fr") {
-		t.Errorf("allows() after %v = false, want true", maxThrottle)
-	}
-}

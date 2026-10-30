@@ -2,9 +2,13 @@
 
 package rdap
 
-import "time"
+import (
+	"time"
+
+	"github.com/arnakoff/api/internal/platform/throttle"
+)
 
 // SetNow replaces the clock that dates a registry's Retry-After.
 func (c *Client) SetNow(now func() time.Time) {
-	c.throttle.now = now
+	c.throttle = throttle.New(now)
 }
