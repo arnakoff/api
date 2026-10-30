@@ -2,7 +2,12 @@
 
 package rdap
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/arnakoff/api/internal/app"
+)
 
 var (
 	// ErrBootstrap means the IANA bootstrap file could not be read.
@@ -10,10 +15,10 @@ var (
 
 	// ErrNoServer means the bootstrap file names no HTTPS RDAP server for
 	// the domain's extension.
-	ErrNoServer = errors.New("no RDAP server for this extension")
+	ErrNoServer = fmt.Errorf("no RDAP server for this extension: %w", app.ErrNotCovered)
 
 	// ErrNotFound means the registry answered that it holds no such domain.
-	ErrNotFound = errors.New("domain not found in RDAP")
+	ErrNotFound = fmt.Errorf("domain not found in RDAP: %w", app.ErrNotFound)
 
 	// ErrThrottled means the registry asked to wait (Retry-After) and the
 	// wait is not over. No request was sent.

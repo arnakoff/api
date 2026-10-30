@@ -2,12 +2,17 @@
 
 package sirene
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/arnakoff/api/internal/app"
+)
 
 var (
 	// ErrNotFound means the API returned no company with this SIREN: it is
 	// unknown, or not open to the public (non-diffusible).
-	ErrNotFound = errors.New("company not found in SIRENE")
+	ErrNotFound = fmt.Errorf("company not found in SIRENE: %w", app.ErrNotFound)
 
 	// ErrThrottled means no request was sent: the API asked to wait
 	// (Retry-After) and the wait is not over, or the request rate would

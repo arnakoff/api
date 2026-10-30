@@ -42,6 +42,20 @@ func (k Kind) String() string {
 	return "Kind(" + strconv.Itoa(int(k)) + ")"
 }
 
+// ErrUnknownKind means a name is not the name of an input kind.
+var ErrUnknownKind = errors.New("unknown input kind")
+
+// ParseKind returns the kind named s, as Kind.String writes it, such as
+// "iban". "auto" is not a kind and is rejected.
+func ParseKind(s string) (Kind, error) {
+	for k := KindDomain; int(k) < len(kindNames); k++ {
+		if kindNames[k] == s {
+			return k, nil
+		}
+	}
+	return KindAuto, fmt.Errorf("%w: %q", ErrUnknownKind, s)
+}
+
 // Input is a parsed input: a Domain, an Email, a Phone, an IBAN, a SIREN or
 // a SIRET. Use a type switch to reach the value. String returns the
 // normalised form, which is personal data for an Email, a Phone and an IBAN.

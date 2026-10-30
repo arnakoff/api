@@ -181,3 +181,32 @@ func BenchmarkParseInput(b *testing.B) {
 		})
 	}
 }
+
+func TestParseKind(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []domain.Kind{
+		domain.KindDomain, domain.KindEmail, domain.KindPhone,
+		domain.KindIBAN, domain.KindSIREN, domain.KindSIRET,
+	} {
+		t.Run(want.String(), func(t *testing.T) {
+			t.Parallel()
+
+			got, err := domain.ParseKind(want.String())
+			if err != nil || got != want {
+				t.Errorf("ParseKind(%q) = %v, %v; want %v, nil", want.String(), got, err, want)
+			}
+		})
+	}
+}
+
+func TestParseKindRejects(t *testing.T) {
+	t.Parallel()
+
+	// "auto" is no kind: a corpus or a request names the kind it means.
+	for _, s := range []string{"", "auto", "Domain", "url", "Kind(9)"} {
+		if _, err := domain.ParseKind(s); !errors.Is(err, domain.ErrUnknownKind) {
+			t.Errorf("ParseKind(%q) error = %v, want ErrUnknownKind", s, err)
+		}
+	}
+}
