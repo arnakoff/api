@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/arnakoff/api/compare/v0.24.0...v0.25.0) (2026-10-30)
+
+
+### Features
+
+* **signal:** flag inputs listed on the amf and acpr blacklists ([#153](https://github.com/arnakoff/api/issues/153)) ([fcefbe2](https://github.com/arnakoff/api/commit/fcefbe2521536be97419de866535a89aed510d10)), closes [#41](https://github.com/arnakoff/api/issues/41)
+
 ## [0.24.0](https://github.com/arnakoff/api/compare/v0.23.1...v0.24.0) (2026-10-30)
 
 
