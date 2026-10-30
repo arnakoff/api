@@ -111,3 +111,44 @@ func TestNewReport_isNotChangedThroughSlices(t *testing.T) {
 		t.Errorf("Sources()[0].Status = %v after outside writes, want ok", got)
 	}
 }
+
+func TestNewReport_dropsRepeatedSignals(t *testing.T) {
+	t.Parallel()
+
+	a, b := signal("a", domain.LevelAlert), signal("b", domain.LevelInfo)
+	sameCodeOtherFact := a
+	sameCodeOtherFact.Message = "another entry of the same list"
+	r := domain.NewReport("example.fr", []domain.Signal{a, b, a, sameCodeOtherFact, b}, nil)
+
+	got := r.Signals()
+	want := []domain.Signal{a, sameCodeOtherFact, b}
+	if len(got) != len(want) {
+		t.Fatalf("Signals() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i].Code != want[i].Code || got[i].Message != want[i].Message {
+			t.Errorf("Signals()[%d] = %s %q, want %s %q", i, got[i].Code, got[i].Message, want[i].Code, want[i].Message)
+		}
+	}
+}
+
+func TestReportSummary(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		signals []domain.Signal
+		want    string
+	}{
+		{"no signal", nil, "Aucun signal connu dans nos sources"},
+		{"a signal", []domain.Signal{signal("a", domain.LevelInfo)}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := domain.NewReport("example.fr", tt.signals, nil).Summary(); got != tt.want {
+				t.Errorf("Summary() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

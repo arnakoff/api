@@ -139,3 +139,50 @@ func TestRegistriesWithout(t *testing.T) {
 		t.Errorf("Without on no registry = %+v, want none", none)
 	}
 }
+
+func BenchmarkCheck(b *testing.B) {
+	check := app.NewCheck(benchRegistries{}.all())
+	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678"} {
+		v, err := domain.ParseInput(in, domain.KindAuto)
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.Run(in, func(b *testing.B) {
+			b.ReportAllocs()
+			ctx := context.Background()
+			for b.Loop() {
+				check.Check(ctx, v)
+			}
+		})
+	}
+}
+
+// benchRegistries answers at once without recording, so that a benchmark
+// measures Check alone.
+type benchRegistries struct{}
+
+func (benchRegistries) all() app.Registries {
+	return app.Registries{Domains: benchDomains{}, Companies: benchCompanies{}, Notices: benchNotices{}}
+}
+
+type (
+	benchDomains   struct{}
+	benchCompanies struct{}
+	benchNotices   struct{}
+)
+
+func (benchDomains) Source() domain.Source   { return "RDAP" }
+func (benchCompanies) Source() domain.Source { return "SIRENE" }
+func (benchNotices) Source() domain.Source   { return "BODACC" }
+
+func (benchDomains) Lookup(context.Context, domain.Domain) (domain.Registration, error) {
+	return domain.Registration{}, nil
+}
+
+func (benchCompanies) Lookup(context.Context, domain.SIREN) (domain.Company, error) {
+	return domain.Company{}, nil
+}
+
+func (benchNotices) Notices(context.Context, domain.SIREN) ([]domain.Notice, error) {
+	return nil, nil
+}

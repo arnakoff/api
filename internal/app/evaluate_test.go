@@ -94,7 +94,7 @@ func (f fakeChecker) Check(_ context.Context, in domain.Input) domain.Report {
 	a := f[in.String()]
 	signals := make([]domain.Signal, len(a.signals))
 	for i, l := range a.signals {
-		signals[i] = domain.Signal{Code: "fake", Level: l}
+		signals[i] = domain.Signal{Code: "fake_" + l.String(), Level: l}
 	}
 	states := []domain.SourceState{{Source: "RDAP", Status: domain.SourceOK}}
 	if a.unavailable {
