@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/arnakoff/api/compare/v0.23.0...v0.23.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **registry:** read rdap event dates published without a time ([#147](https://github.com/arnakoff/api/issues/147)) ([f5b29b5](https://github.com/arnakoff/api/commit/f5b29b5f64cf3f05c6d00df98e6cb5ce9d683789)), closes [#144](https://github.com/arnakoff/api/issues/144)
+
 ## [0.23.0](https://github.com/arnakoff/api/compare/v0.22.0...v0.23.0) (2026-10-30)
 
 
