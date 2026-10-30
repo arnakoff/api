@@ -3,14 +3,18 @@
 package httpclient
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/arnakoff/api/internal/platform/clock"
 )
 
 // maxRedirects matches the limit of net/http's default policy.
@@ -49,8 +53,8 @@ func New(cfg Config) (*Client, error) {
 		timeout:   cfg.Timeout,
 		maxBody:   cfg.MaxBodyBytes,
 		retry:     retryPolicy{attempts: cfg.Attempts, base: cfg.BaseBackoff, max: cfg.MaxBackoff},
-		wait:      sleep,
-		now:       time.Now,
+		wait:      clock.System{}.Sleep,
+		now:       clock.System{}.Now,
 	}
 	c.http = &http.Client{Transport: newTransport(cfg), CheckRedirect: c.checkRedirect}
 	return c, nil
@@ -85,45 +89,94 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 // ErrBodyTooLarge, a *StatusError for a non-2xx answer, or the error of the
 // transport or of ctx.
 func (c *Client) Get(ctx context.Context, rawURL string) ([]byte, error) {
+	u, err := c.parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	body, err := c.send(ctx, request{method: http.MethodGet, url: u})
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", u, err)
+	}
+	return body, nil
+}
+
+// Post sends body to rawURL with the given content type and discards the
+// answer. It is retried like Get, so the receiver may get body twice. Its
+// errors, those of Get otherwise, never quote rawURL: a webhook URL carries
+// a secret.
+func (c *Client) Post(ctx context.Context, rawURL, contentType string, body []byte) error {
+	u, err := c.parse(rawURL)
+	if err != nil {
+		return err
+	}
+	if _, err := c.send(ctx, request{method: http.MethodPost, url: u, contentType: contentType, body: body}); err != nil {
+		return fmt.Errorf("post: %w", err)
+	}
+	return nil
+}
+
+// parse returns rawURL parsed, or ErrURLNotAllowed.
+func (c *Client) parse(rawURL string) (*url.URL, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || !c.hosts.allows(u) {
 		// The URL is left out: it may carry credentials.
 		return nil, ErrURLNotAllowed
 	}
+	return u, nil
+}
+
+// request is what Get and Post send, built anew at each attempt.
+type request struct {
+	method      string
+	url         *url.URL
+	contentType string
+	body        []byte
+}
+
+// send tries r until an answer is final and returns its body. Its errors
+// do not name the URL.
+func (c *Client) send(ctx context.Context, r request) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	for attempt := 1; ; attempt++ {
-		body, err := c.attempt(ctx, u)
+		body, err := c.attempt(ctx, r)
 		delay, ok := c.retry.next(attempt, err)
 		if !ok {
 			return body, err
 		}
 		if err := c.wait(ctx, delay); err != nil {
-			return nil, fmt.Errorf("get %s: wait before retry: %w", u, err)
+			return nil, fmt.Errorf("wait before retry: %w", err)
 		}
 	}
 }
 
-func (c *Client) attempt(ctx context.Context, u *url.URL) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), http.NoBody)
+func (c *Client) attempt(ctx context.Context, r request) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, r.method, r.url.String(), bytes.NewReader(r.body))
 	if err != nil {
-		return nil, fmt.Errorf("get %s: %w", u, err)
+		return nil, err
 	}
 	req.Header.Set("User-Agent", c.userAgent)
+	if r.contentType != "" {
+		req.Header.Set("Content-Type", r.contentType)
+	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err // A *url.Error, which already names the URL.
+		return nil, withoutURL(err)
 	}
 	defer func() { _ = resp.Body.Close() }() // The body is read in full; a close error changes nothing.
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, drainBytes))
-		return nil, fmt.Errorf("get %s: %w", u, c.statusError(resp))
+		return nil, c.statusError(resp)
 	}
-	body, err := readBody(resp, c.maxBody)
-	if err != nil {
-		return nil, fmt.Errorf("get %s: %w", u, err)
+	return readBody(resp, c.maxBody)
+}
+
+// withoutURL drops the URL a *url.Error quotes, keeping its cause.
+func withoutURL(err error) error {
+	if ue, ok := errors.AsType[*url.Error](err); ok {
+		return ue.Err
 	}
-	return body, nil
+	return err
 }
 
 func (c *Client) statusError(resp *http.Response) *StatusError {
@@ -145,16 +198,4 @@ func readBody(resp *http.Response, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("%w: limit %d bytes", ErrBodyTooLarge, limit)
 	}
 	return body, nil
-}
-
-// sleep pauses for d, or until ctx is done.
-func sleep(ctx context.Context, d time.Duration) error {
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
 }

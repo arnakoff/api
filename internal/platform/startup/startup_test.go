@@ -4,6 +4,7 @@ package startup_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -61,7 +62,7 @@ func TestRunStopsOnInvalidConfiguration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			called := false
-			code := startup.Run("api", env(tc.vars), &buf, func(config.Config) error { called = true; return nil })
+			code := startup.Run("api", env(tc.vars), &buf, func(context.Context, config.Config) error { called = true; return nil })
 			if code == 0 {
 				t.Errorf("Run() = 0, want non-zero")
 			}
@@ -93,17 +94,22 @@ func TestRunInstallsRedactingDefaultLogger(t *testing.T) {
 	restoreDefault(t)
 	var buf bytes.Buffer
 	var got config.Config
+	var ctxErr error
 	code := startup.Run("api", env(map[string]string{
 		config.EnvLogKey:   validKey,
 		config.EnvLogLevel: "warn",
-	}), &buf, func(cfg config.Config) error {
+	}), &buf, func(ctx context.Context, cfg config.Config) error {
 		got = cfg
+		ctxErr = ctx.Err()
 		slog.Info("dropped below warn")
 		slog.Warn("written", "email", redactable{})
 		return nil
 	})
 	if code != 0 {
 		t.Fatalf("Run() = %d, want 0; output %s", code, &buf)
+	}
+	if ctxErr != nil {
+		t.Errorf("run got a done context: %v", ctxErr)
 	}
 	if got.LogLevel != slog.LevelWarn {
 		t.Errorf("run got LogLevel %v, want WARN", got.LogLevel)
@@ -121,7 +127,7 @@ func TestRunLogsRunError(t *testing.T) {
 	restoreDefault(t)
 	var buf bytes.Buffer
 	code := startup.Run("eval", env(map[string]string{config.EnvLogKey: validKey}), &buf,
-		func(config.Config) error { return errors.New("corpus missing") })
+		func(context.Context, config.Config) error { return errors.New("corpus missing") })
 	if code == 0 {
 		t.Errorf("Run() = 0, want non-zero")
 	}

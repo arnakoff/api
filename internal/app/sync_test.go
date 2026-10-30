@@ -150,13 +150,10 @@ func TestSyncKeepsTheLastErrorAfterASuccess(t *testing.T) {
 func TestSyncRunSyncsEverySourceAndJoinsTheErrors(t *testing.T) {
 	t.Parallel()
 
-	acpr := domain.SnapshotSpec{Source: "ACPR", Columns: []string{"nom"}}
 	arcep := domain.SnapshotSpec{Source: "ARCEP", Columns: []string{"nom"}}
-	acprSnap := snapshot(10, time.Time{})
-	acprSnap.Source = "ACPR"
 	s, _ := newSync(t, newStore(),
 		newFetcher(amfSpec).then(domain.Snapshot{}, errUpstream),
-		newFetcher(acpr).then(acprSnap, nil),
+		newFetcher(acprSpec).then(acprSnapshot(10), nil),
 		newFetcher(arcep).then(domain.Snapshot{}, errDisk),
 	)
 

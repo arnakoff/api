@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/arnakoff/api/internal/platform/config"
@@ -15,6 +16,6 @@ func main() {
 
 // run is the work of the command, once its configuration is loaded and the
 // redacting logger is the slog default.
-func run(config.Config) error {
+func run(context.Context, config.Config) error {
 	return nil
 }

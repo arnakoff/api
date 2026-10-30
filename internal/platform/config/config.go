@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"path/filepath"
 	"strconv"
 
@@ -22,6 +23,8 @@ const (
 	EnvDataDir  = "ARNAKOFF_DATA_DIR"
 
 	EnvSourceACPR = "ARNAKOFF_SOURCE_ACPR"
+
+	EnvAlertWebhook = "ARNAKOFF_ALERT_WEBHOOK"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -61,6 +64,11 @@ type Config struct {
 	// SourceACPR turns the ACPR blacklist on, once its reuse licence is
 	// obtained.
 	SourceACPR bool
+
+	// AlertWebhook is the HTTPS URL a failed or rejected sync is posted
+	// to; nil when unset or empty, and then alerts are only logged. It is a
+	// Secret: a webhook URL usually carries its credential.
+	AlertWebhook Secret
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -81,6 +89,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvLogKey, "", &cfg.LogKey, parseKey),
 		parse(lookup, EnvDataDir, DefaultDataDir, &cfg.DataDir, parseDir),
 		parse(lookup, EnvSourceACPR, DefaultSourceACPR, &cfg.SourceACPR, strconv.ParseBool),
+		parse(lookup, EnvAlertWebhook, "", &cfg.AlertWebhook, parseWebhook),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
@@ -137,6 +146,24 @@ func parseKey(s string) (Secret, error) {
 		return nil, fmt.Errorf("%d bytes once decoded, want at least %d", len(b), MinLogKeyBytes)
 	}
 	return Secret(b), nil
+}
+
+// parseWebhook accepts an empty string, as no webhook, or an absolute HTTPS
+// URL with a host and no credentials. Its errors never quote the input.
+func parseWebhook(s string) (Secret, error) {
+	if s == "" {
+		return nil, nil
+	}
+	u, err := url.Parse(s)
+	switch {
+	case err != nil:
+		return nil, errors.New("not a URL")
+	case u.Scheme != "https" || u.Host == "":
+		return nil, errors.New("not an https:// URL with a host")
+	case u.User != nil:
+		return nil, errors.New("credentials before the host are not allowed")
+	}
+	return Secret(s), nil
 }
 
 // parseDir accepts a non-empty path and cleans it.

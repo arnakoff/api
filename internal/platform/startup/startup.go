@@ -3,9 +3,13 @@
 package startup
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/logging"
@@ -19,10 +23,11 @@ const (
 
 // Run sets the command name up and runs it: it loads the configuration with
 // lookup, such as os.LookupEnv, makes a redacting logger writing JSON lines
-// to w the slog default and calls run. It returns the process exit code: 0
+// to w the slog default and calls run with a context cancelled on SIGINT or
+// SIGTERM, so that the command stops cleanly. It returns the process exit code: 0
 // when run succeeds, 1 after logging the error otherwise. run is not called
 // when the configuration is invalid.
-func Run(name string, lookup func(string) (string, bool), w io.Writer, run func(config.Config) error) int {
+func Run(name string, lookup func(string) (string, bool), w io.Writer, run func(context.Context, config.Config) error) int {
 	cfg, logger, err := setup(lookup, w)
 	if err != nil {
 		// No key to mask with: configuration errors never quote a
@@ -31,7 +36,9 @@ func Run(name string, lookup func(string) (string, bool), w io.Writer, run func(
 		return exitFailure
 	}
 	slog.SetDefault(logger)
-	if err := run(cfg); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, cfg); err != nil {
 		fail(logger, name, "command failed", err)
 		return exitFailure
 	}

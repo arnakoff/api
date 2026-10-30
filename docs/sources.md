@@ -2,6 +2,10 @@
 
 Inventaire contraignant : une source absente de ce fichier n'est pas utilisée. Relevés du 29/10/2026 (étude de faisabilité).
 
+## Synchronisation
+
+`cmd/sync` télécharge chaque liste à son rythme (`internal/adapter/source/catalog`), plus un délai aléatoire d'au plus un dixième de l'intervalle : toutes les 6 heures les listes AMF (fraîcheur quotidienne) et la liste ACPR (fraîcheur non annoncée), toutes les 24 heures la numérotation ARCEP (fraîcheur hebdomadaire). Au démarrage, une source dont l'instantané stocké a moins d'un intervalle attend son tour. Un échec ou un rejet garde l'instantané précédent et lève une alerte (journal `error` et webhook `ARNAKOFF_ALERT_WEBHOOK`). `cmd/api` recharge les instantanés stockés chaque minute, sans redémarrage.
+
 ## Liste noire AMF
 
 - **Éditeur** : Autorité des marchés financiers.
