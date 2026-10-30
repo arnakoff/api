@@ -32,6 +32,13 @@ type StatusError struct {
 	hasRetryAfter bool
 }
 
+// RetryAfter returns the wait the last response asked for in a valid
+// Retry-After header, and false when it had none, so a caller can stay
+// away from an upstream that throttles it.
+func (e *StatusError) RetryAfter() (time.Duration, bool) {
+	return e.retryAfter, e.hasRetryAfter
+}
+
 // Error returns the status, such as "unexpected HTTP status 404 Not Found".
 func (e *StatusError) Error() string {
 	return "unexpected HTTP status " + strconv.Itoa(e.StatusCode) + " " + http.StatusText(e.StatusCode)
