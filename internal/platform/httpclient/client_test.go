@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/arnakoff/api/internal/platform/httpclient"
+	"github.com/arnakoff/api/internal/platform/httpclient/httpclienttest"
 )
 
 // newServer starts a TLS test server that counts the requests it receives.
@@ -190,9 +191,7 @@ func TestGetLimitsBodySize(t *testing.T) {
 
 func TestGetTimesOut(t *testing.T) {
 	t.Parallel()
-	srv, _ := newServer(t, func(_ http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
-	})
+	srv, _ := newServer(t, httpclienttest.Stall)
 	c := newClient(t, srv, httpclient.Config{Timeout: 50 * time.Millisecond})
 
 	_, err := c.Get(t.Context(), srv.URL+"/")
@@ -203,9 +202,7 @@ func TestGetTimesOut(t *testing.T) {
 
 func TestGetTimesOutAwaitingHeaders(t *testing.T) {
 	t.Parallel()
-	srv, _ := newServer(t, func(_ http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
-	})
+	srv, _ := newServer(t, httpclienttest.Stall)
 	c := newClient(t, srv, httpclient.Config{ResponseHeaderTimeout: 50 * time.Millisecond})
 
 	_, err := c.Get(t.Context(), srv.URL+"/")
