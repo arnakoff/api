@@ -36,3 +36,22 @@ type SnapshotStore interface {
 // ErrNoSnapshot is returned by SnapshotStore.Load when it holds no snapshot
 // of the source.
 var ErrNoSnapshot = errors.New("no stored snapshot")
+
+// Sleeper pauses a scheduling loop; tests inject one that does not wait.
+type Sleeper interface {
+	// Sleep returns after d, or with the error of ctx once it is done.
+	Sleep(ctx context.Context, d time.Duration) error
+}
+
+// Alerter tells the operator that a source could not be synced or reloaded.
+// It reports its own failures: the caller has nothing to do about them.
+type Alerter interface {
+	Alert(ctx context.Context, a Alert)
+}
+
+// Alert is a sync or reload of one source that failed or was rejected.
+type Alert struct {
+	Source domain.Source
+	At     time.Time
+	Err    error
+}

@@ -23,6 +23,9 @@ func env(vars map[string]string) func(string) (string, bool) {
 	}
 }
 
+// webhook is a valid alert webhook URL; the path stands for its secret.
+const webhook = "https://hooks.example.net/services/T0K3N"
+
 func TestLoadAppliesDefaults(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(map[string]string{"ARNAKOFF_LOG_KEY": validKey}))
@@ -44,16 +47,20 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.SourceACPR {
 		t.Error("SourceACPR = true, want off until its licence is obtained")
 	}
+	if cfg.AlertWebhook != nil {
+		t.Errorf("AlertWebhook is set by default")
+	}
 }
 
 func TestLoadReadsEveryVariable(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(map[string]string{
-		"ARNAKOFF_ADDR":        "127.0.0.1:9000",
-		"ARNAKOFF_LOG_LEVEL":   "debug",
-		"ARNAKOFF_LOG_KEY":     strings.ToUpper(validKey) + "20",
-		"ARNAKOFF_DATA_DIR":    "/data/",
-		"ARNAKOFF_SOURCE_ACPR": "true",
+		"ARNAKOFF_ADDR":          "127.0.0.1:9000",
+		"ARNAKOFF_LOG_LEVEL":     "debug",
+		"ARNAKOFF_LOG_KEY":       strings.ToUpper(validKey) + "20",
+		"ARNAKOFF_DATA_DIR":      "/data/",
+		"ARNAKOFF_SOURCE_ACPR":   "true",
+		"ARNAKOFF_ALERT_WEBHOOK": webhook,
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -72,6 +79,9 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if !cfg.SourceACPR {
 		t.Error("SourceACPR = false, want true")
+	}
+	if got := string(cfg.AlertWebhook.Bytes()); got != webhook {
+		t.Errorf("AlertWebhook = %q, want %q", got, webhook)
 	}
 }
 
@@ -92,6 +102,11 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"empty data dir", "ARNAKOFF_DATA_DIR", ""},
 		{"source switch not a boolean", "ARNAKOFF_SOURCE_ACPR", "oui"},
 		{"empty source switch", "ARNAKOFF_SOURCE_ACPR", ""},
+		{"webhook not https", "ARNAKOFF_ALERT_WEBHOOK", "http://hooks.example.net/T0K3N"},
+		{"webhook without host", "ARNAKOFF_ALERT_WEBHOOK", "https:///T0K3N"},
+		{"webhook with credentials", "ARNAKOFF_ALERT_WEBHOOK", "https://user:T0K3N@hooks.example.net/"},
+		{"webhook not a URL", "ARNAKOFF_ALERT_WEBHOOK", "https://hooks.example.net/%zzT0K3N"},
+		{"webhook relative", "ARNAKOFF_ALERT_WEBHOOK", "hooks.example.net/T0K3N"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,7 +119,21 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 			if !strings.Contains(err.Error(), tc.variable) {
 				t.Errorf("error %q does not name %s", err, tc.variable)
 			}
+			if strings.Contains(err.Error(), "T0K3N") {
+				t.Errorf("error %q quotes the webhook URL", err)
+			}
 		})
+	}
+}
+
+func TestLoadTakesAnEmptyWebhookAsNone(t *testing.T) {
+	t.Parallel()
+	cfg, err := config.Load(env(map[string]string{"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_ALERT_WEBHOOK": ""}))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.AlertWebhook != nil {
+		t.Errorf("AlertWebhook is set from an empty variable")
 	}
 }
 
