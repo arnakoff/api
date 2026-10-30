@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/arnakoff/api/compare/v0.22.0...v0.23.0) (2026-10-30)
+
+
+### Features
+
+* **app:** add the evaluation corpus and the eval command ([#145](https://github.com/arnakoff/api/issues/145)) ([ee16d22](https://github.com/arnakoff/api/commit/ee16d2289390f3d114b582f7285c272beb8f09f9)), closes [#39](https://github.com/arnakoff/api/issues/39)
+
 ## [0.22.0](https://github.com/arnakoff/api/compare/v0.21.0...v0.22.0) (2026-10-30)
 
 
