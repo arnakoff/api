@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/arnakoff/api/compare/v0.21.0...v0.22.0) (2026-10-30)
+
+
+### Features
+
+* **registry:** add the bodacc client for company notices ([#142](https://github.com/arnakoff/api/issues/142)) ([5cd0da4](https://github.com/arnakoff/api/commit/5cd0da49eb8aee9c5153b975ab3ddad4299a49fb)), closes [#37](https://github.com/arnakoff/api/issues/37)
+
 ## [0.21.0](https://github.com/arnakoff/api/compare/v0.20.0...v0.21.0) (2026-10-30)
 
 
