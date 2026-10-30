@@ -31,11 +31,15 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 ## Liste noire ACPR (ABE Info Service)
 
 - **Éditeur** : ACPR et AMF, via Assurance Banque Épargne Info Service.
-- **Licence** : **non indiquée, à obtenir avant tout usage commercial** (issue réservée au propriétaire).
-- **Accès** : `https://www.abe-infoservice.fr/fr/abeis-liste-noire.csv`.
-- **Format** : UTF-8 avec BOM, séparateur `,`, colonnes `"URL / Mails",Dénomination,Catégorie(s),"Date d'inscription"` (date `JJ/MM/AAAA`), catégories multiples séparées par `, `.
-- **Fraîcheur** : non annoncée ; dernière inscription observée le 26/10/2026.
-- **Référence** : 11 531 lignes ; elle reprend aussi des entrées AMF (1 917 en commun). Union AMF et ACPR : 13 076 entrées uniques.
+- **Licence** : **non indiquée, à obtenir avant tout usage commercial** (issue #30, réservée au propriétaire). Le connecteur existe mais la source reste désactivée par défaut (`ARNAKOFF_SOURCE_ACPR=false`) tant que #30 n'est pas fermée.
+- **Accès** : `https://www.abe-infoservice.fr/fr/abeis-liste-noire.csv`, réponse directe sans redirection, `Content-Type: text/csv; charset=UTF-8`, environ 970 Ko.
+- **Format** : UTF-8 avec BOM, séparateur `,`, fin de ligne `LF`, guillemets seulement si nécessaire, colonnes `"URL / Mails",Dénomination,Catégorie(s),"Date d'inscription"` (date `JJ/MM/AAAA`), catégories multiples séparées par `, ` (`Crédits livrets paiements assurances, Usurpation Professionnel`, `Biens divers : or`). Dans l'instantané, les catégories sont séparées par `|` et la date est au format ISO, comme pour la liste noire AMF.
+- **Contenu de `URL / Mails`** (relevé du 30/10/2026) : 8 274 sites (sans `https://`, 343 avec un chemin vers une page précise), 3 226 adresses e-mail, 31 valeurs avec une espace (noms libres, dont des noms de personnes physiques, et fautes comme `trader-ai.fr ok` ou `prénom.nom@ inversis-invest.com`), écartées. 45 valeurs finissent par une espace, parfois insécable, retirée. 2 entrées sans catégorie (`stabletrader-ai.net`, `monplantfraise.fr`) sont gardées sans catégorie ; des entrées figurent plusieurs fois et chaque inscription est gardée.
+- **Dénomination** : renseignée pour 3 252 lignes, souvent le nom d'une société ; elle peut nommer une personne physique. Elle n'est pas reprise dans l'instantané, par cohérence avec la décision du propriétaire sur les noms libres de la liste noire AMF.
+- **Fraîcheur** : non annoncée ; en-tête `Last-Modified` du jour au 30/10/2026, dernière inscription observée le 26/10/2026, inscriptions depuis le 01/12/2010.
+- **Référence** (30/10/2026) : 11 531 lignes, 11 455 retenues dans l'instantané (11 421 clés distinctes). Elle reprend des entrées AMF : 1 917 valeurs identiques au 29/10/2026, 1 936 clés communes une fois normalisées de la même façon (hôte, chemin, adresse). Union des clés AMF et ACPR : 12 947.
+- **Dédoublonnage** : les deux connecteurs normalisent les entrées avec le même code (`internal/adapter/source/listing`), si bien qu'une entrée commune a la même clé dans les deux instantanés. Chaque instantané garde ses lignes ; c'est le signal qui fusionne une entrée trouvée dans les deux listes et cite les deux sources (#41).
+- **Données personnelles** : oui pour les noms libres et une partie des dénominations, écartés ; les adresses e-mail retenues sont souvent génériques (`prénom.nom@<domaine>`).
 
 ## SIRENE (API Recherche d'entreprises)
 

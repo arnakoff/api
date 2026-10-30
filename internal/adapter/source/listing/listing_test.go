@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package amf
+package listing
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestClassify(t *testing.T) {
 	t.Parallel()
@@ -34,10 +37,47 @@ func TestClassify(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.nom, func(t *testing.T) {
 			t.Parallel()
-			k, ok := classify(tt.nom)
-			if k.kind != tt.kind || k.value != tt.key || k.path != tt.path || ok != tt.ok {
-				t.Errorf("classify(%q) = %+v, %v, want %q, %q, %q, %v",
+			k, ok := Classify(tt.nom)
+			if k.Kind != tt.kind || k.Value != tt.key || k.Path != tt.path || ok != tt.ok {
+				t.Errorf("Classify(%q) = %+v, %v, want %q, %q, %q, %v",
 					tt.nom, k, ok, tt.kind, tt.key, tt.path, tt.ok)
+			}
+		})
+	}
+}
+
+func TestColumnsAndFields(t *testing.T) {
+	t.Parallel()
+	cols := Columns(ColumnCategories, ColumnListedOn)
+	if want := []string{"kind", "key", "path", "entry", "categories", "listed_on"}; !slices.Equal(cols, want) {
+		t.Errorf("Columns() = %q, want %q", cols, want)
+	}
+	k, _ := Classify("calendly.com/amf-france")
+	if got, want := k.Fields("Forex", "2024-01-09"), []string{"domain", "calendly.com", "/amf-france", "calendly.com/amf-france", "Forex", "2024-01-09"}; !slices.Equal(got, want) {
+		t.Errorf("Fields() = %q, want %q", got, want)
+	}
+}
+
+func TestPhoneAndSIREN(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		read     func(string) (Key, bool)
+		in, want string
+		ok       bool
+	}{
+		{"phone", Phone, "+33 (0)5 57 93 41 59", "+33557934159", true},
+		{"phone with a final space", Phone, "+33 1 82 88 29 51 ", "+33182882951", true},
+		{"two phones", Phone, "+33 1 82 88 29 51 / +33 1 76 36 05 18", "", false},
+		{"siren", SIREN, "815254545", "815254545", true},
+		{"passport number", SIREN, "N/A - Passeport", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			k, ok := tt.read(tt.in)
+			if k.Value != tt.want || ok != tt.ok {
+				t.Errorf("read(%q) = %+v, %v, want %q, %v", tt.in, k, ok, tt.want, tt.ok)
 			}
 		})
 	}

@@ -6,7 +6,9 @@ import (
 	"io"
 	"strings"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // OffersSource is the name of the AMF white list of offers in goods (biens
@@ -19,7 +21,7 @@ const OffersDatasetURL = "https://www.data.gouv.fr/api/1/datasets/65709c9cae162f
 // ColumnRegisteredOn is the registration date of an offer, AAAA-MM-JJ.
 const ColumnRegisteredOn = "registered_on"
 
-var offersColumns = []string{ColumnKind, ColumnKey, ColumnPath, ColumnEntry, ColumnAMFNumber, ColumnName, ColumnRegisteredOn}
+var offersColumns = listing.Columns(ColumnAMFNumber, ColumnName, ColumnRegisteredOn)
 
 // offersHeader is the header of the published file (docs/sources.md).
 var offersHeader = []string{"no_amf", "offre_nom", "url_offre", "telephone", "date_enregistrement", "date_de_publication"}
@@ -45,7 +47,7 @@ func NewOffers(client Getter, datasetURL string) *Fetcher {
 // site and phone number of a registered offer. An offer with neither gives
 // no row.
 func ParseOffers(r io.Reader) (domain.Snapshot, error) {
-	cr, err := newReader(r, offersHeader)
+	cr, err := csvfile.Open(r, offersHeader, ErrFormat)
 	if err != nil {
 		return domain.Snapshot{}, err
 	}
@@ -70,11 +72,11 @@ func addOffer(snap *domain.Snapshot, rec []string) error {
 	if err != nil {
 		return err
 	}
-	if k, ok := siteKey(site); ok {
-		snap.Rows = append(snap.Rows, k.fields(number, name, registered))
+	if k, ok := listing.Site(site); ok {
+		snap.Rows = append(snap.Rows, k.Fields(number, name, registered))
 	}
-	if k, ok := phoneKey(phone); ok {
-		snap.Rows = append(snap.Rows, k.fields(number, name, registered))
+	if k, ok := listing.Phone(phone); ok {
+		snap.Rows = append(snap.Rows, k.Fields(number, name, registered))
 	}
 	if date.After(snap.Newest) {
 		snap.Newest = date

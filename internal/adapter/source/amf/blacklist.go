@@ -5,7 +5,9 @@ package amf
 import (
 	"io"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // BlacklistSource is the name of the AMF blacklist, as shown to users.
@@ -14,15 +16,7 @@ const BlacklistSource domain.Source = "AMF"
 // BlacklistDatasetURL is the data.gouv.fr API page of the blacklist dataset.
 const BlacklistDatasetURL = "https://www.data.gouv.fr/api/1/datasets/641d5dab1d84b530f7720b08/"
 
-// Columns of a blacklist row, after the common ones.
-const (
-	// ColumnCategories are the AMF categories, separated by "|".
-	ColumnCategories = "categories"
-	// ColumnListedOn is the listing date, AAAA-MM-JJ.
-	ColumnListedOn = "listed_on"
-)
-
-var blacklistColumns = []string{ColumnKind, ColumnKey, ColumnPath, ColumnEntry, ColumnCategories, ColumnListedOn}
+var blacklistColumns = listing.Columns(listing.ColumnCategories, listing.ColumnListedOn)
 
 // blacklistHeader is the header of the published file (docs/sources.md).
 var blacklistHeader = []string{"nom", "categorie", "date_inscription"}
@@ -47,7 +41,7 @@ func NewBlacklist(client Getter, datasetURL string) *Fetcher {
 // site or address. Free-text names are left out. A file that departs from
 // the recorded format is rejected with ErrFormat rather than half read.
 func ParseBlacklist(r io.Reader) (domain.Snapshot, error) {
-	cr, err := newReader(r, blacklistHeader)
+	cr, err := csvfile.Open(r, blacklistHeader, ErrFormat)
 	if err != nil {
 		return domain.Snapshot{}, err
 	}
@@ -69,12 +63,12 @@ func addListing(snap *domain.Snapshot, rec []string) error {
 	if err != nil {
 		return err
 	}
-	k, ok := classify(nom)
+	k, ok := listing.Classify(nom)
 	if !ok {
 		return nil
 	}
-	k.entry = nom
-	snap.Rows = append(snap.Rows, k.fields(categories, listed))
+	k.Entry = nom
+	snap.Rows = append(snap.Rows, k.Fields(categories, listed))
 	if date.After(snap.Newest) {
 		snap.Newest = date
 	}

@@ -104,3 +104,33 @@ func TestErrorsLeaveValuesOut(t *testing.T) {
 		t.Errorf("Open() error = %v, want errFormat without the value", err)
 	}
 }
+
+func TestOpenSkipsByteOrderMark(t *testing.T) {
+	t.Parallel()
+	got, err := collect(t, "\xef\xbb\xbfcode;name\nFRTE;Orange\n")
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	if want := [][]string{{"FRTE", "Orange"}}; !slices.EqualFunc(got, want, slices.Equal) {
+		t.Errorf("Each() records = %q, want %q", got, want)
+	}
+}
+
+func TestOpenSeparated(t *testing.T) {
+	t.Parallel()
+	in := "\xef\xbb\xbfcode,name\nFRTE,\"Orange, SA\"\n"
+	r, err := csvfile.OpenSeparated(strings.NewReader(in), ',', header, errFormat)
+	if err != nil {
+		t.Fatalf("OpenSeparated() error = %v", err)
+	}
+	var got [][]string
+	if err := r.Each(func(rec []string) error { got = append(got, slices.Clone(rec)); return nil }); err != nil {
+		t.Fatalf("Each() error = %v", err)
+	}
+	if want := [][]string{{"FRTE", "Orange, SA"}}; !slices.EqualFunc(got, want, slices.Equal) {
+		t.Errorf("Each() records = %q, want %q", got, want)
+	}
+	if _, err := csvfile.OpenSeparated(strings.NewReader("code;name\n"), ',', header, errFormat); !errors.Is(err, errFormat) {
+		t.Errorf("OpenSeparated() of a semicolon file error = %v, want errFormat", err)
+	}
+}

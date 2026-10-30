@@ -41,15 +41,19 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if got := len(cfg.LogKey.Bytes()); got != 32 {
 		t.Errorf("LogKey is %d bytes, want 32", got)
 	}
+	if cfg.SourceACPR {
+		t.Error("SourceACPR = true, want off until its licence is obtained")
+	}
 }
 
 func TestLoadReadsEveryVariable(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(map[string]string{
-		"ARNAKOFF_ADDR":      "127.0.0.1:9000",
-		"ARNAKOFF_LOG_LEVEL": "debug",
-		"ARNAKOFF_LOG_KEY":   strings.ToUpper(validKey) + "20",
-		"ARNAKOFF_DATA_DIR":  "/data/",
+		"ARNAKOFF_ADDR":        "127.0.0.1:9000",
+		"ARNAKOFF_LOG_LEVEL":   "debug",
+		"ARNAKOFF_LOG_KEY":     strings.ToUpper(validKey) + "20",
+		"ARNAKOFF_DATA_DIR":    "/data/",
+		"ARNAKOFF_SOURCE_ACPR": "true",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -65,6 +69,9 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if want := filepath.Clean("/data"); cfg.DataDir != want {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, want)
+	}
+	if !cfg.SourceACPR {
+		t.Error("SourceACPR = false, want true")
 	}
 }
 
@@ -83,6 +90,8 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"key not hex", "ARNAKOFF_LOG_KEY", strings.Repeat("zz", 32)},
 		{"key too short", "ARNAKOFF_LOG_KEY", validKey[:62]},
 		{"empty data dir", "ARNAKOFF_DATA_DIR", ""},
+		{"source switch not a boolean", "ARNAKOFF_SOURCE_ACPR", "oui"},
+		{"empty source switch", "ARNAKOFF_SOURCE_ACPR", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

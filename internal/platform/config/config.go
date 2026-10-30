@@ -20,6 +20,8 @@ const (
 	EnvLogLevel = "ARNAKOFF_LOG_LEVEL"
 	EnvLogKey   = "ARNAKOFF_LOG_KEY"
 	EnvDataDir  = "ARNAKOFF_DATA_DIR"
+
+	EnvSourceACPR = "ARNAKOFF_SOURCE_ACPR"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -27,6 +29,10 @@ const (
 	DefaultAddr     = ":8100"
 	DefaultLogLevel = "info"
 	DefaultDataDir  = "var"
+
+	// DefaultSourceACPR keeps the ACPR blacklist off: its reuse licence is
+	// still to be obtained (docs/sources.md).
+	DefaultSourceACPR = "false"
 )
 
 // MinLogKeyBytes is the shortest log key Load accepts, once hex-decoded:
@@ -51,6 +57,10 @@ type Config struct {
 	// DataDir is the only directory the commands write to: the data
 	// volume. Every other path may be read-only.
 	DataDir string
+
+	// SourceACPR turns the ACPR blacklist on, once its reuse licence is
+	// obtained.
+	SourceACPR bool
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -70,6 +80,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvLogLevel, DefaultLogLevel, &cfg.LogLevel, parseLevel),
 		parse(lookup, EnvLogKey, "", &cfg.LogKey, parseKey),
 		parse(lookup, EnvDataDir, DefaultDataDir, &cfg.DataDir, parseDir),
+		parse(lookup, EnvSourceACPR, DefaultSourceACPR, &cfg.SourceACPR, strconv.ParseBool),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
