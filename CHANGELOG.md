@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/arnakoff/api/compare/v0.25.0...v0.26.0) (2026-10-30)
+
+
+### Features
+
+* **signal:** flag inputs listed on the amf white lists ([#155](https://github.com/arnakoff/api/issues/155)) ([fb1af77](https://github.com/arnakoff/api/commit/fb1af773d899eb6239696470f2430a9dbd5f1ae0)), closes [#42](https://github.com/arnakoff/api/issues/42)
+
 ## [0.25.0](https://github.com/arnakoff/api/compare/v0.24.0...v0.25.0) (2026-10-30)
 
 
