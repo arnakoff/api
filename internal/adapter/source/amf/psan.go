@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // PSANSource is the name of the AMF white list of digital asset service
@@ -33,10 +35,9 @@ const (
 	ColumnAuthorisedUntil = "authorised_until"
 )
 
-var psanColumns = []string{
-	ColumnKind, ColumnKey, ColumnPath, ColumnEntry,
+var psanColumns = listing.Columns(
 	ColumnAMFNumber, ColumnName, ColumnCountry, ColumnAuthorisation, ColumnStatus, ColumnAuthorisedFrom, ColumnAuthorisedUntil,
-}
+)
 
 // psanHeader is the header of the published file (docs/sources.md).
 var psanHeader = []string{
@@ -87,7 +88,7 @@ func NewPSAN(client Getter, datasetURL string) *Fetcher {
 // that give the same row merge. A contact page in the e-mail column and a
 // foreign registry number are not keys and are left out.
 func ParsePSAN(r io.Reader) (domain.Snapshot, error) {
-	cr, err := newReader(r, psanHeader)
+	cr, err := csvfile.Open(r, psanHeader, ErrFormat)
 	if err != nil {
 		return domain.Snapshot{}, err
 	}
@@ -124,7 +125,7 @@ func psanRows(rec []string) ([][]string, time.Time, error) {
 	}
 	var rows [][]string
 	for _, k := range psanKeys(rec) {
-		rows = append(rows, k.fields(authorisation...))
+		rows = append(rows, k.Fields(authorisation...))
 	}
 	return rows, from, nil
 }
@@ -157,22 +158,22 @@ func psanAuthorisation(rec []string) ([]string, time.Time, error) {
 
 // psanKeys returns the keys of rec. A site column may list several sites,
 // separated by spaces.
-func psanKeys(rec []string) []lookupKey {
-	var keys []lookupKey
-	add := func(k lookupKey, ok bool) {
+func psanKeys(rec []string) []listing.Key {
+	var keys []listing.Key
+	add := func(k listing.Key, ok bool) {
 		if ok {
 			keys = append(keys, k)
 		}
 	}
 	for _, site := range strings.Fields(rec[psanSite]) {
-		add(siteKey(site))
+		add(listing.Site(site))
 	}
-	add(emailKey(rec[psanEmail]))
-	add(phoneKey(rec[psanPhone]))
+	add(listing.Email(rec[psanEmail]))
+	add(listing.Phone(rec[psanPhone]))
 	// Only a French head office has a SIREN; other registries' numbers
 	// could pass for one.
 	if rec[psanCountry] == "France" {
-		add(sirenKey(rec[psanRegistry]))
+		add(listing.SIREN(rec[psanRegistry]))
 	}
 	return keys
 }

@@ -3,6 +3,8 @@
 package csvfile
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -16,12 +18,25 @@ type Reader struct {
 	errFormat error
 }
 
+// bom is the UTF-8 byte order mark some sources start their files with.
+var bom = []byte("\xef\xbb\xbf")
+
 // Open checks that the semicolon-separated r starts with the header want
 // and returns a reader of the records after it. A departure from the
 // format is reported with errFormat, the source's own error.
 func Open(r io.Reader, want []string, errFormat error) (*Reader, error) {
-	cr := csv.NewReader(r)
-	cr.Comma = ';'
+	return OpenSeparated(r, ';', want, errFormat)
+}
+
+// OpenSeparated is Open for a file whose fields are separated by comma.
+// Both skip a leading UTF-8 byte order mark.
+func OpenSeparated(r io.Reader, comma rune, want []string, errFormat error) (*Reader, error) {
+	br := bufio.NewReader(r)
+	if b, err := br.Peek(len(bom)); err == nil && bytes.Equal(b, bom) {
+		_, _ = br.Discard(len(bom))
+	}
+	cr := csv.NewReader(br)
+	cr.Comma = comma
 	cr.ReuseRecord = true
 	head, err := cr.Read()
 	if err != nil || !slices.Equal(head, want) {
