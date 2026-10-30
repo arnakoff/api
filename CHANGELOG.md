@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/arnakoff/api/compare/v0.17.0...v0.18.0) (2026-10-30)
+
+
+### Features
+
+* **source:** add the acpr blacklist connector ([#134](https://github.com/arnakoff/api/issues/134)) ([126df50](https://github.com/arnakoff/api/commit/126df50bdc00ddf2291720f87ecc0d022dd94179)), closes [#31](https://github.com/arnakoff/api/issues/31)
+
 ## [0.17.0](https://github.com/arnakoff/api/compare/v0.16.0...v0.17.0) (2026-10-29)
 
 
