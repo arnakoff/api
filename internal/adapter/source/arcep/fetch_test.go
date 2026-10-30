@@ -47,7 +47,6 @@ func TestFetch(t *testing.T) {
 func TestFetchErrors(t *testing.T) {
 	t.Parallel()
 	html := serve([]byte("<html></html>\n"))
-	slow := func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }
 	tests := []struct {
 		name                string
 		numbering, operator http.HandlerFunc
@@ -59,7 +58,7 @@ func TestFetchErrors(t *testing.T) {
 		{name: "operators of another format", operator: html, want: ErrFormat},
 		{name: "operators on a host not allowed", operatorsURL: OperatorsURL, want: httpclient.ErrURLNotAllowed},
 		{name: "file too large", cfg: httpclient.Config{MaxBodyBytes: 1 << 10}, want: httpclient.ErrBodyTooLarge},
-		{name: "file too slow", numbering: slow, cfg: httpclient.Config{Timeout: 100 * time.Millisecond}, want: context.DeadlineExceeded},
+		{name: "file too slow", numbering: httpclienttest.Stall, cfg: httpclient.Config{Timeout: 100 * time.Millisecond}, want: context.DeadlineExceeded},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

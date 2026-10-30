@@ -113,7 +113,7 @@ func TestFetchErrors(t *testing.T) {
 			name: "file too slow",
 			cfg:  httpclient.Config{Timeout: 100 * time.Millisecond},
 			file: func(*testing.T) http.HandlerFunc {
-				return func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }
+				return httpclienttest.Stall
 			},
 			want: context.DeadlineExceeded,
 		},

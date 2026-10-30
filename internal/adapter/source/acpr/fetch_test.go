@@ -41,7 +41,6 @@ func TestFetch(t *testing.T) {
 
 func TestFetchErrors(t *testing.T) {
 	t.Parallel()
-	slow := func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }
 	tests := []struct {
 		name    string
 		handler http.HandlerFunc
@@ -52,7 +51,7 @@ func TestFetchErrors(t *testing.T) {
 		{name: "file of another format", handler: serve([]byte("<html></html>\n")), want: ErrFormat},
 		{name: "host not allowed", fileURL: BlacklistURL, want: httpclient.ErrURLNotAllowed},
 		{name: "file too large", cfg: httpclient.Config{MaxBodyBytes: 1 << 10}, want: httpclient.ErrBodyTooLarge},
-		{name: "file too slow", handler: slow, cfg: httpclient.Config{Timeout: 100 * time.Millisecond}, want: context.DeadlineExceeded},
+		{name: "file too slow", handler: httpclienttest.Stall, cfg: httpclient.Config{Timeout: 100 * time.Millisecond}, want: context.DeadlineExceeded},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
