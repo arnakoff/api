@@ -99,6 +99,9 @@ func TestGetGivesUpWhenRetryAfterExceedsMaxBackoff(t *testing.T) {
 	if !errors.As(err, &se) || se.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("Get() error = %v, want StatusError 429", err)
 	}
+	if d, ok := se.RetryAfter(); !ok || d != time.Hour {
+		t.Errorf("RetryAfter() = %v, %t, want %v, true", d, ok, time.Hour)
+	}
 	if n := hits.Load(); n != 1 {
 		t.Errorf("server received %d requests, want 1", n)
 	}
@@ -146,6 +149,19 @@ func TestGetStopsAfterLastAttempt(t *testing.T) {
 	}
 	if n := hits.Load(); n != 3 {
 		t.Errorf("server received %d requests, want 3", n)
+	}
+}
+
+func TestStatusErrorWithoutRetryAfter(t *testing.T) {
+	t.Parallel()
+	srv, _ := newServer(t, statuses(nil, http.StatusNotFound))
+	_, err := newClient(t, srv, httpclient.Config{}).Get(t.Context(), srv.URL+"/")
+	var se *httpclient.StatusError
+	if !errors.As(err, &se) {
+		t.Fatalf("Get() error = %v, want StatusError", err)
+	}
+	if d, ok := se.RetryAfter(); ok {
+		t.Errorf("RetryAfter() = %v, true, want false", d)
 	}
 }
 
