@@ -152,6 +152,8 @@ func BenchmarkCheck(b *testing.B) {
 	regs := benchRegistries{}.all()
 	list := fakeBlacklist{list: blacklistOf(b, "Forex", "armen.ltd", "contact@paris-majeste.com")}
 	regs.Blacklists = blacklists(list, list)
+	white := fakeWhitelist{list: whitelistOf(b, "COINHOUSE SAS", "coinhouse.com", "+33182882951", "815254545")}
+	regs.Whitelists = whitelists(white, white)
 	check := app.NewCheck(regs)
 	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678"} {
 		v, err := domain.ParseInput(in, domain.KindAuto)

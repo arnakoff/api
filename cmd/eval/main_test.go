@@ -25,14 +25,14 @@ func TestRunOfflineScoresTheCorpus(t *testing.T) {
 		`{"impots.gouv.fr": {"value": {"registered": "1999-01-01T00:00:00Z"}}}`)
 	var out strings.Builder
 
-	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr"}}, t.TempDir(), &out)
+	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr", "amf psan", "amf biens divers"}}, t.TempDir(), &out)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
 	got := out.String()
 	for _, want := range []string{
-		"Sources left out: amf, acpr.",
+		"Sources left out: amf, acpr, amf psan, amf biens divers.",
 		"| scams with ≥ 1 `alerte` | 0 / 1 |",
 		// armen.ltd was not recorded: its RDAP source is unavailable.
 		"| cases with a source unavailable | 1 / 2 |",
@@ -51,7 +51,7 @@ func TestRunOfflineLeavesOutTheRegistries(t *testing.T) {
 	writeFile(t, dir, "legit.csv", corpusHeader+"120027016,siren,legit,2026-10-30,\n")
 	var out strings.Builder
 
-	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr", "rdap", "sirene", "bodacc"}}, t.TempDir(), &out)
+	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"amf", "acpr", "amf psan", "amf biens divers", "rdap", "sirene", "bodacc"}}, t.TempDir(), &out)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestRunOfflineLeavesOutTheRegistries(t *testing.T) {
 	}
 }
 
-func TestRunReadsTheStoredBlacklists(t *testing.T) {
+func TestRunReadsTheStoredLists(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -68,12 +68,13 @@ func TestRunReadsTheStoredBlacklists(t *testing.T) {
 	writeFile(t, dir, "legit.csv", corpusHeader+"120027016,siren,legit,2026-10-30,\n")
 	var out strings.Builder
 
-	// No snapshot is stored: the blacklists are consulted and unavailable.
+	// No snapshot is stored: the lists are consulted and unavailable, the
+	// white lists for the SIREN too.
 	err := run(context.Background(), options{corpus: dir, offline: true, without: []string{"rdap", "sirene", "bodacc"}}, t.TempDir(), &out)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if want := "| cases with a source unavailable | 1 / 2 |"; !strings.Contains(out.String(), want) {
+	if want := "| cases with a source unavailable | 2 / 2 |"; !strings.Contains(out.String(), want) {
 		t.Errorf("report lacks %q:\n%s", want, out.String())
 	}
 }

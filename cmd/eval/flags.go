@@ -22,7 +22,9 @@ import (
 const defaultCorpus = "testdata/corpus"
 
 // leavable are the sources -without may name, lower case.
-var leavable = lowerNames(amf.BlacklistSource, acpr.BlacklistSource, rdap.Source, sirene.Source, bodacc.Source)
+var leavable = lowerNames(
+	amf.BlacklistSource, acpr.BlacklistSource, amf.PSANSource, amf.OffersSource, rdap.Source, sirene.Source, bodacc.Source,
+)
 
 // lowerNames returns the lower-case names of sources.
 func lowerNames(sources ...domain.Source) []string {

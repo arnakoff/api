@@ -11,10 +11,11 @@ import (
 	"github.com/arnakoff/api/internal/domain"
 )
 
-// Registries are the sources a Check consults: the blacklists, then the
-// registries. A nil registry is left out of the reports.
+// Registries are the sources a Check consults: the blacklists, the white
+// lists, then the registries. A nil registry is left out of the reports.
 type Registries struct {
 	Blacklists []Blacklist
+	Whitelists []Whitelist
 	Domains    DomainRegistry
 	Companies  CompanyRegistry
 	Notices    NoticeRegistry
@@ -24,6 +25,9 @@ type Registries struct {
 func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	r.Blacklists = slices.DeleteFunc(slices.Clone(r.Blacklists), func(b Blacklist) bool {
 		return leave(b.Rule.Source())
+	})
+	r.Whitelists = slices.DeleteFunc(slices.Clone(r.Whitelists), func(w Whitelist) bool {
+		return leave(w.Rule.Source())
 	})
 	if r.Domains != nil && leave(r.Domains.Source()) {
 		r.Domains = nil
@@ -37,9 +41,9 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	return r
 }
 
-// Check reads the blacklists and consults the registries, all at once,
-// about an input, and reports the signals they give and the state of each. It is safe for concurrent use when the
-// registries are.
+// Check reads the blacklists and white lists and consults the registries,
+// all at once, about an input, and reports the signals they give and the
+// state of each. It is safe for concurrent use when the registries are.
 type Check struct {
 	registries Registries
 	timeout    time.Duration
@@ -63,9 +67,9 @@ func NewCheck(r Registries, opts ...CheckOption) *Check {
 	return c
 }
 
-// Check returns the report of in. A blacklist without a snapshot in
-// service, or a registry that fails or has not answered when the deadline
-// comes, is reported unavailable; the others are still reported.
+// Check returns the report of in. A list without a snapshot in service,
+// or a registry that fails or has not answered when the deadline comes, is
+// reported unavailable; the others are still reported.
 func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
@@ -74,8 +78,10 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	}
 	// One slice holds every state: the hot path allocates it once.
 	lookups := c.lookups(in)
-	states := make([]domain.SourceState, 0, len(c.registries.Blacklists)+len(lookups))
-	signals, states := readBlacklists(c.registries.Blacklists, in, states)
+	r := c.registries
+	states := make([]domain.SourceState, 0, len(r.Blacklists)+len(r.Whitelists)+len(lookups))
+	signals, states := readLists(r.Blacklists, in, nil, states)
+	signals, states = readLists(r.Whitelists, in, signals, states)
 	return domain.NewReport(in.String(), signals, collect(ctx, lookups, states))
 }
 

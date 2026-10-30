@@ -13,23 +13,11 @@ type Blacklist struct {
 	Reader BlacklistReader
 }
 
-// readBlacklists appends to states the state of each blacklist about in,
-// and returns the signals they give.
-func readBlacklists(lists []Blacklist, in domain.Input, states []domain.SourceState) ([]domain.Signal, []domain.SourceState) {
-	var signals []domain.Signal
-	for _, b := range lists {
-		status, s, ok := readBlacklist(b, in)
-		states = append(states, domain.SourceState{Source: b.Rule.Source(), Status: status})
-		if ok {
-			signals = append(signals, s)
-		}
-	}
-	return signals, states
-}
+func (b Blacklist) source() domain.Source { return b.Rule.Source() }
 
-// readBlacklist returns the status of b about in, and its signal if in is
-// listed. A blacklist lists sites and addresses only.
-func readBlacklist(b Blacklist, in domain.Input) (domain.SourceStatus, domain.Signal, bool) {
+// read returns the status of b about in, and its signal if in is listed. A
+// blacklist lists sites and addresses only.
+func (b Blacklist) read(in domain.Input) (domain.SourceStatus, domain.Signal, bool) {
 	switch in.(type) {
 	case domain.Domain, domain.Email:
 	default:

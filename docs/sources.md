@@ -30,7 +30,7 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 - **Fraîcheur** : quotidienne annoncée ; dernière autorisation PSAN observée le 23/10/2026, dernière offre enregistrée le 27/01/2026.
 - **Référence** (29/10/2026) : PSAN 1 168 lignes, 158 numéros AMF (37 agréés, 121 radiés), 607 lignes retenues (314 sites, 101 adresses, 57 numéros, 135 SIREN) ; biens divers 12 offres, 12 lignes retenues (6 sites, 6 numéros).
 - **Données personnelles** : non, les entrées sont des personnes morales.
-- **Usage** : signal `info` « acteur enregistré auprès de l'AMF », jamais une garantie ; un prestataire `Radié` reste listé avec sa date de fin.
+- **Usage** : signaux `info` `amf_registered` et `amf_registration_ended` (`docs/signals.md`), jamais une garantie ; un prestataire `Radié` reste listé avec sa date de fin. Une ligne PSAN `Radié` sans date de fin rejette le fichier : l'instantané précédent reste en service.
 
 ## Liste noire ACPR (ABE Info Service)
 

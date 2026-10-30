@@ -8,12 +8,13 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // OffersSource is the name of the AMF white list of offers in goods (biens
 // divers: wine, cattle, trees…), as shown to users.
-const OffersSource domain.Source = "AMF biens divers"
+const OffersSource = signal.OffersSource
 
 // OffersDatasetURL is the data.gouv.fr API page of the biens divers dataset.
 const OffersDatasetURL = "https://www.data.gouv.fr/api/1/datasets/65709c9cae162fbc34e7ec05/"
