@@ -55,3 +55,39 @@ type Alert struct {
 	At     time.Time
 	Err    error
 }
+
+// Registry errors, wrapped by the registry adapters and checked with
+// errors.Is.
+var (
+	// ErrNotFound means the registry answered that it holds no such entry:
+	// an answer, not a failure.
+	ErrNotFound = errors.New("not found in the registry")
+	// ErrNotCovered means the registry does not cover this input, such as a
+	// domain extension without an RDAP server.
+	ErrNotCovered = errors.New("not covered by the registry")
+)
+
+// DomainRegistry reads what a domain registry publishes about a domain.
+type DomainRegistry interface {
+	// Source names the registry in reports.
+	Source() domain.Source
+	// Lookup returns the registration of d's registrable domain.
+	Lookup(ctx context.Context, d domain.Domain) (domain.Registration, error)
+}
+
+// CompanyRegistry reads what the company register publishes about a
+// company.
+type CompanyRegistry interface {
+	// Source names the registry in reports.
+	Source() domain.Source
+	// Lookup returns the company n identifies.
+	Lookup(ctx context.Context, n domain.SIREN) (domain.Company, error)
+}
+
+// NoticeRegistry reads the legal notices published about a company.
+type NoticeRegistry interface {
+	// Source names the registry in reports.
+	Source() domain.Source
+	// Notices returns the notices about the company n identifies.
+	Notices(ctx context.Context, n domain.SIREN) ([]domain.Notice, error)
+}

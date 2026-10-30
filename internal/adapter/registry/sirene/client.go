@@ -48,6 +48,12 @@ type Getter interface {
 	Get(ctx context.Context, rawURL string) ([]byte, error)
 }
 
+// Source names the registry in reports.
+const Source domain.Source = "SIRENE"
+
+// Source returns Source.
+func (*Client) Source() domain.Source { return Source }
+
 // Client reads companies from the API Recherche d'entreprises. It is safe
 // for concurrent use.
 type Client struct {

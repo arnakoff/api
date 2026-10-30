@@ -41,6 +41,12 @@ type Getter interface {
 	Get(ctx context.Context, rawURL string) ([]byte, error)
 }
 
+// Source names the registry in reports.
+const Source domain.Source = "RDAP"
+
+// Source returns Source.
+func (*Client) Source() domain.Source { return Source }
+
 // Client reads the registration dates of domains from the RDAP server of
 // their registry. It is safe for concurrent use.
 type Client struct {
