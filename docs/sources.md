@@ -68,7 +68,7 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 
 - **Éditeurs** : le registre de chaque extension, trouvé par le fichier d'amorçage IANA (RFC 9224) `https://data.iana.org/rdap/dns.json` (200, `Cache-Control: max-age=86400`, 1 203 extensions et 379 serveurs le 30/10/2026), relu toutes les 24 h. Exemples : AFNIC pour `.fr` (`https://rdap.nic.fr/domain/<d>`), Verisign pour `.com` (`https://rdap.verisign.com/com/v1/domain/<d>`). Jamais `rdap.org`. Seules les URL HTTPS sont retenues (`.kg` et `.mg` n'en ont pas) ; certaines extensions (`.io` par exemple) n'ont aucun serveur dans le fichier : pas de signal. La liste d'hôtes autorisés du client RDAP est celle du fichier.
 - **Licence** : données d'enregistrement publiques ; seuls les événements (`registration`, `last changed`) sont conservés, jamais les contacts.
-- **Champs utilisés** : `events[].eventAction == "registration"`.
+- **Champs utilisés** : `events[].eventAction == "registration"`. `eventDate` est une date-heure RFC 3339 (RFC 9083, section 4.5) ; une date seule, publiée par le registre de `.si` (`rdap.register.si`, relevé le 30/10/2026 pour `ilirika.si` : `"1997-09-02"`), est lue à minuit UTC. Aucun autre registre du corpus d'évaluation ne s'en écarte (478 cas, 30/10/2026).
 - **Limites** : quotas par registre (`429` observé sur `rdap.org`) : réponses en cache 24 h, « introuvable » (`404`) 5 min, et un registre qui renvoie `Retry-After` n'est plus interrogé pendant ce délai (une heure au plus).
 
 ## Numérotation ARCEP (MAJNUM)
