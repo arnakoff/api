@@ -7,16 +7,17 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // BlacklistSource is the name of the AMF blacklist, as shown to users.
-const BlacklistSource domain.Source = "AMF"
+const BlacklistSource = signal.AMFSource
 
 // BlacklistDatasetURL is the data.gouv.fr API page of the blacklist dataset.
 const BlacklistDatasetURL = "https://www.data.gouv.fr/api/1/datasets/641d5dab1d84b530f7720b08/"
 
-var blacklistColumns = listing.Columns(listing.ColumnCategories, listing.ColumnListedOn)
+var blacklistColumns = listing.BlacklistColumns()
 
 // blacklistHeader is the header of the published file (docs/sources.md).
 var blacklistHeader = []string{"nom", "categorie", "date_inscription"}

@@ -11,17 +11,18 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/csvfile"
 )
 
 // BlacklistSource is the name of the ACPR blacklist, as shown to users.
-const BlacklistSource domain.Source = "ACPR"
+const BlacklistSource = signal.ACPRSource
 
 // ErrFormat means the file is not laid out as docs/sources.md records it.
 // Errors never quote a value of the file: it may hold an address.
 var ErrFormat = errors.New("unexpected ACPR file format")
 
-var blacklistColumns = listing.Columns(listing.ColumnCategories, listing.ColumnListedOn)
+var blacklistColumns = listing.BlacklistColumns()
 
 // blacklistHeader is the header of the published file (docs/sources.md).
 var blacklistHeader = []string{"URL / Mails", "Dénomination", "Catégorie(s)", "Date d'inscription"}
@@ -64,7 +65,7 @@ func addListing(snap *domain.Snapshot, rec []string) error {
 	if !ok {
 		return nil
 	}
-	snap.Rows = append(snap.Rows, k.Fields(strings.ReplaceAll(categories, ", ", "|"), date.Format(time.DateOnly)))
+	snap.Rows = append(snap.Rows, k.Fields(strings.ReplaceAll(categories, ", ", listing.CategorySeparator), date.Format(time.DateOnly)))
 	if date.After(snap.Newest) {
 		snap.Newest = date
 	}

@@ -21,8 +21,7 @@ import (
 // defaultCorpus is the corpus directory, relative to the repository root.
 const defaultCorpus = "testdata/corpus"
 
-// leavable are the sources -without may name, lower case. The blacklists
-// are named already: no rule reads them yet (#41).
+// leavable are the sources -without may name, lower case.
 var leavable = lowerNames(amf.BlacklistSource, acpr.BlacklistSource, rdap.Source, sirene.Source, bodacc.Source)
 
 // lowerNames returns the lower-case names of sources.

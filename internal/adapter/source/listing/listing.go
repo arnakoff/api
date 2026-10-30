@@ -25,11 +25,20 @@ const (
 
 // Columns a blacklist row adds to the common ones, for every blacklist.
 const (
-	// ColumnCategories are the publisher's categories, separated by "|".
+	// ColumnCategories are the publisher's categories, separated by
+	// CategorySeparator.
 	ColumnCategories = "categories"
 	// ColumnListedOn is the listing date, AAAA-MM-JJ.
 	ColumnListedOn = "listed_on"
 )
+
+// CategorySeparator separates the categories of a blacklist row.
+const CategorySeparator = "|"
+
+// BlacklistColumns returns the columns of every blacklist snapshot.
+func BlacklistColumns() []string {
+	return Columns(ColumnCategories, ColumnListedOn)
+}
 
 // Columns returns the common columns followed by rest, the source's own.
 func Columns(rest ...string) []string {

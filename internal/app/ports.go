@@ -91,3 +91,11 @@ type NoticeRegistry interface {
 	// Notices returns the notices about the company n identifies.
 	Notices(ctx context.Context, n domain.SIREN) ([]domain.Notice, error)
 }
+
+// BlacklistReader reads a blacklist held in memory.
+type BlacklistReader interface {
+	// Blacklist returns the blacklist in service and when it was fetched,
+	// or ErrNoSnapshot when none is. The blacklist is shared: treat it as
+	// read-only.
+	Blacklist() (*domain.Blacklist, time.Time, error)
+}

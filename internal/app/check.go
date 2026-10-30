@@ -5,21 +5,26 @@ package app
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
 )
 
-// Registries are the registries a Check consults; a nil one is left out of
-// the reports.
+// Registries are the sources a Check consults: the blacklists, then the
+// registries. A nil registry is left out of the reports.
 type Registries struct {
-	Domains   DomainRegistry
-	Companies CompanyRegistry
-	Notices   NoticeRegistry
+	Blacklists []Blacklist
+	Domains    DomainRegistry
+	Companies  CompanyRegistry
+	Notices    NoticeRegistry
 }
 
 // Without returns r less the registries leave reports true for.
 func (r Registries) Without(leave func(domain.Source) bool) Registries {
+	r.Blacklists = slices.DeleteFunc(slices.Clone(r.Blacklists), func(b Blacklist) bool {
+		return leave(b.Rule.Source())
+	})
 	if r.Domains != nil && leave(r.Domains.Source()) {
 		r.Domains = nil
 	}
@@ -32,8 +37,8 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	return r
 }
 
-// Check consults the registries that cover an input, all at once, and
-// reports the state of each. It is safe for concurrent use when the
+// Check reads the blacklists and consults the registries, all at once,
+// about an input, and reports the signals they give and the state of each. It is safe for concurrent use when the
 // registries are.
 type Check struct {
 	registries Registries
@@ -58,16 +63,20 @@ func NewCheck(r Registries, opts ...CheckOption) *Check {
 	return c
 }
 
-// Check returns the report of in. A registry that fails, or has not
-// answered when the deadline comes, is reported unavailable; the others are
-// still reported.
+// Check returns the report of in. A blacklist without a snapshot in
+// service, or a registry that fails or has not answered when the deadline
+// comes, is reported unavailable; the others are still reported.
 func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
 	}
-	return domain.NewReport(in.String(), nil, collect(ctx, c.lookups(in)))
+	// One slice holds every state: the hot path allocates it once.
+	lookups := c.lookups(in)
+	states := make([]domain.SourceState, 0, len(c.registries.Blacklists)+len(lookups))
+	signals, states := readBlacklists(c.registries.Blacklists, in, states)
+	return domain.NewReport(in.String(), signals, collect(ctx, lookups, states))
 }
 
 // lookup is the consultation of one registry about an input; run is nil
@@ -117,30 +126,33 @@ func (c *Check) lookups(in domain.Input) []lookup {
 	return out
 }
 
-// answer is the outcome of the lookup at index i.
+// answer is the outcome of the lookup whose state is at index i.
 type answer struct {
 	i   int
 	err error
 }
 
-// collect runs the lookups that apply concurrently and returns the state of
-// each, in order. It returns once all answered or ctx is done: a lookup
-// still running then is reported unavailable and its answer discarded.
-func collect(ctx context.Context, lookups []lookup) []domain.SourceState {
-	states := make([]domain.SourceState, len(lookups))
+// collect runs the lookups that apply concurrently and appends the state of
+// each to states, in order. It returns once all answered or ctx is done: a
+// lookup still running then is reported unavailable and its answer
+// discarded.
+func collect(ctx context.Context, lookups []lookup, states []domain.SourceState) []domain.SourceState {
+	base := len(states)
+	for _, l := range lookups {
+		states = append(states, domain.SourceState{Source: l.source, Status: domain.SourceNotApplicable})
+	}
 	var answers chan answer
 	pending := 0
 	for i, l := range lookups {
-		states[i] = domain.SourceState{Source: l.source, Status: domain.SourceNotApplicable}
 		if l.run == nil {
 			continue
 		}
 		if answers == nil {
 			answers = make(chan answer, len(lookups))
 		}
-		states[i].Status = domain.SourceUnavailable
+		states[base+i].Status = domain.SourceUnavailable
 		pending++
-		go func() { answers <- answer{i, l.run(ctx)} }()
+		go func() { answers <- answer{base + i, l.run(ctx)} }()
 	}
 	for ; pending > 0; pending-- {
 		select {
