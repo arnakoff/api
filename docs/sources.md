@@ -55,8 +55,13 @@ Deux sources distinctes, chacune avec son instantané, son minimum de lignes et 
 ## BODACC
 
 - **Éditeur** : DILA. **Licence** : Licence Ouverte.
-- **Accès** : `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records`, filtre `registre like "<siren>"`, sans clé.
-- **Champs utilisés** : `dateparution`, `familleavis_lib` (procédures collectives, radiations).
+- **Accès** : `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records`, sans clé, filtre `registre="<siren>" and familleavis in ("collective","conciliation","radiation","retablissement_professionnel")`, `order_by=dateparution desc`, `limit=100` (le maximum accepté : `limit=101` est refusé). `registre` est une liste qui porte le SIREN avec et sans espaces, et les SIREN de toutes les sociétés d'un même avis ; l'égalité porte sur un élément.
+- **Données personnelles** : un avis nomme des personnes (`commercant`, `listepersonnes` : nom, prénom, adresse). `select=id,registre,dateparution,familleavis,typeavis,publicationavis,parution,numeroannonce,parutionavisprecedent` ne demande aucun de ces champs, qui ne sont donc jamais téléchargés.
+- **Familles d'avis** (`familleavis`, relevées par facette le 30/10/2026) : `dpc` (Dépôts des comptes), `modification`, `creation`, `radiation` (Radiations), `collective` (Procédures collectives), `vente`, `immatriculation`, `divers`, `conciliation` (Procédures de conciliation), `retablissement_professionnel` (Procédures de rétablissement professionnel), `inconnue`. Seules les quatre familles nommées sont lues, chacune gardée distincte (`domain.NoticeKind`) ; ce qu'elles signifient pour un signal est décidé par la règle (#44).
+- **Avis rectificatifs et d'annulation** (`typeavis` : `annonce`, `rectificatif`, `annulation`) : `parutionavisprecedent` désigne l'avis visé par `nomPublication` (« BODACC A »), `numeroParution` et `numeroAnnonce`, qui sont le `publicationavis`, la `parution` et le `numeroannonce` de cet avis (vérifié sur le SIREN 835084732 : l'avis A202500814208 annule A202500322546). Un avis annulé est écarté avec son annulation ; un avis rectifié cède la place à son rectificatif.
+- **Quotas** : aucun quota par seconde publié ; les réponses portent `X-RateLimit-Limit: 5000000` et `X-RateLimit-Reset` au jour suivant (relevé le 30/10/2026). Réponses en cache 24 h (le BODACC paraît une fois par jour), `Retry-After` respecté.
+- **Limites** : un avis sur une personne inscrite au seul répertoire des métiers a `registre` vide (son numéro n'est que dans `listepersonnes`) et n'est pas trouvé par SIREN.
+- **Champs utilisés** : `id`, `registre`, `dateparution`, `familleavis`, `typeavis`, `publicationavis`, `parution`, `numeroannonce`, `parutionavisprecedent`.
 
 ## RDAP (âge des domaines)
 

@@ -1,0 +1,33 @@
+{
+  "total_count": 2,
+  "results": [
+    {
+      "id": "A202602093931",
+      "registre": [
+        "402175558",
+        "402 175 558"
+      ],
+      "dateparution": "2026-10-30",
+      "familleavis": "collective",
+      "typeavis": "rectificatif",
+      "publicationavis": "A",
+      "parution": "20260209",
+      "numeroannonce": 3931,
+      "parutionavisprecedent": "{\"nomPublication\": \"BODACC A\", \"numeroParution\": \"20260199\", \"dateParution\": \"2026-10-16\", \"numeroAnnonce\": \"3983\"}"
+    },
+    {
+      "id": "A202601993983",
+      "registre": [
+        "402175558",
+        "402 175 558"
+      ],
+      "dateparution": "2026-10-16",
+      "familleavis": "collective",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20260199",
+      "numeroannonce": 3983,
+      "parutionavisprecedent": null
+    }
+  ]
+}

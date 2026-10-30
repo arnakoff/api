@@ -1,0 +1,33 @@
+{
+  "total_count": 2,
+  "results": [
+    {
+      "id": "A202602002579",
+      "registre": [
+        "802618793",
+        "802 618 793"
+      ],
+      "dateparution": "2026-10-18",
+      "familleavis": "conciliation",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20260200",
+      "numeroannonce": 2579,
+      "parutionavisprecedent": null
+    },
+    {
+      "id": "A202302002551",
+      "registre": [
+        "802 618 793",
+        "802618793"
+      ],
+      "dateparution": "2023-10-17",
+      "familleavis": "conciliation",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20230200",
+      "numeroannonce": 2551,
+      "parutionavisprecedent": null
+    }
+  ]
+}
