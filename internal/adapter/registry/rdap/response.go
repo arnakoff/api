@@ -48,11 +48,25 @@ func parseRegistration(body []byte) (domain.Registration, error) {
 		default:
 			continue
 		}
-		t, err := time.Parse(time.RFC3339, e.Date)
+		t, err := parseEventDate(e.Date)
 		if err != nil {
 			return domain.Registration{}, fmt.Errorf("%w: %s date: %w", ErrResponse, e.Action, err)
 		}
 		*field = t
 	}
 	return reg, nil
+}
+
+// parseEventDate reads an RFC 3339 date-time, as RFC 9083 section 4.5
+// requires, or a date alone, read as midnight UTC: some registries
+// (rdap.register.si for .si) publish only the date.
+func parseEventDate(s string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t, nil
+	}
+	if d, dErr := time.Parse(time.DateOnly, s); dErr == nil {
+		return d, nil
+	}
+	return time.Time{}, err
 }

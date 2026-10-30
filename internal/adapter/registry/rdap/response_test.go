@@ -44,6 +44,15 @@ func TestParseRegistration(t *testing.T) {
 			},
 		},
 		{
+			// Deviates from RFC 9083 section 4.5: a full-date without time.
+			name: "Register.si date only",
+			body: readFixture(t, "register.si-ilirika.si.json"),
+			want: domain.Registration{
+				Registered:  date(t, "1997-09-02T00:00:00Z"),
+				LastChanged: date(t, "2025-03-18T00:00:00Z"),
+			},
+		},
+		{
 			name: "no events",
 			body: []byte(`{"objectClassName":"domain","ldhName":"exemple.fr"}`),
 			want: domain.Registration{},
@@ -72,6 +81,7 @@ func TestParseRegistrationErrors(t *testing.T) {
 		{"not JSON", `<html>`},
 		{"not a domain", `{"objectClassName":"entity","events":[]}`},
 		{"invalid date", `{"objectClassName":"domain","events":[{"eventAction":"registration","eventDate":"10/12/2001"}]}`},
+		{"invalid date only", `{"objectClassName":"domain","events":[{"eventAction":"registration","eventDate":"1997-13-02"}]}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
