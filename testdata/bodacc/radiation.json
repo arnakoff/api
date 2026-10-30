@@ -1,0 +1,61 @@
+{
+  "total_count": 4,
+  "results": [
+    {
+      "id": "B2026020947",
+      "registre": [
+        "504352360",
+        "504 352 360"
+      ],
+      "dateparution": "2026-10-30",
+      "familleavis": "radiation",
+      "typeavis": "annonce",
+      "publicationavis": "B",
+      "parution": "20260209",
+      "numeroannonce": 47,
+      "parutionavisprecedent": null
+    },
+    {
+      "id": "A201700991916",
+      "registre": [
+        "504 352 360",
+        "504352360"
+      ],
+      "dateparution": "2017-05-24",
+      "familleavis": "collective",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20170099",
+      "numeroannonce": 1916,
+      "parutionavisprecedent": null
+    },
+    {
+      "id": "A201700471420",
+      "registre": [
+        "504 352 360",
+        "504352360"
+      ],
+      "dateparution": "2017-03-08",
+      "familleavis": "collective",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20170047",
+      "numeroannonce": 1420,
+      "parutionavisprecedent": null
+    },
+    {
+      "id": "A201601051406",
+      "registre": [
+        "504 352 360",
+        "504352360"
+      ],
+      "dateparution": "2016-05-29",
+      "familleavis": "collective",
+      "typeavis": "annonce",
+      "publicationavis": "A",
+      "parution": "20160105",
+      "numeroannonce": 1406,
+      "parutionavisprecedent": null
+    }
+  ]
+}
