@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/arnakoff/api/compare/v0.23.1...v0.24.0) (2026-10-30)
+
+
+### Features
+
+* **app:** consult the registries concurrently within a global deadline ([#151](https://github.com/arnakoff/api/issues/151)) ([5948d0b](https://github.com/arnakoff/api/commit/5948d0ba24a8dbdf52b57afa2096dfecd390a331)), closes [#40](https://github.com/arnakoff/api/issues/40)
+
 ## [0.23.1](https://github.com/arnakoff/api/compare/v0.23.0...v0.23.1) (2026-10-30)
 
 
