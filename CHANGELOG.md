@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/arnakoff/api/compare/v0.26.0...v0.27.0) (2026-10-30)
+
+
+### Features
+
+* **signal:** flag domains registered less than 30 days ago ([#158](https://github.com/arnakoff/api/issues/158)) ([dad7b9a](https://github.com/arnakoff/api/commit/dad7b9aa0d0144e33cbce4bb383d25b3e1ec6676)), closes [#43](https://github.com/arnakoff/api/issues/43)
+
 ## [0.26.0](https://github.com/arnakoff/api/compare/v0.25.0...v0.26.0) (2026-10-30)
 
 
