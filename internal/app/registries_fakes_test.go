@@ -12,18 +12,24 @@ import (
 	"github.com/arnakoff/api/internal/domain"
 )
 
-// asked records what a fake registry was asked about and answers err.
+// asked records what a fake registry was asked about and answers err,
+// after hold returns when it is set.
 type asked struct {
-	mu  sync.Mutex
-	ins []string
-	err error
+	mu   sync.Mutex
+	ins  []string
+	err  error
+	hold func(ctx context.Context)
 }
 
-func (a *asked) record(in string) error {
+func (a *asked) record(ctx context.Context, in string) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	a.ins = append(a.ins, in)
-	return a.err
+	hold, err := a.hold, a.err
+	a.mu.Unlock()
+	if hold != nil {
+		hold(ctx)
+	}
+	return err
 }
 
 func (a *asked) got() []string {
@@ -36,24 +42,24 @@ type fakeDomains struct{ asked }
 
 func (*fakeDomains) Source() domain.Source { return "RDAP" }
 
-func (f *fakeDomains) Lookup(_ context.Context, d domain.Domain) (domain.Registration, error) {
-	return domain.Registration{}, f.record(d.String())
+func (f *fakeDomains) Lookup(ctx context.Context, d domain.Domain) (domain.Registration, error) {
+	return domain.Registration{}, f.record(ctx, d.String())
 }
 
 type fakeCompanies struct{ asked }
 
 func (*fakeCompanies) Source() domain.Source { return "SIRENE" }
 
-func (f *fakeCompanies) Lookup(_ context.Context, n domain.SIREN) (domain.Company, error) {
-	return domain.Company{}, f.record(n.String())
+func (f *fakeCompanies) Lookup(ctx context.Context, n domain.SIREN) (domain.Company, error) {
+	return domain.Company{}, f.record(ctx, n.String())
 }
 
 type fakeNotices struct{ asked }
 
 func (*fakeNotices) Source() domain.Source { return "BODACC" }
 
-func (f *fakeNotices) Notices(_ context.Context, n domain.SIREN) ([]domain.Notice, error) {
-	return nil, f.record(n.String())
+func (f *fakeNotices) Notices(ctx context.Context, n domain.SIREN) ([]domain.Notice, error) {
+	return nil, f.record(ctx, n.String())
 }
 
 // registries holds one fake of each registry.

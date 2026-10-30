@@ -5,6 +5,7 @@ package app
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/arnakoff/api/internal/domain"
 )
@@ -31,44 +32,125 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	return r
 }
 
-// Check consults the registries that cover an input, one after the other,
-// and reports the state of each. It is safe for concurrent use when the
+// Check consults the registries that cover an input, all at once, and
+// reports the state of each. It is safe for concurrent use when the
 // registries are.
 type Check struct {
 	registries Registries
+	timeout    time.Duration
+}
+
+// CheckOption configures a Check.
+type CheckOption func(*Check)
+
+// WithTimeout bounds every check to d, or to the deadline of its context
+// when that comes first.
+func WithTimeout(d time.Duration) CheckOption {
+	return func(c *Check) { c.timeout = d }
 }
 
 // NewCheck returns a Check of the registries.
-func NewCheck(r Registries) *Check {
-	return &Check{registries: r}
+func NewCheck(r Registries, opts ...CheckOption) *Check {
+	c := &Check{registries: r}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
-// Check returns the report of in. A registry that fails is reported
-// unavailable; the others are still consulted.
+// Check returns the report of in. A registry that fails, or has not
+// answered when the deadline comes, is reported unavailable; the others are
+// still reported.
 func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
+	if c.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+	}
+	return domain.NewReport(in.String(), nil, collect(ctx, c.lookups(in)))
+}
+
+// lookup is the consultation of one registry about an input; run is nil
+// when the registry does not cover the input.
+type lookup struct {
+	source domain.Source
+	run    func(ctx context.Context) error
+}
+
+// lookups returns the consultation of each registry about in, in report
+// order.
+func (c *Check) lookups(in domain.Input) []lookup {
 	r := c.registries
 	d, isDomain := domainOf(in)
 	n, isCompany := companyOf(in)
-	states := make([]domain.SourceState, 0, 3)
+	out := make([]lookup, 0, 3)
 	if r.Domains != nil {
-		states = append(states, consult(r.Domains.Source(), isDomain, func() error {
-			_, err := r.Domains.Lookup(ctx, d)
-			return err
-		}))
+		l := lookup{source: r.Domains.Source()}
+		if isDomain {
+			l.run = func(ctx context.Context) error {
+				_, err := r.Domains.Lookup(ctx, d)
+				return err
+			}
+		}
+		out = append(out, l)
 	}
 	if r.Companies != nil {
-		states = append(states, consult(r.Companies.Source(), isCompany, func() error {
-			_, err := r.Companies.Lookup(ctx, n)
-			return err
-		}))
+		l := lookup{source: r.Companies.Source()}
+		if isCompany {
+			l.run = func(ctx context.Context) error {
+				_, err := r.Companies.Lookup(ctx, n)
+				return err
+			}
+		}
+		out = append(out, l)
 	}
 	if r.Notices != nil {
-		states = append(states, consult(r.Notices.Source(), isCompany, func() error {
-			_, err := r.Notices.Notices(ctx, n)
-			return err
-		}))
+		l := lookup{source: r.Notices.Source()}
+		if isCompany {
+			l.run = func(ctx context.Context) error {
+				_, err := r.Notices.Notices(ctx, n)
+				return err
+			}
+		}
+		out = append(out, l)
 	}
-	return domain.NewReport(in.String(), nil, states)
+	return out
+}
+
+// answer is the outcome of the lookup at index i.
+type answer struct {
+	i   int
+	err error
+}
+
+// collect runs the lookups that apply concurrently and returns the state of
+// each, in order. It returns once all answered or ctx is done: a lookup
+// still running then is reported unavailable and its answer discarded.
+func collect(ctx context.Context, lookups []lookup) []domain.SourceState {
+	states := make([]domain.SourceState, len(lookups))
+	var answers chan answer
+	pending := 0
+	for i, l := range lookups {
+		states[i] = domain.SourceState{Source: l.source, Status: domain.SourceNotApplicable}
+		if l.run == nil {
+			continue
+		}
+		if answers == nil {
+			answers = make(chan answer, len(lookups))
+		}
+		states[i].Status = domain.SourceUnavailable
+		pending++
+		go func() { answers <- answer{i, l.run(ctx)} }()
+	}
+	for ; pending > 0; pending-- {
+		select {
+		case a := <-answers:
+			states[a.i].Status = statusOf(a.err)
+		case <-ctx.Done():
+			return states
+		}
+	}
+	return states
 }
 
 // domainOf returns the domain of in, its own or its email address's, and
@@ -94,15 +176,6 @@ func companyOf(in domain.Input) (domain.SIREN, bool) {
 	default:
 		return domain.SIREN{}, false
 	}
-}
-
-// consult runs lookup when the registry applies to the input and returns
-// the registry's state.
-func consult(source domain.Source, applies bool, lookup func() error) domain.SourceState {
-	if !applies {
-		return domain.SourceState{Source: source, Status: domain.SourceNotApplicable}
-	}
-	return domain.SourceState{Source: source, Status: statusOf(lookup())}
 }
 
 // statusOf returns the source status of a registry's answer.
