@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "siren": "120027016",
+      "nom_complet": "INSTITUT NATIONAL DE LA STATISTIQUE ET DES ETUDES ECONOMIQUES (INSEE)",
+      "nom_raison_sociale": "INSTITUT NATIONAL DE LA STATISTIQUE ET DES ETUDES ECONOMIQUES",
+      "date_creation": "1983-03-01",
+      "date_fermeture": null,
+      "etat_administratif": "A",
+      "statut_diffusion": "O",
+      "nature_juridique": "7120",
+      "siege": {
+        "siret": "12002701600563",
+        "est_siege": true,
+        "date_creation": "2018-03-01",
+        "date_fermeture": null,
+        "etat_administratif": "A",
+        "statut_diffusion_etablissement": "O"
+      }
+    }
+  ],
+  "total_results": 1,
+  "page": 1,
+  "per_page": 5,
+  "total_pages": 1
+}

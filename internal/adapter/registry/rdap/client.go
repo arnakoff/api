@@ -13,6 +13,7 @@ import (
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/cache"
 	"github.com/arnakoff/api/internal/platform/httpclient"
+	"github.com/arnakoff/api/internal/platform/throttle"
 )
 
 // BootstrapURL is the IANA bootstrap file for domain names (RFC 9224).
@@ -48,7 +49,7 @@ type Client struct {
 	dial         func(hosts []string) (Getter, error)
 	registries   *cache.Cache[registries]
 	answers      *cache.Cache[domain.Registration]
-	throttle     *throttle
+	throttle     *throttle.Throttle
 }
 
 // registries is a bootstrap file and the client allowed to reach the
@@ -81,7 +82,7 @@ func New(iana Getter, bootstrapURL string, dial func(hosts []string) (Getter, er
 		dial:         dial,
 		registries:   regs,
 		answers:      answers,
-		throttle:     newThrottle(time.Now),
+		throttle:     throttle.New(time.Now),
 	}, nil
 }
 
@@ -114,7 +115,7 @@ func (c *Client) query(ctx context.Context, name string) (domain.Registration, e
 	if err != nil {
 		return domain.Registration{}, fmt.Errorf("rdap %s: %w", name, err)
 	}
-	if !c.throttle.allows(u.Host) {
+	if !c.throttle.Allows(u.Host) {
 		return domain.Registration{}, fmt.Errorf("rdap %s: %w", name, ErrThrottled)
 	}
 	body, err := regs.client.Get(ctx, u.String())
@@ -131,14 +132,10 @@ func (c *Client) query(ctx context.Context, name string) (domain.Registration, e
 // queryError reads a 404 as ErrNotFound and keeps away from a host that
 // asked to wait.
 func (c *Client) queryError(name, host string, err error) error {
-	if se, ok := errors.AsType[*httpclient.StatusError](err); ok {
-		if se.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("rdap %s: %w", name, ErrNotFound)
-		}
-		if d, ok := se.RetryAfter(); ok {
-			c.throttle.wait(host, d)
-		}
+	if se, ok := errors.AsType[*httpclient.StatusError](err); ok && se.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("rdap %s: %w", name, ErrNotFound)
 	}
+	c.throttle.Heed(host, err)
 	return fmt.Errorf("rdap %s: %w", name, err)
 }
 

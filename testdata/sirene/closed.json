@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "siren": "814812236",
+      "nom_complet": "TRANSPORT & VOUS (TRANSPORT & VOUS)",
+      "nom_raison_sociale": "TRANSPORT & VOUS",
+      "date_creation": "2015-11-09",
+      "date_fermeture": "2018-06-30",
+      "etat_administratif": "C",
+      "statut_diffusion": "O",
+      "nature_juridique": "5499",
+      "siege": {
+        "siret": "81481223600010",
+        "est_siege": true,
+        "date_creation": "2015-11-09",
+        "date_fermeture": "2018-06-30",
+        "etat_administratif": "F",
+        "statut_diffusion_etablissement": "O"
+      }
+    }
+  ],
+  "total_results": 1,
+  "page": 1,
+  "per_page": 5,
+  "total_pages": 1
+}
