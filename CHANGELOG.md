@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/arnakoff/api/compare/v0.19.0...v0.20.0) (2026-10-30)
+
+
+### Features
+
+* **registry:** add the rdap client with iana bootstrap ([#138](https://github.com/arnakoff/api/issues/138)) ([af32c61](https://github.com/arnakoff/api/commit/af32c61573cebbd75af1fceea751f35caff05015)), closes [#35](https://github.com/arnakoff/api/issues/35)
+
 ## [0.19.0](https://github.com/arnakoff/api/compare/v0.18.0...v0.19.0) (2026-10-30)
 
 
