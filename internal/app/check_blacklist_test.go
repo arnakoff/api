@@ -61,7 +61,7 @@ func TestCheckReadsTheBlacklists(t *testing.T) {
 
 	amf := fakeBlacklist{list: blacklistOf(t, "Forex", "armen.ltd", "contact@paris-majeste.com")}
 	acpr := fakeBlacklist{list: blacklistOf(t, "Usurpation Professionnel", "armen.ltd")}
-	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, acpr)})
+	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, acpr)}, &clock{now: t0})
 	tests := []struct {
 		in      string
 		codes   []string
@@ -94,7 +94,7 @@ func TestCheckBlacklistSignal(t *testing.T) {
 	t.Parallel()
 
 	amf := fakeBlacklist{list: blacklistOf(t, "Forex", "armen.ltd")}
-	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, fakeBlacklist{list: domain.NewBlacklist()})})
+	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, fakeBlacklist{list: domain.NewBlacklist()})}, &clock{now: t0})
 
 	got := check.Check(context.Background(), parse(t, "armen.ltd")).Signals()
 
@@ -116,7 +116,7 @@ func TestCheckReportsABlacklistWithoutSnapshotUnavailable(t *testing.T) {
 
 	amf := fakeBlacklist{err: fmt.Errorf("amf: %w", app.ErrNoSnapshot)}
 	acpr := fakeBlacklist{list: blacklistOf(t, "Forex", "armen.ltd")}
-	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, acpr)})
+	check := app.NewCheck(app.Registries{Blacklists: blacklists(amf, acpr)}, &clock{now: t0})
 
 	got := check.Check(context.Background(), parse(t, "armen.ltd"))
 
@@ -135,7 +135,7 @@ func TestCheckListsTheBlacklistsBeforeTheRegistries(t *testing.T) {
 	regs := newRegistries().all()
 	regs.Blacklists = blacklists(fakeBlacklist{list: domain.NewBlacklist()}, fakeBlacklist{list: domain.NewBlacklist()})
 
-	got := app.NewCheck(regs).Check(context.Background(), parse(t, "exemple.fr")).Sources()
+	got := app.NewCheck(regs, &clock{now: t0}).Check(context.Background(), parse(t, "exemple.fr")).Sources()
 
 	want := append([]domain.SourceState{{Source: "AMF", Status: okState}, {Source: "ACPR", Status: okState}}, states(okState, naState, naState)...)
 	if !slices.Equal(got, want) {

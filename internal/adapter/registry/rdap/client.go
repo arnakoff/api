@@ -132,6 +132,7 @@ func (c *Client) query(ctx context.Context, name string) (domain.Registration, e
 	if err != nil {
 		return domain.Registration{}, fmt.Errorf("rdap %s: %w", name, err)
 	}
+	reg.URL = u.String()
 	return reg, nil
 }
 

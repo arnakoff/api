@@ -32,7 +32,7 @@ func TestCheckConsultsTheRegistriesConcurrently(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), patience)
 	defer cancel()
 
-	got := app.NewCheck(r.all()).Check(ctx, parse(t, "120027016")).Sources()
+	got := app.NewCheck(r.all(), &clock{now: t0}).Check(ctx, parse(t, "120027016")).Sources()
 
 	if want := states(naState, okState, okState); !slices.Equal(got, want) {
 		t.Errorf("Sources() = %v, want %v", got, want)
@@ -49,14 +49,16 @@ func TestCheckReturnsPartialResultsAtTheDeadline(t *testing.T) {
 	}{
 		{
 			"request deadline",
-			func(r app.Registries) *app.Check { return app.NewCheck(r) },
+			func(r app.Registries) *app.Check { return app.NewCheck(r, &clock{now: t0}) },
 			func() (context.Context, context.CancelFunc) {
 				return context.WithTimeout(context.Background(), 20*time.Millisecond)
 			},
 		},
 		{
 			"check timeout",
-			func(r app.Registries) *app.Check { return app.NewCheck(r, app.WithTimeout(20*time.Millisecond)) },
+			func(r app.Registries) *app.Check {
+				return app.NewCheck(r, &clock{now: t0}, app.WithTimeout(20*time.Millisecond))
+			},
 			func() (context.Context, context.CancelFunc) {
 				return context.WithCancel(context.Background())
 			},
@@ -100,7 +102,7 @@ func TestCheckTimeoutKeepsAnEarlierRequestDeadline(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), want)
 	defer cancel()
 
-	app.NewCheck(r.all(), app.WithTimeout(time.Hour)).Check(ctx, parse(t, "exemple.fr"))
+	app.NewCheck(r.all(), &clock{now: t0}, app.WithTimeout(time.Hour)).Check(ctx, parse(t, "exemple.fr"))
 
 	if !deadline.Equal(want) {
 		t.Errorf("registry deadline = %v, want the request's %v", deadline, want)

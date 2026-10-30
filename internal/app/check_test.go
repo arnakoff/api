@@ -35,7 +35,7 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 			t.Parallel()
 
 			r := newRegistries()
-			got := app.NewCheck(r.all()).Check(context.Background(), parse(t, tt.in))
+			got := app.NewCheck(r.all(), &clock{now: t0}).Check(context.Background(), parse(t, tt.in))
 
 			if got.Input() != parse(t, tt.in).String() {
 				t.Errorf("Input() = %q, want the normalised input", got.Input())
@@ -44,7 +44,7 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 				t.Errorf("Sources() = %v, want %v", got.Sources(), tt.want)
 			}
 			if len(got.Signals()) != 0 {
-				t.Errorf("Signals() = %v, want none: no registry rule is wired yet", got.Signals())
+				t.Errorf("Signals() = %v, want none: the fake registries answer no record", got.Signals())
 			}
 			r.assertAsked(t, tt.domains, tt.sirens)
 		})
@@ -72,7 +72,7 @@ func TestCheckStatusFollowsTheRegistryAnswer(t *testing.T) {
 
 			r := newRegistries()
 			r.domains.err, r.companies.err, r.notices.err = tt.err, tt.err, tt.err
-			check := app.NewCheck(r.all())
+			check := app.NewCheck(r.all(), &clock{now: t0})
 
 			for _, in := range []string{"exemple.fr", "120027016"} {
 				for _, s := range check.Check(context.Background(), parse(t, in)).Sources() {
@@ -92,7 +92,7 @@ func TestCheckLeavesOutAMissingRegistry(t *testing.T) {
 	regs := r.all()
 	regs.Domains = nil
 
-	got := app.NewCheck(regs).Check(context.Background(), parse(t, "exemple.fr")).Sources()
+	got := app.NewCheck(regs, &clock{now: t0}).Check(context.Background(), parse(t, "exemple.fr")).Sources()
 
 	want := []domain.SourceState{{Source: "SIRENE", Status: naState}, {Source: "BODACC", Status: naState}}
 	if !slices.Equal(got, want) {
@@ -154,7 +154,7 @@ func BenchmarkCheck(b *testing.B) {
 	regs.Blacklists = blacklists(list, list)
 	white := fakeWhitelist{list: whitelistOf(b, "COINHOUSE SAS", "coinhouse.com", "+33182882951", "815254545")}
 	regs.Whitelists = whitelists(white, white)
-	check := app.NewCheck(regs)
+	check := app.NewCheck(regs, &clock{now: t0})
 	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678"} {
 		v, err := domain.ParseInput(in, domain.KindAuto)
 		if err != nil {
