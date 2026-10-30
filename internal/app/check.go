@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 )
 
 // Registries are the sources a Check consults: the blacklists, the white
@@ -46,6 +47,7 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 // state of each. It is safe for concurrent use when the registries are.
 type Check struct {
 	registries Registries
+	clock      Clock
 	timeout    time.Duration
 }
 
@@ -58,9 +60,10 @@ func WithTimeout(d time.Duration) CheckOption {
 	return func(c *Check) { c.timeout = d }
 }
 
-// NewCheck returns a Check of the registries.
-func NewCheck(r Registries, opts ...CheckOption) *Check {
-	c := &Check{registries: r}
+// NewCheck returns a Check of the registries, which dates its findings
+// with clock.
+func NewCheck(r Registries, clock Clock, opts ...CheckOption) *Check {
+	c := &Check{registries: r, clock: clock}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -82,67 +85,93 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	states := make([]domain.SourceState, 0, len(r.Blacklists)+len(r.Whitelists)+len(lookups))
 	signals, states := readLists(r.Blacklists, in, nil, states)
 	signals, states = readLists(r.Whitelists, in, signals, states)
-	return domain.NewReport(in.String(), signals, collect(ctx, lookups, states))
+	signals, states = collect(ctx, lookups, signals, states)
+	return domain.NewReport(in.String(), signals, states)
 }
 
 // lookup is the consultation of one registry about an input; run is nil
-// when the registry does not cover the input.
+// when the registry does not cover the input. run returns the signal the
+// answer gives, or nil.
 type lookup struct {
 	source domain.Source
-	run    func(ctx context.Context) error
+	run    func(ctx context.Context) (*domain.Signal, error)
 }
 
 // lookups returns the consultation of each registry about in, in report
 // order.
 func (c *Check) lookups(in domain.Input) []lookup {
 	r := c.registries
-	d, isDomain := domainOf(in)
-	n, isCompany := companyOf(in)
 	out := make([]lookup, 0, 3)
 	if r.Domains != nil {
-		l := lookup{source: r.Domains.Source()}
-		if isDomain {
-			l.run = func(ctx context.Context) error {
-				_, err := r.Domains.Lookup(ctx, d)
-				return err
-			}
-		}
-		out = append(out, l)
+		out = append(out, c.domainLookup(in))
 	}
 	if r.Companies != nil {
-		l := lookup{source: r.Companies.Source()}
-		if isCompany {
-			l.run = func(ctx context.Context) error {
-				_, err := r.Companies.Lookup(ctx, n)
-				return err
-			}
-		}
-		out = append(out, l)
+		out = append(out, companyLookup(r.Companies, in))
 	}
 	if r.Notices != nil {
-		l := lookup{source: r.Notices.Source()}
-		if isCompany {
-			l.run = func(ctx context.Context) error {
-				_, err := r.Notices.Notices(ctx, n)
-				return err
-			}
-		}
-		out = append(out, l)
+		out = append(out, noticeLookup(r.Notices, in))
 	}
 	return out
 }
 
-// answer is the outcome of the lookup whose state is at index i.
-type answer struct {
-	i   int
-	err error
+// domainLookup returns the consultation of the domain registry about in,
+// whose answer gives domain_recent.
+func (c *Check) domainLookup(in domain.Input) lookup {
+	reg := c.registries.Domains
+	source := reg.Source()
+	d, ok := domainOf(in)
+	if !ok {
+		return lookup{source: source}
+	}
+	return lookup{source: source, run: func(ctx context.Context) (*domain.Signal, error) {
+		rec, err := reg.Lookup(ctx, d)
+		if err != nil {
+			return nil, err
+		}
+		if s, found := signal.DomainRecent(d, rec, source, c.clock.Now()); found {
+			return &s, nil
+		}
+		return nil, nil
+	}}
 }
 
-// collect runs the lookups that apply concurrently and appends the state of
-// each to states, in order. It returns once all answered or ctx is done: a
-// lookup still running then is reported unavailable and its answer
-// discarded.
-func collect(ctx context.Context, lookups []lookup, states []domain.SourceState) []domain.SourceState {
+// companyLookup returns the consultation of the company register about in.
+func companyLookup(reg CompanyRegistry, in domain.Input) lookup {
+	l := lookup{source: reg.Source()}
+	if n, ok := companyOf(in); ok {
+		l.run = func(ctx context.Context) (*domain.Signal, error) {
+			_, err := reg.Lookup(ctx, n)
+			return nil, err
+		}
+	}
+	return l
+}
+
+// noticeLookup returns the consultation of the legal notices about in.
+func noticeLookup(reg NoticeRegistry, in domain.Input) lookup {
+	l := lookup{source: reg.Source()}
+	if n, ok := companyOf(in); ok {
+		l.run = func(ctx context.Context) (*domain.Signal, error) {
+			_, err := reg.Notices(ctx, n)
+			return nil, err
+		}
+	}
+	return l
+}
+
+// answer is the outcome of the lookup whose state is at index i, and the
+// signal it gives, or nil.
+type answer struct {
+	i      int
+	signal *domain.Signal
+	err    error
+}
+
+// collect runs the lookups that apply concurrently, appends the state of
+// each to states, in order, and the signals they give to signals, in the
+// same order. It returns once all answered or ctx is done: a lookup still
+// running then is reported unavailable and its answer discarded.
+func collect(ctx context.Context, lookups []lookup, signals []domain.Signal, states []domain.SourceState) ([]domain.Signal, []domain.SourceState) {
 	base := len(states)
 	for _, l := range lookups {
 		states = append(states, domain.SourceState{Source: l.source, Status: domain.SourceNotApplicable})
@@ -158,17 +187,34 @@ func collect(ctx context.Context, lookups []lookup, states []domain.SourceState)
 		}
 		states[base+i].Status = domain.SourceUnavailable
 		pending++
-		go func() { answers <- answer{base + i, l.run(ctx)} }()
+		go func() {
+			s, err := l.run(ctx)
+			answers <- answer{base + i, s, err}
+		}()
 	}
+	var found []answer
 	for ; pending > 0; pending-- {
 		select {
 		case a := <-answers:
 			states[a.i].Status = statusOf(a.err)
+			if a.signal != nil {
+				found = append(found, a)
+			}
 		case <-ctx.Done():
-			return states
+			return appendFound(signals, found), states
 		}
 	}
-	return states
+	return appendFound(signals, found), states
+}
+
+// appendFound appends the signals of found to signals in lookup order,
+// whatever order the answers came in.
+func appendFound(signals []domain.Signal, found []answer) []domain.Signal {
+	slices.SortFunc(found, func(a, b answer) int { return a.i - b.i })
+	for _, a := range found {
+		signals = append(signals, *a.signal)
+	}
+	return signals
 }
 
 // domainOf returns the domain of in, its own or its email address's, and

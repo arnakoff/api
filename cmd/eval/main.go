@@ -68,7 +68,7 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 	if err != nil {
 		return err
 	}
-	score, err := app.Evaluate(ctx, app.NewCheck(regs), cases)
+	score, err := app.Evaluate(ctx, app.NewCheck(regs, clock.System{}), cases)
 	if !opts.offline {
 		err = errors.Join(err, tape.Save(tapeDir))
 	}

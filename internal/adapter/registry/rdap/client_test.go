@@ -124,11 +124,12 @@ func TestLookup(t *testing.T) {
 	}))
 	c := u.client(t)
 	tests := []struct {
-		in   string
-		want time.Time
+		in      string
+		want    time.Time
+		wantURL string
 	}{
-		{"https://www.afnic.fr/fr/", date(t, "2001-12-10T23:00:00Z")},
-		{"verisign.com", date(t, "1995-06-02T04:00:00Z")},
+		{"https://www.afnic.fr/fr/", date(t, "2001-12-10T23:00:00Z"), u.fr.URL + "/fr/domain/afnic.fr"},
+		{"verisign.com", date(t, "1995-06-02T04:00:00Z"), u.com.URL + "/com/v1/domain/verisign.com"},
 	}
 	for _, tt := range tests {
 		got, err := c.Lookup(t.Context(), parse(t, tt.in))
@@ -137,6 +138,9 @@ func TestLookup(t *testing.T) {
 		}
 		if !got.Registered.Equal(tt.want) {
 			t.Errorf("Lookup(%q).Registered = %v, want %v", tt.in, got.Registered, tt.want)
+		}
+		if got.URL != tt.wantURL {
+			t.Errorf("Lookup(%q).URL = %q, want %q", tt.in, got.URL, tt.wantURL)
 		}
 	}
 	want := []string{"/fr/domain/afnic.fr", "/com/v1/domain/verisign.com"}

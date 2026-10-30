@@ -12,6 +12,7 @@ import (
 type registration struct {
 	Registered  time.Time `json:"registered,omitzero"`
 	LastChanged time.Time `json:"last_changed,omitzero"`
+	URL         string    `json:"url,omitempty"`
 }
 
 // company is the recorded form of a domain.Company.

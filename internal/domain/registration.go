@@ -12,4 +12,7 @@ type Registration struct {
 	Registered time.Time
 	// LastChanged is when the registry last changed the domain's record.
 	LastChanged time.Time
+	// URL is the public address the registry published the record at,
+	// where anyone can check the dates.
+	URL string
 }

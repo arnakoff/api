@@ -21,6 +21,7 @@ var (
 	registered = domain.Registration{
 		Registered:  time.Date(2026, 10, 1, 9, 30, 0, 0, time.UTC),
 		LastChanged: time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC),
+		URL:         "https://rdap.nic.fr/domain/exemple.fr",
 	}
 	company = domain.Company{
 		Name:               "DIRECTION INTERMINISTERIELLE DU NUMERIQUE",

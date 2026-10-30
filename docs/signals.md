@@ -31,3 +31,12 @@ Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une ma
 - **Radiations** : une autorisation PSAN `Radié` est terminée à sa date de fin. Si une autorisation en cours existe, seules les autorisations en cours sont citées ; sinon `amf_registration_ended` : « A figuré sur la liste des prestataires sur actifs numériques de l'AMF : COINHOUSE SAS (Enregistrement) du 17/03/2020 au 07/05/2026. », du premier début à la dernière fin (décision du propriétaire, 30/10/2026). Niveau `info` : une radiation suit souvent la fin de la période transitoire MiCA, pas une sanction.
 - **Jamais une garantie** : figurer sur une liste blanche ne dit rien du site qui imite un acteur listé ; le signal reste `info`.
 - **Lien** : `https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-blanches` (vérifié le 30/10/2026), pour les deux listes.
+
+## Âge du domaine
+
+- **Condition** : `domain_recent` quand le registre RDAP du domaine enregistrable (celui de l'adresse e-mail pour un e-mail) publie une date d'enregistrement de moins de 30 jours (`signal.RecentDomainAge`) au moment de la vérification. Un domaine de 30 jours pile n'est plus récent. Pas de signal si le registre ne publie pas de date, publie une date postérieure à la vérification, ou ne répond pas.
+- **Formulation** : « Le domaine exemple.fr a été créé le 18/10/2026, il y a 12 jours (registre RDAP). » L'âge est en jours entiers : « il y a 1 jour », « il y a moins d'un jour ». La date est donnée dans le fuseau de l'horloge de vérification.
+- **Conseil** : « Un site créé il y a quelques jours n'a pas d'historique : vérifie qui l'exploite avant de verser de l'argent. »
+- **Lien** : `source_url` est l'adresse RDAP interrogée (`https://rdap.nic.fr/domain/exemple.fr`), réponse JSON publique où la date se vérifie (décision du propriétaire, 30/10/2026).
+- **Date d'observation** : `observed_at` est l'heure de la vérification ; la réponse du registre peut venir du cache (24 h au plus), la date d'enregistrement d'un domaine ne changeant pas.
+- **Niveau** `attention` : un domaine récent n'est qu'un indice, beaucoup de sites légitimes le sont.

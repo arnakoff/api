@@ -38,12 +38,19 @@ func (a *asked) got() []string {
 	return slices.Clone(a.ins)
 }
 
-type fakeDomains struct{ asked }
+// fakeDomains answers reg to every lookup that does not fail.
+type fakeDomains struct {
+	asked
+	reg domain.Registration
+}
 
 func (*fakeDomains) Source() domain.Source { return "RDAP" }
 
 func (f *fakeDomains) Lookup(ctx context.Context, d domain.Domain) (domain.Registration, error) {
-	return domain.Registration{}, f.record(ctx, d.String())
+	if err := f.record(ctx, d.String()); err != nil {
+		return domain.Registration{}, err
+	}
+	return f.reg, nil
 }
 
 type fakeCompanies struct{ asked }

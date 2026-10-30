@@ -64,7 +64,7 @@ func TestCheckReadsTheWhitelists(t *testing.T) {
 
 	psan := fakeWhitelist{list: whitelistOf(t, "COINHOUSE SAS", "coinhouse.com", "support@coinhouse.com", "+33182882951", "815254545")}
 	offers := fakeWhitelist{list: whitelistOf(t, "ECOTREE", "+33175850322")}
-	check := app.NewCheck(app.Registries{Whitelists: whitelists(psan, offers)})
+	check := app.NewCheck(app.Registries{Whitelists: whitelists(psan, offers)}, &clock{now: t0})
 	tests := []struct {
 		in    string
 		codes []string
@@ -100,7 +100,7 @@ func TestCheckReportsAWhitelistWithoutSnapshotUnavailable(t *testing.T) {
 	t.Parallel()
 
 	psan := fakeWhitelist{err: fmt.Errorf("psan: %w", app.ErrNoSnapshot)}
-	check := app.NewCheck(app.Registries{Whitelists: whitelists(psan, fakeWhitelist{list: domain.NewWhitelist()})})
+	check := app.NewCheck(app.Registries{Whitelists: whitelists(psan, fakeWhitelist{list: domain.NewWhitelist()})}, &clock{now: t0})
 
 	got := check.Check(context.Background(), parse(t, "coinhouse.com"))
 
@@ -120,7 +120,7 @@ func TestCheckListsTheWhitelistsAfterTheBlacklists(t *testing.T) {
 	regs.Blacklists = []app.Blacklist{{Rule: signal.AMFBlacklist(), Reader: fakeBlacklist{list: domain.NewBlacklist()}}}
 	regs.Whitelists = whitelists(fakeWhitelist{list: domain.NewWhitelist()}, fakeWhitelist{list: domain.NewWhitelist()})
 
-	got := app.NewCheck(regs).Check(context.Background(), parse(t, "exemple.fr")).Sources()
+	got := app.NewCheck(regs, &clock{now: t0}).Check(context.Background(), parse(t, "exemple.fr")).Sources()
 
 	want := append([]domain.SourceState{
 		{Source: "AMF", Status: okState}, {Source: "AMF PSAN", Status: okState}, {Source: "AMF biens divers", Status: okState},
