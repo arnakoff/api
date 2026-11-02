@@ -11,6 +11,7 @@ Liste publique des signaux. Un code est stable : le renommer passe par `api-chan
 | `domain_recent` | url, domaine, e-mail | attention | RDAP | Domaine créé il y a moins de 30 jours |
 | `company_closed` | siren, siret | attention | SIRENE | Établissement siège fermé |
 | `company_procedure` | siren, siret | attention | BODACC | Avis publié de procédure collective, radiation, conciliation ou rétablissement professionnel |
+| `iban_country` | iban | info | IBAN | Pays de tenue du compte, d'après le code pays de l'IBAN |
 
 Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une marque, IBAN étranger pour une société française, numéro non attribué selon l'ARCEP.
 
@@ -31,6 +32,15 @@ Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une ma
 - **Radiations** : une autorisation PSAN `Radié` est terminée à sa date de fin. Si une autorisation en cours existe, seules les autorisations en cours sont citées ; sinon `amf_registration_ended` : « A figuré sur la liste des prestataires sur actifs numériques de l'AMF : COINHOUSE SAS (Enregistrement) du 17/03/2020 au 07/05/2026. », du premier début à la dernière fin (décision du propriétaire, 30/10/2026). Niveau `info` : une radiation suit souvent la fin de la période transitoire MiCA, pas une sanction.
 - **Jamais une garantie** : figurer sur une liste blanche ne dit rien du site qui imite un acteur listé ; le signal reste `info`.
 - **Lien** : `https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-blanches` (vérifié le 30/10/2026), pour les deux listes.
+
+## IBAN
+
+- **IBAN invalide** : un IBAN dont la longueur, le format du pays ou la clé de contrôle sont faux est refusé, jamais vérifié : la future API répondra `422` (décision du propriétaire, 02/11/2026). L'erreur ne cite jamais l'IBAN.
+- **Condition** : `iban_country` pour chaque IBAN valide, français compris (décision du propriétaire, 02/11/2026). Le pays est celui du code pays de l'IBAN (registre ISO 13616) ; l'IBAN ne dit rien du titulaire ni de la banque réelle.
+- **Formulation** : « Pays de tenue du compte : Lituanie (code LT de l'IBAN). » Le nom du pays est le nom français CLDR (`golang.org/x/text/language/display`) ; la phrase évite la préposition (« en », « au », « aux »), qui dépend du pays. Pas de conseil.
+- **Lien** : `source_url` est la page du registre IBAN de SWIFT, `https://www.swift.com/standards/data-standards/iban-international-bank-account-number` (403 sans navigateur le 02/11/2026, à vérifier dans un navigateur).
+- **Date d'observation** : `observed_at` est l'heure de la vérification.
+- **Données personnelles** : le signal ne cite que le pays, jamais le reste de l'IBAN. La source `IBAN` n'est pas consultée et n'apparaît pas dans l'état des sources du rapport.
 
 ## Âge du domaine
 

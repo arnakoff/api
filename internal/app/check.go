@@ -42,8 +42,8 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	return r
 }
 
-// Check reads the blacklists and white lists and consults the registries,
-// all at once, about an input, and reports the signals they give and the
+// Check reads the blacklists and white lists, reads the input itself and
+// consults the registries, all at once, about an input, and reports the signals they give and the
 // state of each. It is safe for concurrent use when the registries are.
 type Check struct {
 	registries Registries
@@ -85,8 +85,22 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	states := make([]domain.SourceState, 0, len(r.Blacklists)+len(r.Whitelists)+len(lookups))
 	signals, states := readLists(r.Blacklists, in, nil, states)
 	signals, states = readLists(r.Whitelists, in, signals, states)
+	signals = readInput(in, c.clock, signals)
 	signals, states = collect(ctx, lookups, signals, states)
 	return domain.NewReport(in.String(), signals, states)
+}
+
+// readInput appends to signals what in tells about itself, without
+// consulting any source: the country of an IBAN.
+func readInput(in domain.Input, clock Clock, signals []domain.Signal) []domain.Signal {
+	i, ok := in.(domain.IBAN)
+	if !ok {
+		return signals
+	}
+	if s, found := signal.IBANCountry(i, clock.Now()); found {
+		signals = append(signals, s)
+	}
+	return signals
 }
 
 // lookup is the consultation of one registry about an input; run is nil

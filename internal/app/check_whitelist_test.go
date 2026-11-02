@@ -77,7 +77,7 @@ func TestCheckReadsTheWhitelists(t *testing.T) {
 		{"815254545", []string{"amf_registered"}, okState},
 		{"81525454500024", []string{"amf_registered"}, okState},
 		{"exemple.fr", nil, okState},
-		{"FR7630006000011234567890189", nil, naState},
+		{"FR7630006000011234567890189", []string{"iban_country"}, naState},
 	}
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {

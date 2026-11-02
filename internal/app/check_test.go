@@ -21,14 +21,15 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 		in      string
 		domains []string // inputs the domain registry was asked about
 		sirens  []string // inputs the company and notice registries were asked about
+		codes   []string // codes of the signals the input itself gives
 		want    []domain.SourceState
 	}{
-		{"domain", "www.exemple.fr", []string{"www.exemple.fr"}, nil, states(okState, naState, naState)},
-		{"email", "contact@exemple.fr", []string{"exemple.fr"}, nil, states(okState, naState, naState)},
-		{"SIREN", "120027016", nil, []string{"120027016"}, states(naState, okState, okState)},
-		{"SIRET", "12002701600563", nil, []string{"120027016"}, states(naState, okState, okState)},
-		{"phone", "+33612345678", nil, nil, states(naState, naState, naState)},
-		{"IBAN", "FR1420041010050500013M02606", nil, nil, states(naState, naState, naState)},
+		{"domain", "www.exemple.fr", []string{"www.exemple.fr"}, nil, nil, states(okState, naState, naState)},
+		{"email", "contact@exemple.fr", []string{"exemple.fr"}, nil, nil, states(okState, naState, naState)},
+		{"SIREN", "120027016", nil, []string{"120027016"}, nil, states(naState, okState, okState)},
+		{"SIRET", "12002701600563", nil, []string{"120027016"}, nil, states(naState, okState, okState)},
+		{"phone", "+33612345678", nil, nil, nil, states(naState, naState, naState)},
+		{"IBAN", "FR1420041010050500013M02606", nil, nil, []string{"iban_country"}, states(naState, naState, naState)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,8 +44,9 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 			if !slices.Equal(got.Sources(), tt.want) {
 				t.Errorf("Sources() = %v, want %v", got.Sources(), tt.want)
 			}
-			if len(got.Signals()) != 0 {
-				t.Errorf("Signals() = %v, want none: the fake registries answer no record", got.Signals())
+			// The fake registries answer no record: the input alone gives signals.
+			if codes := signalCodes(got.Signals()); !slices.Equal(codes, tt.codes) {
+				t.Errorf("signal codes = %v, want %v", codes, tt.codes)
 			}
 			r.assertAsked(t, tt.domains, tt.sirens)
 		})
@@ -155,7 +157,7 @@ func BenchmarkCheck(b *testing.B) {
 	white := fakeWhitelist{list: whitelistOf(b, "COINHOUSE SAS", "coinhouse.com", "+33182882951", "815254545")}
 	regs.Whitelists = whitelists(white, white)
 	check := app.NewCheck(regs, &clock{now: t0})
-	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678"} {
+	for _, in := range []string{"contact@exemple.fr", "120027016", "+33612345678", "LT121000011101001000"} {
 		v, err := domain.ParseInput(in, domain.KindAuto)
 		if err != nil {
 			b.Fatal(err)

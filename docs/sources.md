@@ -86,6 +86,11 @@ Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier 
 - **Données personnelles** : le fichier des opérateurs vise des personnes morales mais cite au moins un entrepreneur individuel (non attributaire de numéros). Décision du propriétaire (29/10/2026) : seuls le nom et le SIREN des attributaires d'une tranche entrent dans l'instantané ; l'adresse n'est pas gardée.
 - **Usage** : opérateur attributaire de la tranche d'un numéro, numéro hors de toute tranche attribuée. Ne dit rien de l'utilisateur d'un numéro, qui a pu être porté chez un autre opérateur, ni de sa réputation.
 
+## Code pays de l'IBAN
+
+- **Origine** : aucune source téléchargée. Le pays est lu dans l'IBAN lui-même, validé par `github.com/jacoelho/banking` (MIT) d'après le registre ISO 13616 de SWIFT ; le nom français du pays vient des tables CLDR générées dans `golang.org/x/text/language/display` (module sous BSD-3-Clause ; tables CLDR 32 d'après `display.CLDRVersion`, x/text v0.43.0).
+- **Usage** : signal `info` `iban_country` (`docs/signals.md`). Ne dit rien du titulaire du compte.
+
 ## Refusées
 
 - **OpenSanctions** : licence non commerciale. Les listes AMF sont reprises directement à la source.
