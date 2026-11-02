@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.28.0](https://github.com/arnakoff/api/compare/v0.27.0...v0.28.0) (2026-11-02)
+
+
+### Features
+
+* **signal:** flag closed companies and bodacc procedures ([#161](https://github.com/arnakoff/api/issues/161)) ([6596aeb](https://github.com/arnakoff/api/commit/6596aeb4dc4bdd1bd2da63d6c6f3c4c1f2ad5fe9)), closes [#44](https://github.com/arnakoff/api/issues/44)
+* **signal:** flag unassigned phone numbers and name the range holder ([#163](https://github.com/arnakoff/api/issues/163)) ([fbb6595](https://github.com/arnakoff/api/commit/fbb6595d1380d6ab30c3bb932d19725172171621)), closes [#46](https://github.com/arnakoff/api/issues/46)
+* **signal:** state the country holding the account of an iban ([#160](https://github.com/arnakoff/api/issues/160)) ([04f51b9](https://github.com/arnakoff/api/commit/04f51b949c67edfd1c170cd79e6a38a07589934f)), closes [#45](https://github.com/arnakoff/api/issues/45)
+
 ## [0.27.0](https://github.com/arnakoff/api/compare/v0.26.0...v0.27.0) (2026-10-30)
 
 
