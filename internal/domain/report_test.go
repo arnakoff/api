@@ -63,7 +63,7 @@ func TestNewReport_sortsSignalsMostSevereFirst(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			r := domain.NewReport("example.fr", tt.signals, nil)
+			r := domain.NewReport("example.fr", observed, tt.signals, nil)
 			if got := codes(r.Signals()); !slices.Equal(got, tt.want) {
 				t.Errorf("Signals() codes = %v, want %v", got, tt.want)
 			}
@@ -71,7 +71,7 @@ func TestNewReport_sortsSignalsMostSevereFirst(t *testing.T) {
 	}
 }
 
-func TestNewReport_keepsInputAndSources(t *testing.T) {
+func TestNewReport_keepsInputTimeAndSources(t *testing.T) {
 	t.Parallel()
 
 	sources := []domain.SourceState{
@@ -79,10 +79,13 @@ func TestNewReport_keepsInputAndSources(t *testing.T) {
 		{Source: "RDAP", Status: domain.SourceUnavailable},
 		{Source: "SIRENE", Status: domain.SourceNotApplicable},
 	}
-	r := domain.NewReport("example.fr", nil, sources)
+	r := domain.NewReport("example.fr", observed, nil, sources)
 
 	if got := r.Input(); got != "example.fr" {
 		t.Errorf("Input() = %q, want %q", got, "example.fr")
+	}
+	if got := r.CheckedAt(); !got.Equal(observed) {
+		t.Errorf("CheckedAt() = %v, want %v", got, observed)
 	}
 	if got := r.Sources(); !slices.Equal(got, sources) {
 		t.Errorf("Sources() = %v, want %v", got, sources)
@@ -94,7 +97,7 @@ func TestNewReport_isNotChangedThroughSlices(t *testing.T) {
 
 	signals := []domain.Signal{signal("a", domain.LevelInfo), signal("b", domain.LevelAlert)}
 	sources := []domain.SourceState{{Source: "AMF", Status: domain.SourceOK}}
-	r := domain.NewReport("example.fr", signals, sources)
+	r := domain.NewReport("example.fr", observed, signals, sources)
 
 	if got := codes(signals); !slices.Equal(got, []string{"a", "b"}) {
 		t.Errorf("caller's signals reordered to %v", got)
@@ -118,7 +121,7 @@ func TestNewReport_dropsRepeatedSignals(t *testing.T) {
 	a, b := signal("a", domain.LevelAlert), signal("b", domain.LevelInfo)
 	sameCodeOtherFact := a
 	sameCodeOtherFact.Message = "another entry of the same list"
-	r := domain.NewReport("example.fr", []domain.Signal{a, b, a, sameCodeOtherFact, b}, nil)
+	r := domain.NewReport("example.fr", observed, []domain.Signal{a, b, a, sameCodeOtherFact, b}, nil)
 
 	got := r.Signals()
 	want := []domain.Signal{a, sameCodeOtherFact, b}
@@ -146,7 +149,7 @@ func TestReportSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := domain.NewReport("example.fr", tt.signals, nil).Summary(); got != tt.want {
+			if got := domain.NewReport("example.fr", observed, tt.signals, nil).Summary(); got != tt.want {
 				t.Errorf("Summary() = %q, want %q", got, tt.want)
 			}
 		})

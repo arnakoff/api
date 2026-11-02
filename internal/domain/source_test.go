@@ -17,7 +17,7 @@ func TestSourceStatus_String(t *testing.T) {
 	}{
 		{domain.SourceOK, "ok"},
 		{domain.SourceUnavailable, "indisponible"},
-		{domain.SourceNotApplicable, "non applicable"},
+		{domain.SourceNotApplicable, "non_applicable"},
 		{domain.SourceStatus(0), "SourceStatus(0)"},
 		{domain.SourceStatus(9), "SourceStatus(9)"},
 	}

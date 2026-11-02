@@ -63,12 +63,14 @@ func firstSignal(v map[string]any) map[string]any {
 }
 
 // exchange is one request and the response the contract is checked on. An
-// empty method, status or header is GET, 200 and JSON.
+// empty method, status or header is GET, 200 and JSON. A refused exchange
+// is checked with CheckRefused.
 type exchange struct {
 	method, target, reqBody string
 	status                  int
 	header                  http.Header
 	body                    any
+	refused                 bool
 }
 
 func (e exchange) check(t *testing.T) error {
@@ -93,6 +95,9 @@ func (e exchange) check(t *testing.T) error {
 	rec.WriteHeader(e.status)
 	if err := json.NewEncoder(rec).Encode(e.body); err != nil {
 		t.Fatal(err)
+	}
+	if e.refused {
+		return load(t).CheckRefused(t.Context(), req, rec.Result())
 	}
 	return load(t).Check(t.Context(), req, rec.Result())
 }
@@ -172,5 +177,36 @@ func TestCheckRejectsAnUndocumentedOperation(t *testing.T) {
 		if err := e.check(t); !errors.Is(err, contracttest.ErrUndocumented) {
 			t.Errorf("%s %s: Check = %v, want ErrUndocumented", e.method, e.target, err)
 		}
+	}
+}
+
+func TestCheckRefusedHoldsTheAnswerToARequestTheContractRefuses(t *testing.T) {
+	t.Parallel()
+
+	problem := jsonHeader("application/problem+json")
+	missing := exchange{
+		target: "/v1/check", status: http.StatusBadRequest, header: problem,
+		body: example(t, "ProblemMissingParameter"), refused: true,
+	}
+	if err := missing.check(t); err != nil {
+		t.Errorf("CheckRefused of a documented problem: %v", err)
+	}
+	for name, e := range map[string]exchange{
+		"undocumented status": {target: "/v1/check?q=x&type=url", status: http.StatusTeapot, header: problem, body: example(t, "ProblemInvalidParameter"), refused: true},
+		"report to a refusal": {target: "/v1/check?type=domain", status: http.StatusBadRequest, header: problem, body: example(t, "ReportBlacklisted"), refused: true},
+		"undocumented":        {target: "/v1/unknown", body: map[string]any{}, refused: true},
+	} {
+		if err := e.check(t); err == nil {
+			t.Errorf("%s: CheckRefused = nil, want an error", name)
+		}
+	}
+}
+
+func TestCheckRefusedRejectsAValidRequest(t *testing.T) {
+	t.Parallel()
+
+	e := exchange{target: "/v1/check?q=armen.ltd", body: example(t, "ReportBlacklisted"), refused: true}
+	if err := e.check(t); !errors.Is(err, contracttest.ErrRequestValid) {
+		t.Errorf("CheckRefused = %v, want ErrRequestValid", err)
 	}
 }

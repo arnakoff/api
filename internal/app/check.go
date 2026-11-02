@@ -81,10 +81,11 @@ func NewCheck(r Registries, clock Clock, opts ...CheckOption) *Check {
 	return c
 }
 
-// Check returns the report of in. A list without a snapshot in service,
+// Check returns the report of in, dated when it starts. A list without a snapshot in service,
 // or a registry that fails or has not answered when the deadline comes, is
 // reported unavailable; the others are still reported.
 func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
+	checkedAt := c.clock.Now()
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, c.timeout)
@@ -99,7 +100,7 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	signals, states = readLists(r.Numbering, in, signals, states)
 	signals = c.readInput(in, signals)
 	signals, states = collect(ctx, lookups, signals, states)
-	return domain.NewReport(in.String(), signals, states)
+	return domain.NewReport(in.String(), checkedAt, signals, states)
 }
 
 // readInput appends to signals what in tells about itself, without

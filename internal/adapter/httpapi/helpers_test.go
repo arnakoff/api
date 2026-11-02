@@ -3,13 +3,16 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/arnakoff/api/internal/adapter/httpapi"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/logging/loggingtest"
 )
 
@@ -21,11 +24,33 @@ type readiness bool
 
 func (r readiness) Ready() bool { return bool(r) }
 
+// checker is a fake check: it answers report, whatever the input, and
+// records the inputs it was asked about.
+type checker struct {
+	report domain.Report
+	mu     sync.Mutex
+	asked  []domain.Input
+}
+
+func (c *checker) Check(_ context.Context, in domain.Input) domain.Report {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.asked = append(c.asked, in)
+	return c.report
+}
+
+// inputs returns the inputs c was asked about.
+func (c *checker) inputs() []domain.Input {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]domain.Input(nil), c.asked...)
+}
+
 func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	t.Helper()
 	logger, buf := loggingtest.New(t)
 	return httpapi.Options{
-		Ready: readiness(ready), Logger: logger, NewID: func() string { return "GENERATED" },
+		Ready: readiness(ready), Check: &checker{}, Logger: logger, NewID: func() string { return "GENERATED" },
 		ProblemBase: problemBase,
 	}, buf
 }
