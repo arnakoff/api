@@ -15,6 +15,7 @@ require (
 	github.com/getkin/kin-openapi v0.152.0
 	github.com/jacoelho/banking v1.13.0
 	github.com/nyaruka/phonenumbers v1.8.1
+	github.com/oapi-codegen/oapi-codegen/v2 v2.8.1
 	go.mau.fi/util v0.11.0
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
@@ -27,7 +28,6 @@ require (
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect
 	github.com/go-openapi/swag/jsonname v0.26.0 // indirect
-	github.com/oapi-codegen/oapi-codegen/v2 v2.8.1 // indirect
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect

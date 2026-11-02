@@ -15,7 +15,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | SDK MCP Go | v1.8.0 | `proxy.golang.org` |
 | oapi-codegen | v2.8.1 | `proxy.golang.org` |
 | benchstat (`golang.org/x/perf`, sans tag : pseudo-version) | v0.0.0-20261009192801-be2c69fb417e | `proxy.golang.org` |
-| `getkin/kin-openapi` (dépendance d'oapi-codegen, et validation du contrat dans les tests : `api` et `internal/adapter/httpapi/contracttest`) | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
+| `getkin/kin-openapi` (dépendance d'oapi-codegen, et validation du contrat dans les tests : `api` et `internal/adapter/httpapi/contracttest`) ; oapi-codegen v2.8.1 sert aussi de bibliothèque dans le test de génération de `api` | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
 | Numéros de téléphone (`nyaruka/phonenumbers`) | v1.8.1 | `proxy.golang.org` |
 | IBAN (`jacoelho/banking`) | v1.13.0 | `proxy.golang.org` |
 | JSON Schema (`santhosh-tekuri/jsonschema/v6`) | v6.0.3 | `proxy.golang.org` |
@@ -31,7 +31,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | `actions/create-github-app-token` | v3.3.0, épinglée par SHA | GitHub releases |
 | `ossf/scorecard-action` | v2.5.0, épinglée par SHA | GitHub releases |
 | cosign / syft | v3.1.4 / v1.55.0 | GitHub releases |
-| OpenAPI | 3.1.2 pour `api/openapi.yaml` (relevé du 02/11/2026). La 3.2.1 est publiée, mais oapi-codegen v2.8.1 ne documente que la 3.0 et la 3.1, kin-openapi v0.152.0 ne prend la 3.2 qu'en partie, et starlight-openapi 0.27.0 (via `@readme/openapi-parser`) annonce Swagger 2.0, OpenAPI 3.0 et 3.1 ; le schéma officiel de la 3.1 accepte `3.1.2` (`^3\.1\.\d+(-.+)?$`) | `OAI/OpenAPI-Specification` releases, READMEs des trois outils |
+| OpenAPI | 3.2.1 pour `api/openapi.yaml`, dernière version publiée (10/09/2026), décision du propriétaire du 02/11/2026. kin-openapi v0.152.0 la valide (prise en charge partielle des nouveautés de la 3.2, que le contrat n'utilise pas) ; oapi-codegen v2.8.1 la traite comme une 3.1 ou plus (`IsOpenAPI31OrLater`), et un test génère le code depuis le contrat. `@readme/openapi-parser`, sous starlight-openapi 0.27.0, refuse la 3.2 en validation (« OpenAPI 3.2 is currently unsupported. ») mais starlight-openapi n'appelle que `bundle` : rendu **à vérifier** dans `arnakoff/web` | `OAI/OpenAPI-Specification` releases, sources des trois outils |
 
 Outils de développement épinglés avec la directive `tool` de `go.mod` (`go tool govulncheck`, `go tool gofumpt`, `go tool benchstat`, `go tool oapi-codegen`). Leurs dépendances se vérifient avec `go tool govulncheck tool`. golangci-lint s'installe en binaire à la version ci-dessus, comme le recommande son projet.
 

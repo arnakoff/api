@@ -7,9 +7,11 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/oapi-codegen/oapi-codegen/v2/pkg/codegen"
 
 	"github.com/arnakoff/api/api"
 )
@@ -23,15 +25,36 @@ func load(t *testing.T) *openapi3.T {
 	return doc
 }
 
-func TestSpecIsAValidOpenAPI312Document(t *testing.T) {
+func TestSpecIsAValidOpenAPI321Document(t *testing.T) {
 	t.Parallel()
 
 	doc := load(t)
-	if doc.OpenAPI != "3.1.2" {
-		t.Errorf("openapi = %q, want 3.1.2 (docs/standards.md)", doc.OpenAPI)
+	if doc.OpenAPI != "3.2.1" {
+		t.Errorf("openapi = %q, want 3.2.1 (docs/standards.md)", doc.OpenAPI)
 	}
 	if err := doc.Validate(t.Context(), openapi3.EnableExamplesValidation()); err != nil {
 		t.Errorf("Validate: %v", err)
+	}
+}
+
+// TestSpecGeneratesGoCode proves oapi-codegen, the generator pinned in
+// go.mod, reads the contract: types and a net/http server interface.
+func TestSpecGeneratesGoCode(t *testing.T) {
+	t.Parallel()
+
+	opts := codegen.Configuration{
+		PackageName:         "gen",
+		Generate:            codegen.GenerateOptions{Models: true, StdHTTPServer: true},
+		AllowRemoteRefsFrom: []string{},
+	}
+	code, err := codegen.Generate(load(t), opts.UpdateDefaults())
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	for _, want := range []string{"type Report struct", "type Signal struct", "type ServerInterface interface"} {
+		if !strings.Contains(code, want) {
+			t.Errorf("generated code lacks %q", want)
+		}
 	}
 }
 
