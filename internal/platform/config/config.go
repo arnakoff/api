@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/arnakoff/api/internal/platform/logging"
 )
@@ -25,6 +26,8 @@ const (
 	EnvSourceACPR = "ARNAKOFF_SOURCE_ACPR"
 
 	EnvAlertWebhook = "ARNAKOFF_ALERT_WEBHOOK"
+
+	EnvProblemBaseURL = "ARNAKOFF_PROBLEM_BASE_URL"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -36,6 +39,10 @@ const (
 	// DefaultSourceACPR keeps the ACPR blacklist off: its reuse licence is
 	// still to be obtained (docs/sources.md).
 	DefaultSourceACPR = "false"
+
+	// DefaultProblemBaseURL is where arnakoff/web documents the problems
+	// the API answers, one page per code.
+	DefaultProblemBaseURL = "https://arnakoff.com/docs/erreurs/"
 )
 
 // MinLogKeyBytes is the shortest log key Load accepts, once hex-decoded:
@@ -69,6 +76,11 @@ type Config struct {
 	// to; nil when unset or empty, and then alerts are only logged. It is a
 	// Secret: a webhook URL usually carries its credential.
 	AlertWebhook Secret
+
+	// ProblemBaseURL is the HTTPS URL of the documentation of the API's
+	// problems, ending with a slash: the type of a problem is its code
+	// under it.
+	ProblemBaseURL string
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -90,6 +102,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvDataDir, DefaultDataDir, &cfg.DataDir, parseDir),
 		parse(lookup, EnvSourceACPR, DefaultSourceACPR, &cfg.SourceACPR, strconv.ParseBool),
 		parse(lookup, EnvAlertWebhook, "", &cfg.AlertWebhook, parseWebhook),
+		parse(lookup, EnvProblemBaseURL, DefaultProblemBaseURL, &cfg.ProblemBaseURL, parseProblemBase),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
@@ -154,6 +167,31 @@ func parseWebhook(s string) (Secret, error) {
 	if s == "" {
 		return nil, nil
 	}
+	if _, err := parseHTTPS(s); err != nil {
+		return nil, err
+	}
+	return Secret(s), nil
+}
+
+// parseProblemBase accepts an absolute HTTPS URL with a host, no
+// credentials, no query and no fragment, whose path ends with a slash: a
+// code appended to it is the URL of the code's page.
+func parseProblemBase(s string) (string, error) {
+	u, err := parseHTTPS(s)
+	switch {
+	case err != nil:
+		return "", err
+	case u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(s, "#"):
+		return "", errors.New("a query or a fragment is not allowed")
+	case !strings.HasSuffix(u.Path, "/"):
+		return "", errors.New("the path must end with a slash")
+	}
+	return s, nil
+}
+
+// parseHTTPS parses an absolute HTTPS URL with a host and no credentials.
+// Its errors never quote the input.
+func parseHTTPS(s string) (*url.URL, error) {
 	u, err := url.Parse(s)
 	switch {
 	case err != nil:
@@ -163,7 +201,7 @@ func parseWebhook(s string) (Secret, error) {
 	case u.User != nil:
 		return nil, errors.New("credentials before the host are not allowed")
 	}
-	return Secret(s), nil
+	return u, nil
 }
 
 // parseDir accepts a non-empty path and cleans it.

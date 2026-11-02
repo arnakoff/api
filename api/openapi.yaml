@@ -196,6 +196,8 @@ components:
           examples:
             missingQ:
               $ref: '#/components/examples/ProblemMissingParameter'
+            unknownType:
+              $ref: '#/components/examples/ProblemInvalidParameter'
     UnprocessableContent:
       description: Entrée reconnue comme d'aucun type, ou invalide pour le type donné.
       content:
@@ -211,12 +213,18 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            tooLarge:
+              $ref: '#/components/examples/ProblemContentTooLarge'
     UnsupportedMediaType:
       description: Corps de requête qui n'est pas en `application/json`.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            notJSON:
+              $ref: '#/components/examples/ProblemUnsupportedMediaType'
     TooManyRequests:
       description: Quota dépassé.
       headers:
@@ -230,12 +238,18 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            quota:
+              $ref: '#/components/examples/ProblemTooManyRequests'
     InternalError:
       description: Erreur interne du serveur.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+          examples:
+            internal:
+              $ref: '#/components/examples/ProblemInternalError'
   schemas:
     InputType:
       type: string
@@ -498,9 +512,11 @@ components:
       properties:
         type:
           type: string
-          format: uri-reference
-          description: Référence de la page qui documente ce type d'erreur.
-          example: /problemes/invalid_input
+          format: uri
+          description: |
+            Adresse de la page du site qui documente ce type d'erreur : la documentation des erreurs
+            suivie du `code`.
+          example: https://arnakoff.com/docs/erreurs/invalid_input
         title:
           type: string
           description: Résumé du type d'erreur, en français, le même pour toutes ses occurrences.
@@ -518,11 +534,16 @@ components:
         instance:
           type: string
           format: uri-reference
-          description: Référence de cette occurrence, comme l'identifiant de la requête.
-          example: urn:uuid:3f1c2a64-1d0e-4b5e-9a57-2c8f0c6d7e21
+          description: |
+            Identifiant de cette occurrence : l'URI `tag:arnakoff.com,2026:request:` suivie de
+            l'identifiant de la requête, celui de l'en-tête `X-Request-ID` de la réponse. À citer
+            quand on signale un problème. Absent d'une erreur d'un élément de `POST /v1/check/batch`.
+          example: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code:
           type: string
-          description: Identifiant stable du type d'erreur (liste ouverte).
+          description: |
+            Identifiant stable du type d'erreur (liste ouverte). Chaque code a un exemple
+            `Problem…` dans ce contrat.
           pattern: '^[a-z][a-z0-9_]*$'
           example: invalid_input
   examples:
@@ -603,7 +624,7 @@ components:
         results:
           - report: *blacklisted
           - error:
-              type: /problemes/invalid_input
+              type: https://arnakoff.com/docs/erreurs/invalid_input
               title: Entrée invalide
               status: 422
               detail: L'entrée n'est pas un IBAN valide.
@@ -628,19 +649,93 @@ components:
             inputs: [domain, email]
             source: AMF
             condition: Site inscrit ou adresse e-mail inscrite à l'identique
+    ProblemInvalidParameter:
+      summary: Paramètre type d'une valeur inconnue
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_parameter
+        title: Paramètre invalide
+        status: 400
+        detail: Le paramètre type doit valoir domain, email, phone, iban, siren ou siret.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_parameter
     ProblemMissingParameter:
       summary: Paramètre q absent
       value:
-        type: /problemes/missing_parameter
+        type: https://arnakoff.com/docs/erreurs/missing_parameter
         title: Paramètre manquant
         status: 400
         detail: Le paramètre q est obligatoire.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: missing_parameter
+    ProblemNotFound:
+      summary: Chemin inconnu
+      value:
+        type: https://arnakoff.com/docs/erreurs/not_found
+        title: Ressource introuvable
+        status: 404
+        detail: Aucune ressource ne correspond à ce chemin.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: not_found
+    ProblemMethodNotAllowed:
+      summary: Méthode refusée par la ressource
+      value:
+        type: https://arnakoff.com/docs/erreurs/method_not_allowed
+        title: Méthode non autorisée
+        status: 405
+        detail: Cette ressource n'accepte pas cette méthode.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: method_not_allowed
+    ProblemContentTooLarge:
+      summary: Corps de requête trop gros
+      value:
+        type: https://arnakoff.com/docs/erreurs/content_too_large
+        title: Corps de requête trop gros
+        status: 413
+        detail: Le corps de la requête dépasse la taille autorisée.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: content_too_large
+    ProblemUnsupportedMediaType:
+      summary: Corps de requête qui n'est pas du JSON
+      value:
+        type: https://arnakoff.com/docs/erreurs/unsupported_media_type
+        title: Type de contenu non pris en charge
+        status: 415
+        detail: Le corps de la requête doit être en application/json.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: unsupported_media_type
     ProblemInvalidInput:
       summary: Entrée d'aucun type reconnu
       value:
-        type: /problemes/invalid_input
+        type: https://arnakoff.com/docs/erreurs/invalid_input
         title: Entrée invalide
         status: 422
         detail: L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, ni un numéro de téléphone, ni un IBAN, ni un SIREN, ni un SIRET.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: invalid_input
+    ProblemTooManyRequests:
+      summary: Quota dépassé
+      value:
+        type: https://arnakoff.com/docs/erreurs/too_many_requests
+        title: Trop de requêtes
+        status: 429
+        detail: Le quota de requêtes est atteint. Réessaie après le délai de l'en-tête Retry-After.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: too_many_requests
+    ProblemInternalError:
+      summary: Erreur interne
+      value:
+        type: https://arnakoff.com/docs/erreurs/internal_error
+        title: Erreur interne
+        status: 500
+        detail: Le serveur a rencontré une erreur. Réessaie plus tard.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: internal_error
+    ProblemServiceUnavailable:
+      summary: Service pas encore prêt
+      value:
+        type: https://arnakoff.com/docs/erreurs/service_unavailable
+        title: Service indisponible
+        status: 503
+        detail: Le service n'est pas encore prêt. Réessaie plus tard.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: service_unavailable

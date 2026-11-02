@@ -10,4 +10,7 @@
 // start, then looks for new ones every minute and swaps them in without a
 // restart. It downloads nothing itself. A stored snapshot that cannot be
 // reloaded is logged once, until it reloads again.
+//
+// Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
+// the documentation of the errors on the site.
 package main
