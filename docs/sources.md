@@ -100,6 +100,15 @@ Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier 
 - **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `official.Load`, donc la commande qui charge la liste (aujourd'hui `cmd/eval`).
 - **Usage** : signal `attention` `domain_lookalike` (`docs/signals.md`). Ne dit rien de l'exploitant du domaine signalé.
 
+## Plateformes d'hébergement partagées (liste de référence)
+
+- **Origine** : aucune source téléchargée. Liste tenue dans le dépôt, `internal/adapter/reference/hosting/platforms.csv`, embarquée dans le binaire : 12 plateformes qui hébergent les pages de leurs utilisateurs sous un chemin de leur propre domaine (réseaux sociaux, messageries, pages de liens, hébergement de code), relevées le 02/11/2026. Colonnes : `domain` (domaine enregistrable), `proof` (page d'un utilisateur sur la plateforme, en HTTPS).
+- **Vérification** : pour chaque ligne, `curl -sL` avec un agent de navigateur sur la page `proof` répond 200 (`twitter.com/X` redirige vers `x.com/X`, `discord.gg/discord-townhall` vers `discord.com/invite/discord-townhall`). Le chargement vérifie que `proof` est une page HTTPS du domaine de la ligne.
+- **Écartés** (« à vérifier ») : `medium.com` et `beacons.ai`, qui refusent `curl` (403) ; les raccourcisseurs d'URL (`bit.ly`, `tinyurl.com`), faute de page d'exemple vérifiée. Une plateforme en sous-domaine (`sites.google.com`, `*.notion.site`) n'a pas besoin d'y figurer : seul un hôte égal à son domaine enregistrable, avec ou sans `www.`, peut étendre une page à son site.
+- **Licence** : faits relevés par nous (noms de domaine), sans reprise de contenu ; aucune licence tierce.
+- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `hosting.Load`, donc la commande qui charge la liste (aujourd'hui `cmd/eval`).
+- **Usage** : garde-fou des listes blanches AMF (`docs/signals.md`) : une entrée avec un chemin sur une de ces plateformes ne couvre pas le site. Aucun signal propre.
+
 ## Refusées
 
 - **OpenSanctions** : licence non commerciale. Les listes AMF sont reprises directement à la source.

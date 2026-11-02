@@ -31,15 +31,18 @@ func (r *WhitelistReader) Whitelist() (*domain.Whitelist, time.Time, error) {
 
 // WhitelistOf indexes the rows of snap, whose header must be header, each
 // under the authorisation decode reads from it. A site entry with a path
-// lists its whole site: a white list gives the provider's own site, often
-// at its home page in French ("/fr/").
-func WhitelistOf(snap domain.Snapshot, header []string, decode func(row []string) (domain.Authorisation, error)) (*domain.Whitelist, error) {
+// lists its whole site when the page stands for it (PageStandsForSite with
+// platforms): a white list gives the provider's own site, often at its home
+// page in French ("/fr/"). Any other page entry is left out, as a checked
+// domain has no path: a page on a shared platform (linktr.ee/x,
+// sites.google.com/view/x) must not cover the whole platform.
+func WhitelistOf(snap domain.Snapshot, header []string, decode func(row []string) (domain.Authorisation, error), platforms domain.Platforms) (*domain.Whitelist, error) {
 	if !slices.Equal(snap.Header, header) {
 		return nil, fmt.Errorf("%w: unexpected header", ErrSnapshot)
 	}
 	w := domain.NewWhitelist()
 	for i, row := range snap.Rows {
-		if err := addAuthorisation(w, row, len(header), decode); err != nil {
+		if err := addAuthorisation(w, row, len(header), decode, platforms); err != nil {
 			return nil, fmt.Errorf("row %d: %w", i+1, err)
 		}
 	}
@@ -47,7 +50,7 @@ func WhitelistOf(snap domain.Snapshot, header []string, decode func(row []string
 }
 
 // addAuthorisation lists the key of row, which has n fields, in w.
-func addAuthorisation(w *domain.Whitelist, row []string, n int, decode func([]string) (domain.Authorisation, error)) error {
+func addAuthorisation(w *domain.Whitelist, row []string, n int, decode func([]string) (domain.Authorisation, error), platforms domain.Platforms) error {
 	if len(row) != n {
 		return fmt.Errorf("%w: %d fields, %d expected", ErrSnapshot, len(row), n)
 	}
@@ -55,14 +58,19 @@ func addAuthorisation(w *domain.Whitelist, row []string, n int, decode func([]st
 	if err != nil {
 		return err
 	}
-	return addKey(w, row[posKind], row[posKey], a)
+	return addKey(w, row, a, platforms)
 }
 
-// addKey lists the key of the given kind in w.
-func addKey(w *domain.Whitelist, kind, key string, a domain.Authorisation) error {
-	switch kind {
+// addKey lists the key of row in w, unless it names a page that does not
+// stand for its site.
+func addKey(w *domain.Whitelist, row []string, a domain.Authorisation, platforms domain.Platforms) error {
+	switch kind, key := row[posKind], row[posKey]; kind {
 	case domain.KindDomain.String():
-		return addParsed(key, domain.ParseDomain, a, w.AddSite)
+		return addParsed(key, domain.ParseDomain, a, func(d domain.Domain, a domain.Authorisation) {
+			if row[posPath] == "" || platforms.PageStandsForSite(d) {
+				w.AddSite(d, a)
+			}
+		})
 	case domain.KindEmail.String():
 		return addParsed(key, domain.ParseEmail, a, w.AddEmail)
 	case domain.KindPhone.String():

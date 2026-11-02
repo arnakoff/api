@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/arnakoff/api/internal/adapter/corpus"
+	"github.com/arnakoff/api/internal/adapter/reference/hosting"
 	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/bodacc"
 	"github.com/arnakoff/api/internal/adapter/registry/rdap"
@@ -117,8 +118,12 @@ func storedLists(ctx context.Context, dir string) (app.Registries, error) {
 	if err != nil {
 		return app.Registries{}, err
 	}
+	platforms, err := hosting.Load()
+	if err != nil {
+		return app.Registries{}, err
+	}
 	return app.Registries{
-		Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s), Numbering: catalog.Numbering(s),
+		Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s, platforms), Numbering: catalog.Numbering(s),
 		Officials: officials,
 	}, nil
 }

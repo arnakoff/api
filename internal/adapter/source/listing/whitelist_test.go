@@ -33,7 +33,7 @@ func TestWhitelistOf(t *testing.T) {
 		[]string{"email", "support@coinhouse.com", "", "support@coinhouse.com", "address"},
 		[]string{"phone", "+33182882951", "", "+33 1 82 88 29 51", "phone"},
 		[]string{"siren", "815254545", "", "815254545", "siren"},
-	), testHeader, byName)
+	), testHeader, byName, domain.Platforms{})
 	if err != nil {
 		t.Fatalf("WhitelistOf() error = %v", err)
 	}
@@ -51,6 +51,39 @@ func TestWhitelistOf(t *testing.T) {
 		got := w.Authorisations(tt.in)
 		if len(got) != 1 || got[0].Name != tt.want {
 			t.Errorf("Authorisations(%v) = %v, want %s", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestWhitelistOfListsAPageOnlyWhenItStandsForItsSite(t *testing.T) {
+	t.Parallel()
+
+	platforms, err := domain.NewPlatforms([]string{"linktr.ee"})
+	if err != nil {
+		t.Fatalf("NewPlatforms() error = %v", err)
+	}
+	w, err := listing.WhitelistOf(whitelistSnapshot(
+		[]string{"domain", "www.coinhouse.com", "/fr/", "https://www.coinhouse.com/fr/", "own site"},
+		[]string{"domain", "linktr.ee", "/coinhouse", "https://linktr.ee/coinhouse", "platform page"},
+		[]string{"domain", "sites.google.com", "/view/coinhouse", "https://sites.google.com/view/coinhouse", "subdomain page"},
+		[]string{"domain", "app.coinhouse.com", "", "https://app.coinhouse.com/", "subdomain site"},
+	), testHeader, byName, platforms)
+	if err != nil {
+		t.Fatalf("WhitelistOf() error = %v", err)
+	}
+	tests := []struct {
+		host string
+		want []string
+	}{
+		{"coinhouse.com", []string{"own site"}},
+		{"app.coinhouse.com", []string{"subdomain site", "own site"}},
+		{"linktr.ee", nil},
+		{"sites.google.com", nil},
+		{"google.com", nil},
+	}
+	for _, tt := range tests {
+		if got := names(w.Authorisations(mustDomain(t, tt.host))); !slices.Equal(got, tt.want) {
+			t.Errorf("Authorisations(%s) = %v, want %v", tt.host, got, tt.want)
 		}
 	}
 }
@@ -77,7 +110,7 @@ func TestWhitelistOfRejectsAMalformedSnapshot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := listing.WhitelistOf(tt.snap, testHeader, tt.decode); !errors.Is(err, listing.ErrSnapshot) {
+			if _, err := listing.WhitelistOf(tt.snap, testHeader, tt.decode, domain.Platforms{}); !errors.Is(err, listing.ErrSnapshot) {
 				t.Errorf("WhitelistOf() error = %v, want ErrSnapshot", err)
 			}
 		})
@@ -89,7 +122,7 @@ func TestWhitelistReader(t *testing.T) {
 
 	var s snapshots
 	build := func(snap domain.Snapshot) (*domain.Whitelist, error) {
-		return listing.WhitelistOf(snap, testHeader, byName)
+		return listing.WhitelistOf(snap, testHeader, byName, domain.Platforms{})
 	}
 	r := listing.NewWhitelistReader(&s, "test", build)
 	if _, _, err := r.Whitelist(); !errors.Is(err, app.ErrNoSnapshot) {
