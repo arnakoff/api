@@ -111,6 +111,17 @@ func TestWhitelistSignalNeedsAnAuthorisation(t *testing.T) {
 	}
 }
 
+// The biens divers list publishes no end date: amf_registration_ended is
+// not in the catalog for it, and an ended offer gives no signal.
+func TestOffersWhitelistGivesNoSignalForEndedOffers(t *testing.T) {
+	t.Parallel()
+
+	ended := provider("ECOTREE", "", day(2018, time.February, 26), day(2024, time.March, 1))
+	if got, ok := signal.AMFOffersWhitelist().Signal([]domain.Authorisation{ended}, observed); ok {
+		t.Errorf("Signal(ended offer) = %+v, want none", got)
+	}
+}
+
 func TestWhitelistSources(t *testing.T) {
 	t.Parallel()
 

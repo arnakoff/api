@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/cache"
 	"github.com/arnakoff/api/internal/platform/throttle"
 )
@@ -50,7 +51,7 @@ type Getter interface {
 }
 
 // Source names the registry in reports.
-const Source domain.Source = "BODACC"
+const Source = signal.BODACCSource
 
 // Source returns Source.
 func (*Client) Source() domain.Source { return Source }

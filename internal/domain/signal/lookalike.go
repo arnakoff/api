@@ -81,15 +81,8 @@ func (ref reference) named(words []string) bool {
 
 // lookalikeSignal returns domain_lookalike for d imitating official.
 func lookalikeSignal(d domain.Domain, official Official, now time.Time) domain.Signal {
-	return domain.Signal{
-		Code:       "domain_lookalike",
-		Level:      domain.LevelAttention,
-		Message:    "Le domaine " + d.String() + " ressemble à " + official.Domain + ", site officiel " + official.Of + ", mais n'en fait pas partie.",
-		Advice:     lookalikeAdvice,
-		Source:     LookalikeSource,
-		SourceURL:  official.Proof,
-		ObservedAt: now,
-	}
+	message := "Le domaine " + d.String() + " ressemble à " + official.Domain + ", site officiel " + official.Of + ", mais n'en fait pas partie."
+	return domainLookalike.signal(message, lookalikeAdvice, official.Proof, now)
 }
 
 // hostWords returns the skeletons of the words of d's host less its public

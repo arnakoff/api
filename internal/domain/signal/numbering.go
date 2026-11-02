@@ -29,17 +29,14 @@ func Numbering(p domain.Phone, plan *domain.NumberingPlan, observedAt time.Time)
 	if !domain.NumberingPlanCovers(p) {
 		return domain.Signal{}, false
 	}
-	s := domain.Signal{Advice: spoofingAdvice, Source: NumberingSource, SourceURL: NumberingURL, ObservedAt: observedAt}
 	a, ok := plan.Lookup(p)
 	if !ok {
-		s.Code, s.Level = "phone_unassigned", domain.LevelAttention
-		s.Message = "Le numéro n'appartient à aucune tranche attribuée par l'ARCEP : il ne peut pas être en service."
-		return s, true
+		message := "Le numéro n'appartient à aucune tranche attribuée par l'ARCEP : il ne peut pas être en service."
+		return phoneUnassigned.signal(message, spoofingAdvice, NumberingURL, observedAt), true
 	}
-	s.Code, s.Level = "phone_operator", domain.LevelInfo
-	s.Message = "Le numéro appartient à une tranche attribuée à " + holder(a) + " le " + domain.FormatDate(a.AssignedOn) +
+	message := "Le numéro appartient à une tranche attribuée à " + holder(a) + " le " + domain.FormatDate(a.AssignedOn) +
 		" (numérotation ARCEP). Le numéro a pu être porté chez un autre opérateur."
-	return s, true
+	return phoneOperator.signal(message, spoofingAdvice, NumberingURL, observedAt), true
 }
 
 // holder names the holder of a range, « Name (CODE) », or its code alone

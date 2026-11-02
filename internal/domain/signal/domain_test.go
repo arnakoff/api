@@ -67,7 +67,7 @@ func TestDomainRecentSignal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, ok := signal.DomainRecent(d, tt.reg, "RDAP", checkedAt)
+			got, ok := signal.DomainRecent(d, tt.reg, checkedAt)
 			if tt.want == "" {
 				if ok {
 					t.Fatalf("DomainRecent() = %+v, want no signal", got)
@@ -99,7 +99,7 @@ func TestDomainRecentSignalDatesInTheCheckLocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	reg := registered(time.Date(2026, time.October, 17, 23, 30, 0, 0, time.UTC))
-	got, ok := signal.DomainRecent(d, reg, "RDAP", checkedAt.In(plus2))
+	got, ok := signal.DomainRecent(d, reg, checkedAt.In(plus2))
 	want := "Le domaine exemple.fr a été créé le 18/10/2026, il y a 12 jours (registre RDAP)."
 	if !ok || got.Message != want {
 		t.Errorf("DomainRecent() message = %q, %v, want %q", got.Message, ok, want)

@@ -18,8 +18,7 @@ const (
 
 // Blacklist is a published blacklist and the signal its listings give.
 type Blacklist struct {
-	code      string
-	source    domain.Source
+	def       *Definition
 	publisher string // as the message names it
 	url       string
 }
@@ -27,8 +26,7 @@ type Blacklist struct {
 // AMFBlacklist is the blacklist of the Autorité des marchés financiers.
 func AMFBlacklist() Blacklist {
 	return Blacklist{
-		code:      "amf_blacklist",
-		source:    AMFSource,
+		def:       &amfBlacklisted,
 		publisher: "l'AMF",
 		url:       "https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-noires-et-mises-en-garde",
 	}
@@ -38,15 +36,14 @@ func AMFBlacklist() Blacklist {
 // Assurance Banque Épargne Info Service.
 func ACPRBlacklist() Blacklist {
 	return Blacklist{
-		code:      "acpr_blacklist",
-		source:    ACPRSource,
+		def:       &acprBlacklisted,
 		publisher: "l'ACPR",
 		url:       "https://www.abe-infoservice.fr/liste-noire",
 	}
 }
 
 // Source returns the source of the signal.
-func (b Blacklist) Source() domain.Source { return b.source }
+func (b Blacklist) Source() domain.Source { return b.def.Source }
 
 // URL returns the public page of the blacklist the signal cites.
 func (b Blacklist) URL() string { return b.url }
@@ -59,14 +56,7 @@ func (b Blacklist) Signal(listings []domain.Listing, observedAt time.Time) (doma
 	if len(listings) == 0 {
 		return domain.Signal{}, false
 	}
-	return domain.Signal{
-		Code:       b.code,
-		Level:      domain.LevelAlert,
-		Message:    b.message(categoriesOf(listings), earliest(listings)),
-		Source:     b.source,
-		SourceURL:  b.url,
-		ObservedAt: observedAt,
-	}, true
+	return b.def.signal(b.message(categoriesOf(listings), earliest(listings)), "", b.url, observedAt), true
 }
 
 // message is « Figure sur la liste noire de l'AMF (catégorie Forex) depuis

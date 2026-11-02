@@ -1,20 +1,23 @@
 # Signaux
 
-Liste publique des signaux. Un code est stable : le renommer passe par `api-change`.
+Liste publique des signaux, servie aussi par `GET /v1/signals`. Un code est stable : le renommer passe par `api-change`. Le tableau est généré depuis le catalogue (`internal/domain/signal/catalog.go`) par `go generate ./...` ; un test échoue s'il n'est pas à jour. Une URL est vérifiée comme son domaine (`domain`) ; un code donné par plusieurs sources a une ligne par source. Les sections suivantes détaillent les conditions.
 
+<!-- Début du tableau généré depuis le catalogue (go generate ./...) : ne pas modifier à la main. -->
 | Code | Entrées | Niveau | Source | Condition |
 |---|---|---|---|---|
-| `amf_blacklist` | url, domaine, e-mail | alerte | Liste noire AMF | Site inscrit (voir ci-dessous) ou adresse e-mail inscrite à l'identique |
-| `acpr_blacklist` | url, domaine, e-mail | alerte | Liste noire ACPR | Site inscrit (voir ci-dessous) ou adresse e-mail inscrite à l'identique |
-| `amf_registered` | url, domaine, e-mail, téléphone, siren, siret | info | Listes blanches AMF (PSAN, biens divers) | Site, adresse, numéro ou SIREN d'une autorisation en cours (voir ci-dessous) |
-| `amf_registration_ended` | url, domaine, e-mail, téléphone, siren, siret | info | Liste blanche AMF PSAN | Toutes les autorisations trouvées sont radiées |
-| `domain_recent` | url, domaine, e-mail | attention | RDAP | Domaine créé il y a moins de 30 jours |
-| `domain_lookalike` | url, domaine, e-mail | attention | Domaines officiels | Domaine qui ressemble à un domaine officiel de la liste de référence (voir ci-dessous) |
-| `phone_operator` | téléphone | info | Numérotation ARCEP | Numéro dans une tranche attribuée (voir ci-dessous) |
-| `phone_unassigned` | téléphone | attention | Numérotation ARCEP | Numéro du plan français hors de toute tranche attribuée |
+| `amf_blacklist` | domain, email | alerte | AMF | Site inscrit ou adresse e-mail inscrite à l'identique |
+| `acpr_blacklist` | domain, email | alerte | ACPR | Site inscrit ou adresse e-mail inscrite à l'identique |
+| `amf_registered` | domain, email, phone, siren, siret | info | AMF PSAN | Site, adresse, numéro ou SIREN d'une autorisation en cours |
+| `amf_registered` | domain, email, phone, siren, siret | info | AMF biens divers | Site, adresse, numéro ou SIREN d'une autorisation en cours |
+| `amf_registration_ended` | domain, email, phone, siren, siret | info | AMF PSAN | Toutes les autorisations trouvées sont radiées |
+| `domain_recent` | domain, email | attention | RDAP | Domaine créé il y a moins de 30 jours |
+| `domain_lookalike` | domain, email | attention | Domaines officiels | Domaine qui ressemble à un domaine officiel de la liste de référence |
+| `phone_operator` | phone | info | ARCEP | Numéro dans une tranche attribuée |
+| `phone_unassigned` | phone | attention | ARCEP | Numéro du plan français hors de toute tranche attribuée |
 | `company_closed` | siren, siret | attention | SIRENE | Établissement siège fermé |
 | `company_procedure` | siren, siret | attention | BODACC | Avis publié de procédure collective, radiation, conciliation ou rétablissement professionnel |
 | `iban_country` | iban | info | IBAN | Pays de tenue du compte, d'après le code pays de l'IBAN |
+<!-- Fin du tableau généré. -->
 
 Signaux prévus, non implémentés : IBAN étranger pour une société française.
 
