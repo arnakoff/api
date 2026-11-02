@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/arnakoff/api/internal/adapter/corpus"
+	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/bodacc"
 	"github.com/arnakoff/api/internal/adapter/registry/rdap"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
@@ -89,13 +90,13 @@ func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Regi
 		}
 	}
 	regs := tape.Registries(live)
-	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
+	regs.Blacklists, regs.Whitelists, regs.Numbering, regs.Officials = lists.Blacklists, lists.Whitelists, lists.Numbering, lists.Officials
 	return regs.Without(opts.leftOut), nil
 }
 
 // storedLists returns the AMF and ACPR blacklists, the AMF white lists and
 // the ARCEP numbering plan of the snapshots stored in dir, as the API
-// serves them. The ACPR
+// serves them, and the shipped list of official domains. The ACPR
 // blacklist is read whatever the configuration: the corpus measures it
 // (testdata/corpus/README.md). A list without a stored snapshot is
 // reported unavailable.
@@ -112,7 +113,14 @@ func storedLists(ctx context.Context, dir string) (app.Registries, error) {
 	if err := s.Restore(ctx); err != nil {
 		return app.Registries{}, err
 	}
-	return app.Registries{Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s), Numbering: catalog.Numbering(s)}, nil
+	officials, err := official.Load()
+	if err != nil {
+		return app.Registries{}, err
+	}
+	return app.Registries{
+		Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s), Numbering: catalog.Numbering(s),
+		Officials: officials,
+	}, nil
 }
 
 // liveRegistries returns the RDAP, SIRENE and BODACC clients, each with an

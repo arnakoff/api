@@ -21,6 +21,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | JSON Schema (`santhosh-tekuri/jsonschema/v6`) | v6.0.3 | `proxy.golang.org` |
 | Noms de domaine (`golang.org/x/net` : `idna`, `publicsuffix`) | v0.62.0 (publiée le 27/10/2026, retenue malgré le délai de carence : la v0.61.0 est touchée par GO-2026-6860 et GO-2026-6866, dans `x/net/html`) | `proxy.golang.org`, `vuln.go.dev` |
 | Dédoublonnage des appels (`golang.org/x/sync` : `singleflight`, BSD-3-Clause) | v0.24.0 (publiée le 23/09/2026) | `proxy.golang.org` |
+| Caractères confusables (`go.mau.fi/util` : `confusable`, MPL-2.0, squelette UTS #39 généré depuis `confusables.txt` d'Unicode 17.0.0) | v0.11.0 (publiée le 16/10/2026) ; seul le paquet `confusable` est compilé, il n'importe que `golang.org/x/text` | `proxy.golang.org` |
 | Limitation du débit sortant (`golang.org/x/time` : `rate`, BSD-3-Clause) | v0.16.0 (publiée le 19/08/2026) | `proxy.golang.org` |
 | `actions/checkout` / `actions/setup-go` | v7.0.1 / v7.0.0, épinglées par SHA | GitHub releases |
 | `golangci/golangci-lint-action` | v9.3.0, épinglée par SHA | GitHub releases |

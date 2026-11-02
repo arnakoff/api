@@ -9,13 +9,14 @@ Liste publique des signaux. Un code est stable : le renommer passe par `api-chan
 | `amf_registered` | url, domaine, e-mail, téléphone, siren, siret | info | Listes blanches AMF (PSAN, biens divers) | Site, adresse, numéro ou SIREN d'une autorisation en cours (voir ci-dessous) |
 | `amf_registration_ended` | url, domaine, e-mail, téléphone, siren, siret | info | Liste blanche AMF PSAN | Toutes les autorisations trouvées sont radiées |
 | `domain_recent` | url, domaine, e-mail | attention | RDAP | Domaine créé il y a moins de 30 jours |
+| `domain_lookalike` | url, domaine, e-mail | attention | Domaines officiels | Domaine qui ressemble à un domaine officiel de la liste de référence (voir ci-dessous) |
 | `phone_operator` | téléphone | info | Numérotation ARCEP | Numéro dans une tranche attribuée (voir ci-dessous) |
 | `phone_unassigned` | téléphone | attention | Numérotation ARCEP | Numéro du plan français hors de toute tranche attribuée |
 | `company_closed` | siren, siret | attention | SIRENE | Établissement siège fermé |
 | `company_procedure` | siren, siret | attention | BODACC | Avis publié de procédure collective, radiation, conciliation ou rétablissement professionnel |
 | `iban_country` | iban | info | IBAN | Pays de tenue du compte, d'après le code pays de l'IBAN |
 
-Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une marque, IBAN étranger pour une société française.
+Signaux prévus, non implémentés : IBAN étranger pour une société française.
 
 ## Listes noires
 
@@ -52,6 +53,20 @@ Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une ma
 - **Lien** : `source_url` est l'adresse RDAP interrogée (`https://rdap.nic.fr/domain/exemple.fr`), réponse JSON publique où la date se vérifie (décision du propriétaire, 30/10/2026).
 - **Date d'observation** : `observed_at` est l'heure de la vérification ; la réponse du registre peut venir du cache (24 h au plus), la date d'enregistrement d'un domaine ne changeant pas.
 - **Niveau** `attention` : un domaine récent n'est qu'un indice, beaucoup de sites légitimes le sont.
+
+## Imitation d'un domaine officiel
+
+- **Liste de référence** : services publics et banques de détail souvent imités, chacun vérifié sur une page de l'organisme (`docs/sources.md`, « Domaines officiels »). Un domaine de la liste, ses sous-domaines et les autres domaines vérifiés du même organisme ne sont jamais signalés.
+- **Condition** : `domain_lookalike` quand, comparés par leur squelette UTS #39 (Unicode 17.0.0) en minuscules, après décodage des A-labels :
+  - le label du domaine enregistrable (`ameli` pour `www.ameli.com`) est celui d'un domaine officiel écrit autrement (homoglyphes : `аmeli` en cyrillique, `arneli`, `ame1i`) ;
+  - ou il est à une modification près (insertion, suppression, substitution, inversion de deux lettres voisines) du label d'un domaine officiel d'au moins 6 lettres (`signal.NearLabelLength`) : `lapste`, `lapsote`. Les labels plus courts en sont exclus, trop proches de mots courants (`amelie`) ;
+  - ou l'hôte, hors suffixe public, contient un nom listé de l'organisme (colonne `names`) comme suite de mots entiers, séparés par des points et des tirets : `ameli-remboursement.com`, `ameli.fr.securite-compte.com`, `credit-agricole-securite.com`, `ameli.com`. Un nom à l'intérieur d'un mot ne compte pas (`cameliaflowers.fr`). Un label absent des noms (`cic`, `msa`, sigles courants tenus aussi par d'autres entreprises, comme `cic.com`) ne compte que par ses homoglyphes.
+  Le premier domaine officiel de la liste qui correspond est cité ; un seul signal.
+- **Formulation** : « Le domaine ameli-remboursement.com ressemble à ameli.fr, site officiel de l'Assurance Maladie, mais n'en fait pas partie. » Le domaine cité est l'hôte normalisé (A-labels : un homoglyphe apparaît sous sa forme `xn--`).
+- **Conseil** : « Tape toi-même l'adresse officielle plutôt que de suivre un lien reçu. »
+- **Lien** : `source_url` est la page de l'organisme, relevée dans la liste, qui montre qu'il exploite le domaine officiel.
+- **Date d'observation** : `observed_at` est l'heure de la vérification.
+- **Niveau** `attention` : une ressemblance est un indice, pas un fait publié par une autorité. La liste n'est pas une source consultée et n'apparaît pas dans l'état des sources du rapport.
 
 ## Entreprises
 
