@@ -31,4 +31,6 @@ type Notice struct {
 	Kind NoticeKind
 	// Published is the day the BODACC published the notice.
 	Published time.Time
+	// URL is the notice's public page on the BODACC.
+	URL string
 }

@@ -106,12 +106,20 @@ func (c *Check) lookups(in domain.Input) []lookup {
 		out = append(out, c.domainLookup(in))
 	}
 	if r.Companies != nil {
-		out = append(out, companyLookup(r.Companies, in))
+		out = append(out, c.companyLookup(in))
 	}
 	if r.Notices != nil {
-		out = append(out, noticeLookup(r.Notices, in))
+		out = append(out, c.noticeLookup(in))
 	}
 	return out
+}
+
+// signalOf returns s when the rule found it, or nil.
+func signalOf(s domain.Signal, found bool) *domain.Signal {
+	if !found {
+		return nil
+	}
+	return &s
 }
 
 // domainLookup returns the consultation of the domain registry about in,
@@ -128,35 +136,44 @@ func (c *Check) domainLookup(in domain.Input) lookup {
 		if err != nil {
 			return nil, err
 		}
-		if s, found := signal.DomainRecent(d, rec, source, c.clock.Now()); found {
-			return &s, nil
-		}
-		return nil, nil
+		return signalOf(signal.DomainRecent(d, rec, source, c.clock.Now())), nil
 	}}
 }
 
-// companyLookup returns the consultation of the company register about in.
-func companyLookup(reg CompanyRegistry, in domain.Input) lookup {
-	l := lookup{source: reg.Source()}
-	if n, ok := companyOf(in); ok {
-		l.run = func(ctx context.Context) (*domain.Signal, error) {
-			_, err := reg.Lookup(ctx, n)
+// companyLookup returns the consultation of the company register about in,
+// whose answer gives company_closed.
+func (c *Check) companyLookup(in domain.Input) lookup {
+	reg := c.registries.Companies
+	source := reg.Source()
+	n, ok := companyOf(in)
+	if !ok {
+		return lookup{source: source}
+	}
+	return lookup{source: source, run: func(ctx context.Context) (*domain.Signal, error) {
+		company, err := reg.Lookup(ctx, n)
+		if err != nil {
 			return nil, err
 		}
-	}
-	return l
+		return signalOf(signal.CompanyClosed(company, source, c.clock.Now())), nil
+	}}
 }
 
-// noticeLookup returns the consultation of the legal notices about in.
-func noticeLookup(reg NoticeRegistry, in domain.Input) lookup {
-	l := lookup{source: reg.Source()}
-	if n, ok := companyOf(in); ok {
-		l.run = func(ctx context.Context) (*domain.Signal, error) {
-			_, err := reg.Notices(ctx, n)
+// noticeLookup returns the consultation of the legal notices about in,
+// whose answer gives company_procedure.
+func (c *Check) noticeLookup(in domain.Input) lookup {
+	reg := c.registries.Notices
+	source := reg.Source()
+	n, ok := companyOf(in)
+	if !ok {
+		return lookup{source: source}
+	}
+	return lookup{source: source, run: func(ctx context.Context) (*domain.Signal, error) {
+		notices, err := reg.Notices(ctx, n)
+		if err != nil {
 			return nil, err
 		}
-	}
-	return l
+		return signalOf(signal.CompanyProcedure(notices, source, c.clock.Now())), nil
+	}}
 }
 
 // answer is the outcome of the lookup whose state is at index i, and the

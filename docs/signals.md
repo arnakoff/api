@@ -9,8 +9,8 @@ Liste publique des signaux. Un code est stable : le renommer passe par `api-chan
 | `amf_registered` | url, domaine, e-mail, téléphone, siren, siret | info | Listes blanches AMF (PSAN, biens divers) | Site, adresse, numéro ou SIREN d'une autorisation en cours (voir ci-dessous) |
 | `amf_registration_ended` | url, domaine, e-mail, téléphone, siren, siret | info | Liste blanche AMF PSAN | Toutes les autorisations trouvées sont radiées |
 | `domain_recent` | url, domaine, e-mail | attention | RDAP | Domaine créé il y a moins de 30 jours |
-| `company_closed` | siren | attention | SIRENE | Établissement siège fermé |
-| `company_procedure` | siren | attention | BODACC | Procédure collective publiée |
+| `company_closed` | siren, siret | attention | SIRENE | Établissement siège fermé |
+| `company_procedure` | siren, siret | attention | BODACC | Avis publié de procédure collective, radiation, conciliation ou rétablissement professionnel |
 
 Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une marque, IBAN étranger pour une société française, numéro non attribué selon l'ARCEP.
 
@@ -40,3 +40,13 @@ Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une ma
 - **Lien** : `source_url` est l'adresse RDAP interrogée (`https://rdap.nic.fr/domain/exemple.fr`), réponse JSON publique où la date se vérifie (décision du propriétaire, 30/10/2026).
 - **Date d'observation** : `observed_at` est l'heure de la vérification ; la réponse du registre peut venir du cache (24 h au plus), la date d'enregistrement d'un domaine ne changeant pas.
 - **Niveau** `attention` : un domaine récent n'est qu'un indice, beaucoup de sites légitimes le sont.
+
+## Entreprises
+
+- **Entrées** : un SIREN, ou un SIRET lu comme le SIREN de son entreprise.
+- **Siège fermé** : `company_closed` quand le répertoire SIRENE donne l'établissement siège fermé (`etat_administratif` `F`) : « Le siège de PAYTOP est fermé depuis le 12/03/2024 (répertoire SIRENE). », ou « Le siège de PAYTOP est fermé (répertoire SIRENE). » sans date de fermeture publiée. Le nom est le `nom_complet` de SIRENE.
+- **Avis du BODACC** : `company_procedure` quand le BODACC publie, sur l'entreprise, un avis d'une des familles « Procédures collectives », « Radiations », « Procédures de conciliation » ou « Procédures de rétablissement professionnel » (décision du propriétaire, 02/11/2026). Un seul signal, qui cite l'avis le plus récent : « Le BODACC a publié le 05/02/2026 un avis de la famille « Procédures collectives » sur cette entreprise. » Un avis annulé ou rectifié est écarté (voir `docs/sources.md`).
+- **Conseil** des deux signaux : « Vérifie que l'entreprise exerce encore avant de lui verser de l'argent. »
+- **Liens** : `source_url` de `company_closed` est l'adresse de l'API Recherche d'entreprises interrogée (`https://recherche-entreprises.api.gouv.fr/search?include=siege&minimal=true&per_page=5&q=<siren>`), réponse JSON publique (décision du propriétaire, 02/11/2026) ; celui de `company_procedure` est la page de l'avis sur `www.bodacc.fr` (`url_complete`).
+- **Date d'observation** : `observed_at` est l'heure de la vérification ; les réponses peuvent venir du cache (24 h au plus).
+- **Niveau** `attention` : le fait est publié par le registre, la conclusion reste à l'utilisateur. Pas de signal si le registre ne répond pas.

@@ -13,7 +13,8 @@
       "publicationavis": "A",
       "parution": "20260010",
       "numeroannonce": 2443,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202600102443"
     },
     {
       "id": "A202501362944",
@@ -27,7 +28,8 @@
       "publicationavis": "A",
       "parution": "20250136",
       "numeroannonce": 2944,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202501362944"
     },
     {
       "id": "A202500814208",
@@ -41,7 +43,8 @@
       "publicationavis": "A",
       "parution": "20250081",
       "numeroannonce": 4208,
-      "parutionavisprecedent": "{\"nomPublication\": \"BODACC A\", \"numeroParution\": \"20250032\", \"dateParution\": \"2025-02-14\", \"numeroAnnonce\": \"2546\"}"
+      "parutionavisprecedent": "{\"nomPublication\": \"BODACC A\", \"numeroParution\": \"20250032\", \"dateParution\": \"2025-02-14\", \"numeroAnnonce\": \"2546\"}",
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202500814208"
     },
     {
       "id": "A202500322546",
@@ -55,7 +58,8 @@
       "publicationavis": "A",
       "parution": "20250032",
       "numeroannonce": 2546,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202500322546"
     },
     {
       "id": "A202400132157",
@@ -69,7 +73,8 @@
       "publicationavis": "A",
       "parution": "20240013",
       "numeroannonce": 2157,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202400132157"
     }
   ]
 }

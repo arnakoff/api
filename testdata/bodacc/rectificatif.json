@@ -13,7 +13,8 @@
       "publicationavis": "A",
       "parution": "20260209",
       "numeroannonce": 3931,
-      "parutionavisprecedent": "{\"nomPublication\": \"BODACC A\", \"numeroParution\": \"20260199\", \"dateParution\": \"2026-10-16\", \"numeroAnnonce\": \"3983\"}"
+      "parutionavisprecedent": "{\"nomPublication\": \"BODACC A\", \"numeroParution\": \"20260199\", \"dateParution\": \"2026-10-16\", \"numeroAnnonce\": \"3983\"}",
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202602093931"
     },
     {
       "id": "A202601993983",
@@ -27,7 +28,8 @@
       "publicationavis": "A",
       "parution": "20260199",
       "numeroannonce": 3983,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202601993983"
     }
   ]
 }

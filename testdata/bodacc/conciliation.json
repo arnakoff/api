@@ -13,7 +13,8 @@
       "publicationavis": "A",
       "parution": "20260200",
       "numeroannonce": 2579,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202602002579"
     },
     {
       "id": "A202302002551",
@@ -27,7 +28,8 @@
       "publicationavis": "A",
       "parution": "20230200",
       "numeroannonce": 2551,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202302002551"
     }
   ]
 }

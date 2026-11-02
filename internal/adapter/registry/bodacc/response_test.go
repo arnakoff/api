@@ -30,6 +30,11 @@ func day(y int, m time.Month, d int) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
+// noticePage returns the url_complete the BODACC gives the notice id.
+func noticePage(id string) string {
+	return "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:" + id
+}
+
 func TestParseNotices(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -49,10 +54,10 @@ func TestParseNotices(t *testing.T) {
 			fixture: "radiation.json",
 			siren:   "504352360",
 			want: []domain.Notice{
-				{ID: "B2026020947", Kind: domain.NoticeRadiation, Published: day(2026, time.October, 30)},
-				{ID: "A201700991916", Kind: domain.NoticeCollectiveProcedure, Published: day(2017, time.May, 24)},
-				{ID: "A201700471420", Kind: domain.NoticeCollectiveProcedure, Published: day(2017, time.March, 8)},
-				{ID: "A201601051406", Kind: domain.NoticeCollectiveProcedure, Published: day(2016, time.May, 29)},
+				{ID: "B2026020947", Kind: domain.NoticeRadiation, Published: day(2026, time.October, 30), URL: noticePage("B2026020947")},
+				{ID: "A201700991916", Kind: domain.NoticeCollectiveProcedure, Published: day(2017, time.May, 24), URL: noticePage("A201700991916")},
+				{ID: "A201700471420", Kind: domain.NoticeCollectiveProcedure, Published: day(2017, time.March, 8), URL: noticePage("A201700471420")},
+				{ID: "A201601051406", Kind: domain.NoticeCollectiveProcedure, Published: day(2016, time.May, 29), URL: noticePage("A201601051406")},
 			},
 		},
 		{
@@ -60,8 +65,8 @@ func TestParseNotices(t *testing.T) {
 			fixture: "conciliation.json",
 			siren:   "802618793",
 			want: []domain.Notice{
-				{ID: "A202602002579", Kind: domain.NoticeConciliation, Published: day(2026, time.October, 18)},
-				{ID: "A202302002551", Kind: domain.NoticeConciliation, Published: day(2023, time.October, 17)},
+				{ID: "A202602002579", Kind: domain.NoticeConciliation, Published: day(2026, time.October, 18), URL: noticePage("A202602002579")},
+				{ID: "A202302002551", Kind: domain.NoticeConciliation, Published: day(2023, time.October, 17), URL: noticePage("A202302002551")},
 			},
 		},
 		{
@@ -70,9 +75,9 @@ func TestParseNotices(t *testing.T) {
 			fixture: "annulation.json",
 			siren:   "835084732",
 			want: []domain.Notice{
-				{ID: "A202600102443", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.January, 16)},
-				{ID: "A202501362944", Kind: domain.NoticeCollectiveProcedure, Published: day(2025, time.July, 18)},
-				{ID: "A202400132157", Kind: domain.NoticeCollectiveProcedure, Published: day(2024, time.January, 19)},
+				{ID: "A202600102443", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.January, 16), URL: noticePage("A202600102443")},
+				{ID: "A202501362944", Kind: domain.NoticeCollectiveProcedure, Published: day(2025, time.July, 18), URL: noticePage("A202501362944")},
+				{ID: "A202400132157", Kind: domain.NoticeCollectiveProcedure, Published: day(2024, time.January, 19), URL: noticePage("A202400132157")},
 			},
 		},
 		{
@@ -81,7 +86,7 @@ func TestParseNotices(t *testing.T) {
 			fixture: "rectificatif.json",
 			siren:   "402175558",
 			want: []domain.Notice{
-				{ID: "A202602093931", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.October, 30)},
+				{ID: "A202602093931", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.October, 30), URL: noticePage("A202602093931")},
 			},
 		},
 		{
@@ -110,7 +115,7 @@ func TestParseNotices(t *testing.T) {
 func record(family, typ, precedent string) []byte {
 	return fmt.Appendf(nil, `{"results":[{"id":"A202602093931","registre":["504352360","504 352 360"],`+
 		`"dateparution":"2026-10-30","familleavis":%q,"typeavis":%q,"publicationavis":"A",`+
-		`"parution":"20260209","numeroannonce":3931,"parutionavisprecedent":%s}]}`, family, typ, precedent)
+		`"parution":"20260209","numeroannonce":3931,"parutionavisprecedent":%s,"url_complete":%q}]}`, family, typ, precedent, noticePage("A202602093931"))
 }
 
 // precedent returns the parutionavisprecedent of a notice that points to
@@ -149,6 +154,9 @@ func TestParseNoticesInvalid(t *testing.T) {
 		"no results field":              []byte(`{"total_count":0}`),
 		"no id":                         []byte(`{"results":[{"registre":["504352360"],"dateparution":"2026-10-30","familleavis":"collective","typeavis":"annonce"}]}`),
 		"bad date":                      []byte(`{"results":[{"id":"A1","registre":["504352360"],"dateparution":"30/10/2026","familleavis":"collective","typeavis":"annonce"}]}`),
+		"no page":                       []byte(`{"results":[{"id":"A1","registre":["504352360"],"dateparution":"2026-10-30","familleavis":"collective","typeavis":"annonce"}]}`),
+		"page off the BODACC":           []byte(`{"results":[{"id":"A1","registre":["504352360"],"dateparution":"2026-10-30","familleavis":"collective","typeavis":"annonce","url_complete":"https://exemple.fr/?q.id=id:A1"}]}`),
+		"page over plain HTTP":          []byte(`{"results":[{"id":"A1","registre":["504352360"],"dateparution":"2026-10-30","familleavis":"collective","typeavis":"annonce","url_complete":"http://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A1"}]}`),
 		"family not asked for":          record("dpc", "annonce", "null"),
 		"unknown type":                  record("collective", "autre", "null"),
 		"correction without precedent":  record("collective", "rectificatif", "null"),

@@ -24,6 +24,9 @@ const (
 	typeCancellation = "annulation"
 )
 
+// pagePrefix starts the public page of every notice, its url_complete.
+const pagePrefix = "https://www.bodacc.fr/pages/annonces-commerciales-detail/"
+
 // kinds maps the families asked for (familleavis) to their kind.
 var kinds = map[string]domain.NoticeKind{
 	"collective":                   domain.NoticeCollectiveProcedure,
@@ -50,6 +53,7 @@ type entry struct {
 	Parution    string   `json:"parution"`
 	Number      int      `json:"numeroannonce"`
 	Precedent   *string  `json:"parutionavisprecedent"`
+	Page        string   `json:"url_complete"`
 }
 
 // precedentRef is the parutionavisprecedent of a correction or a
@@ -166,5 +170,8 @@ func (e entry) notice() (domain.Notice, error) {
 	if err != nil {
 		return domain.Notice{}, fmt.Errorf("%w: notice %s: publication date: %w", ErrResponse, e.ID, err)
 	}
-	return domain.Notice{ID: e.ID, Kind: kind, Published: published}, nil
+	if !strings.HasPrefix(e.Page, pagePrefix) {
+		return domain.Notice{}, fmt.Errorf("%w: notice %s: page %q", ErrResponse, e.ID, e.Page)
+	}
+	return domain.Notice{ID: e.ID, Kind: kind, Published: published, URL: e.Page}, nil
 }

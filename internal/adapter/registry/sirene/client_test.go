@@ -97,6 +97,11 @@ func TestLookup(t *testing.T) {
 	if want := "INSTITUT NATIONAL DE LA STATISTIQUE ET DES ETUDES ECONOMIQUES (INSEE)"; got.Name != want {
 		t.Errorf("Lookup().Name = %q, want %q", got.Name, want)
 	}
+	// The record's address is the query itself, public JSON anyone can
+	// check.
+	if want := u.srv.URL + "/search?include=siege&minimal=true&per_page=5&q=120027016"; got.URL != want {
+		t.Errorf("Lookup().URL = %q, want %q", got.URL, want)
+	}
 }
 
 // The query asks for the head office only: the minimal answer leaves out

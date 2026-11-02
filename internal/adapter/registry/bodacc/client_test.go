@@ -94,7 +94,7 @@ func TestNotices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Notices() error = %v", err)
 	}
-	want := []domain.Notice{{ID: "A202602093931", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.October, 30)}}
+	want := []domain.Notice{{ID: "A202602093931", Kind: domain.NoticeCollectiveProcedure, Published: day(2026, time.October, 30), URL: noticePage("A202602093931")}}
 	if !slices.Equal(got, want) {
 		t.Errorf("Notices() = %v, want %v", got, want)
 	}
@@ -109,7 +109,7 @@ func TestNoticesSelectsNoPersonalField(t *testing.T) {
 	want := url.Values{
 		"where": {`registre="504352360" and familleavis in ` +
 			`("collective","conciliation","radiation","retablissement_professionnel")`},
-		"select":   {"id,registre,dateparution,familleavis,typeavis,publicationavis,parution,numeroannonce,parutionavisprecedent"},
+		"select":   {"id,registre,dateparution,familleavis,typeavis,publicationavis,parution,numeroannonce,parutionavisprecedent,url_complete"},
 		"order_by": {"dateparution desc"},
 		"limit":    {"100"},
 	}

@@ -106,7 +106,8 @@ func (c *Client) query(ctx context.Context, n string) (domain.Company, error) {
 	if err := c.waitForRate(ctx); err != nil {
 		return domain.Company{}, fmt.Errorf("sirene %s: %w: %w", n, ErrThrottled, err)
 	}
-	body, err := c.get.Get(ctx, c.searchURL(n))
+	search := c.searchURL(n)
+	body, err := c.get.Get(ctx, search)
 	if err != nil {
 		c.throttle.Heed(c.host, err)
 		return domain.Company{}, fmt.Errorf("sirene %s: %w", n, err)
@@ -115,6 +116,7 @@ func (c *Client) query(ctx context.Context, n string) (domain.Company, error) {
 	if err != nil {
 		return domain.Company{}, fmt.Errorf("sirene %s: %w", n, err)
 	}
+	company.URL = search
 	return company, nil
 }
 

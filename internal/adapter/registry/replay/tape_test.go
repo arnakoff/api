@@ -28,11 +28,13 @@ var (
 		Created:            time.Date(2019, 10, 25, 0, 0, 0, 0, time.UTC),
 		HeadOfficeClosed:   true,
 		HeadOfficeClosedOn: time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
+		URL:                "https://recherche-entreprises.api.gouv.fr/search?include=siege&minimal=true&per_page=5&q=130025265",
 	}
 	notices = []domain.Notice{{
 		ID:        "A202601993983",
 		Kind:      domain.NoticeCollectiveProcedure,
 		Published: time.Date(2026, 3, 4, 0, 0, 0, 0, time.UTC),
+		URL:       "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A202601993983",
 	}}
 )
 
