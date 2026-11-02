@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.32.0](https://github.com/arnakoff/api/compare/v0.31.0...v0.32.0) (2026-11-02)
+
+
+### Features
+
+* **signal:** add bnp paribas to the official domains ([#179](https://github.com/arnakoff/api/issues/179)) ([01039c2](https://github.com/arnakoff/api/commit/01039c2ae356441ceda28de3afc78ac413e019cf)), closes [#166](https://github.com/arnakoff/api/issues/166)
+
 ## [0.31.0](https://github.com/arnakoff/api/compare/v0.30.0...v0.31.0) (2026-11-02)
 
 
