@@ -93,3 +93,32 @@ func TestPostErrorsNeverQuoteTheURL(t *testing.T) {
 		})
 	}
 }
+
+func TestSubmitReturnsTheAnswer(t *testing.T) {
+	t.Parallel()
+	srv, _ := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		_, _ = w.Write(append([]byte("echo "), b...))
+	})
+	c := newClient(t, srv, httpclient.Config{})
+
+	got, err := c.Submit(t.Context(), srv.URL+"/verify", "application/x-www-form-urlencoded", []byte("a=1"))
+	if err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	if string(got) != "echo a=1" {
+		t.Errorf("Submit() = %q, want the answer body", got)
+	}
+}
+
+func TestSubmitRefusesAnAnswerOverTheLimit(t *testing.T) {
+	t.Parallel()
+	srv, _ := newServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", 11)))
+	})
+	c := newClient(t, srv, httpclient.Config{MaxBodyBytes: 10})
+
+	if _, err := c.Submit(t.Context(), srv.URL+"/verify", "text/plain", nil); !errors.Is(err, httpclient.ErrBodyTooLarge) {
+		t.Errorf("Submit() error = %v, want ErrBodyTooLarge", err)
+	}
+}

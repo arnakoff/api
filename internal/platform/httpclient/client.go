@@ -105,14 +105,23 @@ func (c *Client) Get(ctx context.Context, rawURL string) ([]byte, error) {
 // errors, those of Get otherwise, never quote rawURL: a webhook URL carries
 // a secret.
 func (c *Client) Post(ctx context.Context, rawURL, contentType string, body []byte) error {
+	_, err := c.Submit(ctx, rawURL, contentType, body)
+	return err
+}
+
+// Submit sends body to rawURL with the given content type and returns the
+// answer's body, as Post does otherwise: an upstream that must not get body
+// twice is reached through a Client of one attempt.
+func (c *Client) Submit(ctx context.Context, rawURL, contentType string, body []byte) ([]byte, error) {
 	u, err := c.parse(rawURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if _, err := c.send(ctx, request{method: http.MethodPost, url: u, contentType: contentType, body: body}); err != nil {
-		return fmt.Errorf("post: %w", err)
+	answer, err := c.send(ctx, request{method: http.MethodPost, url: u, contentType: contentType, body: body})
+	if err != nil {
+		return nil, fmt.Errorf("post: %w", err)
 	}
-	return nil
+	return answer, nil
 }
 
 // parse returns rawURL parsed, or ErrURLNotAllowed.

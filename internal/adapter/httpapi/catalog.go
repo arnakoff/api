@@ -48,6 +48,10 @@ var (
 		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
 		"Le corps de la requête doit être un objet JSON contenant une liste items d'au moins un élément.",
 	}
+	invalidDemoBody = problem{
+		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
+		"Le corps de la requête doit être un objet JSON contenant q et turnstile_token.",
+	}
 	missingAPIKey = problem{
 		http.StatusUnauthorized, "missing_api_key", "Clé API manquante",
 		"Cette ressource demande une clé API, envoyée dans l'en-tête Authorization avec le schéma Bearer.",
@@ -59,6 +63,14 @@ var (
 	authenticationUnavailable = problem{
 		http.StatusServiceUnavailable, "authentication_unavailable", "Authentification indisponible",
 		"La clé API ne peut pas être vérifiée pour le moment. Réessaie plus tard.",
+	}
+	challengeFailed = problem{
+		http.StatusForbidden, "challenge_failed", "Vérification anti-abus échouée",
+		"Le jeton anti-abus est absent, invalide, expiré ou déjà utilisé. Recharge la vérification et réessaie.",
+	}
+	challengeUnavailable = problem{
+		http.StatusServiceUnavailable, "challenge_unavailable", "Vérification anti-abus indisponible",
+		"Le jeton anti-abus ne peut pas être vérifié pour le moment. Réessaie plus tard.",
 	}
 	tooManyRequests = problem{
 		http.StatusTooManyRequests, "too_many_requests", "Trop de requêtes",
@@ -107,8 +119,9 @@ func tooManyItems(limit int) problem {
 // contract's examples, the list arnakoff/web documents.
 var problemCatalog = append([]problem{
 	invalidKind, missingParameter, notFound, methodNotAllowed, contentTooLarge,
-	unsupportedMediaType, invalidBody, missingAPIKey, invalidAPIKey, authenticationUnavailable,
-	tooManyRequests, internalError, serviceUnavailable,
+	unsupportedMediaType, invalidBody, invalidDemoBody, missingAPIKey, invalidAPIKey,
+	authenticationUnavailable, challengeFailed, challengeUnavailable, tooManyRequests, internalError,
+	serviceUnavailable,
 }, slices.Collect(maps.Values(invalidInputOf))...)
 
 // problemFor returns the problem answering err, an error of the domain

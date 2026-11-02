@@ -37,6 +37,15 @@
 // X-Forwarded-For field then tells the client's address; "none" says no
 // proxy stands in front. It is required to start with live keys.
 //
+// POST /v1/demo/check is the demo access of the site's checker: one check
+// without a key, its input in the body. It is on when ARNAKOFF_DEMO_ORIGIN
+// and ARNAKOFF_TURNSTILE_SECRET are both set: CORS then allows that origin
+// only, and each request must carry a Cloudflare Turnstile token, checked
+// once with siteverify for the origin's host. Each client address may send
+// ARNAKOFF_RATE_LIMIT_DEMO demo checks a minute (10 by default), every
+// client together ARNAKOFF_RATE_LIMIT_DEMO_GLOBAL (300 by default). Off,
+// the route answers 503.
+//
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
 package main

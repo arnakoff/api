@@ -64,6 +64,8 @@ type Options struct {
 	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
 	// client's address: config.Config.TrustedProxies.
 	TrustedProxies []netip.Prefix
+	// Demo configures POST /v1/demo/check.
+	Demo DemoOptions
 }
 
 // NewHandler returns the handler of the API: its routes behind the request
@@ -87,6 +89,9 @@ func NewHandler(opts Options) http.Handler {
 	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }
 	mux.Handle("GET /v1/check", gate.require(check(opts.Check, ps)))
 	mux.Handle("POST /v1/check/batch", gate.require(batch(opts.Check, ps, opts.BatchMaxItems)))
+	demo := newDemoGate(opts, ps, byAddr)
+	mux.Handle("POST /v1/demo/check", allowOrigin(opts.Demo.Origin, demo.check(opts.Check)))
+	mux.Handle("OPTIONS /v1/demo/check", preflight(opts.Demo.Origin))
 	mux.Handle("GET /v1/sources", anonymous(sources(opts.Sources)))
 	mux.Handle("GET /v1/signals", anonymous(signals()))
 	return wrap(opts, route(ps, mux))

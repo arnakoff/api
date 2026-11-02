@@ -20,6 +20,10 @@ info:
     Authentification : les routes de vérification demandent une clé API dans l'en-tête
     `Authorization: Bearer <clé>` (RFC 6750). Les routes de référence (`/v1/sources`,
     `/v1/signals`) restent publiques.
+
+    Accès de démonstration : `POST /v1/demo/check` vérifie une entrée sans clé, pour le
+    vérificateur du site seulement. Chaque requête porte un jeton Cloudflare Turnstile, valable une
+    fois, et le quota est faible. CORS n'autorise que l'origine du site.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -126,6 +130,64 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/AuthenticationUnavailable'
+  /v1/demo/check:
+    post:
+      operationId: demoCheck
+      tags: [vérification]
+      summary: Vérifier une entrée depuis le vérificateur du site
+      description: |
+        Vérifie une entrée comme `GET /v1/check`, sans clé API : c'est l'accès de démonstration du
+        vérificateur d'arnakoff.com. L'entrée voyage dans le corps, jamais dans l'URL.
+
+        Chaque requête porte un jeton Cloudflare Turnstile obtenu sur le site ; un jeton ne sert
+        qu'une fois et expire après 300 secondes. Le quota est double : par adresse du client
+        (politique `demo`) et pour tous les clients ensemble (politique `demo_global`).
+
+        CORS : seule l'origine du site est autorisée, pour la méthode `POST` et l'en-tête
+        `Content-Type`, sans cookie ni identifiant. Aucune entrée n'est conservée.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemoRequest'
+            examples:
+              domain:
+                $ref: '#/components/examples/DemoRequestDomain'
+      responses:
+        '200':
+          description: Rapport de la vérification.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+              examples:
+                blacklisted:
+                  $ref: '#/components/examples/ReportBlacklisted'
+                noSignal:
+                  $ref: '#/components/examples/ReportNoSignal'
+        '400':
+          $ref: '#/components/responses/DemoBadRequest'
+        '403':
+          $ref: '#/components/responses/ChallengeFailed'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ChallengeUnavailable'
   /v1/sources:
     get:
       operationId: listSources
@@ -239,6 +301,8 @@ components:
         vérification, par adresse du client, qui compte les clés refusées (mal formées, inconnues
         ou révoquées) : une fois ce quota dépensé, les clés envoyées depuis cette adresse ne sont
         plus vérifiées et la réponse est `429`, même pour une clé valide. La politique `auth`
+        n'apparaît que sur ses réponses `429`. Sur `POST /v1/demo/check`, politique `demo` par
+        adresse du client et politique `demo_global` pour tous les clients ensemble, qui
         n'apparaît que sur ses réponses `429`. Valeurs de l'exemple données à
         titre d'illustration : les quotas dépendent de l'offre.
       schema:
@@ -311,6 +375,38 @@ components:
           examples:
             tooLarge:
               $ref: '#/components/examples/ProblemContentTooLarge'
+    DemoBadRequest:
+      description: |
+        Corps de requête qui n'est pas un objet JSON, sans entrée `q`, ou avec un `type` inconnu.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidBody:
+              $ref: '#/components/examples/ProblemInvalidDemoBody'
+            missingQ:
+              $ref: '#/components/examples/ProblemMissingParameter'
+            unknownType:
+              $ref: '#/components/examples/ProblemInvalidParameter'
+    ChallengeFailed:
+      description: Jeton anti-abus absent, invalide, expiré ou déjà utilisé.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            failed:
+              $ref: '#/components/examples/ProblemChallengeFailed'
+    ChallengeUnavailable:
+      description: Le jeton anti-abus ne peut pas être vérifié pour le moment.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unavailable:
+              $ref: '#/components/examples/ProblemChallengeUnavailable'
     UnsupportedMediaType:
       description: Corps de requête qui n'est pas en `application/json`.
       content:
@@ -345,8 +441,9 @@ components:
               $ref: '#/components/examples/ProblemAuthenticationUnavailable'
     TooManyRequests:
       description: |
-        Quota dépassé : celui de la clé (`key`), de l'adresse (`ip`) ou des clés refusées depuis
-        l'adresse (`auth`), nommé dans `RateLimit-Policy`.
+        Quota dépassé : celui de la clé (`key`), de l'adresse (`ip`), des clés refusées depuis
+        l'adresse (`auth`) ou de l'accès de démonstration (`demo`, `demo_global`), nommé dans
+        `RateLimit-Policy`.
       headers:
         RateLimit:
           $ref: '#/components/headers/RateLimit'
@@ -522,6 +619,24 @@ components:
           example: armen.ltd
         type:
           $ref: '#/components/schemas/InputType'
+    DemoRequest:
+      type: object
+      description: L'entrée à vérifier et le jeton anti-abus du vérificateur du site.
+      required: [q, turnstile_token]
+      properties:
+        q:
+          type: string
+          description: L'entrée telle que l'utilisateur l'a collée.
+          minLength: 1
+          example: armen.ltd
+        type:
+          $ref: '#/components/schemas/InputType'
+        turnstile_token:
+          type: string
+          description: Le jeton donné par le widget Cloudflare Turnstile du site, valable une fois.
+          minLength: 1
+          maxLength: 2048
+          example: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
     BatchResponse:
       type: object
       description: Un résultat par élément du lot, dans l'ordre des éléments.
@@ -738,6 +853,11 @@ components:
           - q: armen.ltd
           - q: FR76 0000
             type: iban
+    DemoRequestDomain:
+      summary: Un domaine, avec le jeton du widget
+      value:
+        q: armen.ltd
+        turnstile_token: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
     BatchResponseMixed:
       summary: Un rapport et une erreur
       value:
@@ -895,6 +1015,33 @@ components:
         detail: Le corps de la requête doit être un objet JSON contenant une liste items d'au moins un élément.
         instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: invalid_body
+    ProblemInvalidDemoBody:
+      summary: Corps de démonstration mal formé
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_body
+        title: Corps de requête invalide
+        status: 400
+        detail: Le corps de la requête doit être un objet JSON contenant q et turnstile_token.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_body
+    ProblemChallengeFailed:
+      summary: Jeton anti-abus refusé
+      value:
+        type: https://arnakoff.com/docs/erreurs/challenge_failed
+        title: Vérification anti-abus échouée
+        status: 403
+        detail: Le jeton anti-abus est absent, invalide, expiré ou déjà utilisé. Recharge la vérification et réessaie.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: challenge_failed
+    ProblemChallengeUnavailable:
+      summary: Vérification anti-abus indisponible
+      value:
+        type: https://arnakoff.com/docs/erreurs/challenge_unavailable
+        title: Vérification anti-abus indisponible
+        status: 503
+        detail: Le jeton anti-abus ne peut pas être vérifié pour le moment. Réessaie plus tard.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: challenge_unavailable
     ProblemTooManyItems:
       summary: Lot trop grand
       value:
