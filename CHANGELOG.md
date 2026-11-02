@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/arnakoff/api/compare/v0.33.0...v0.34.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** answer every error as an rfc 9457 problem documented on the site ([#183](https://github.com/arnakoff/api/issues/183)) ([7b49288](https://github.com/arnakoff/api/commit/7b4928860418511f52ba602cd3170ade7925bca4)), closes [#51](https://github.com/arnakoff/api/issues/51)
+
 ## [0.33.0](https://github.com/arnakoff/api/compare/v0.32.0...v0.33.0) (2026-11-02)
 
 
