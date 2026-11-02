@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -34,6 +35,10 @@ const (
 	EnvDatabaseURL  = "ARNAKOFF_DATABASE_URL"
 	EnvAPIKeySecret = "ARNAKOFF_API_KEY_SECRET" //nolint:gosec // G101: the name of a variable, not its value.
 	EnvAPIKeyEnv    = "ARNAKOFF_API_KEY_ENV"    //nolint:gosec // G101: the name of a variable, not its value.
+
+	EnvRateLimitKey   = "ARNAKOFF_RATE_LIMIT_KEY"
+	EnvRateLimitIP    = "ARNAKOFF_RATE_LIMIT_IP"
+	EnvTrustedProxies = "ARNAKOFF_TRUSTED_PROXIES"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -114,6 +119,19 @@ type Config struct {
 	// APIKeyEnv is the environment of the API keys accepted: "live" or
 	// "test".
 	APIKeyEnv string
+
+	// RateLimitKey is the number of requests per minute of an API key,
+	// from 1 to MaxRateLimit.
+	RateLimitKey int
+
+	// RateLimitIP is the number of requests per minute of a client address
+	// on the routes needing no key, from 1 to MaxRateLimit.
+	RateLimitIP int
+
+	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
+	// client's address: nil when unset, empty when set to "none".
+	// RequireTrustedProxies tells whether it is set.
+	TrustedProxies []netip.Prefix
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -140,6 +158,9 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvDatabaseURL, "", &cfg.DatabaseURL, parseOptionalSecret),
 		parse(lookup, EnvAPIKeySecret, "", &cfg.APIKeySecret, parseOptionalKey),
 		parse(lookup, EnvAPIKeyEnv, DefaultAPIKeyEnv, &cfg.APIKeyEnv, parseAPIKeyEnv),
+		parse(lookup, EnvRateLimitKey, strconv.Itoa(DefaultRateLimitKey), &cfg.RateLimitKey, parseRateLimit),
+		parse(lookup, EnvRateLimitIP, strconv.Itoa(DefaultRateLimitIP), &cfg.RateLimitIP, parseRateLimit),
+		parseTrustedProxies(lookup, &cfg.TrustedProxies),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
@@ -242,12 +263,17 @@ func parseHTTPS(s string) (*url.URL, error) {
 }
 
 // parseBatchMaxItems accepts a decimal number from 1 to MaxBatchMaxItems.
-func parseBatchMaxItems(s string) (int, error) {
-	n, err := strconv.Atoi(s)
-	if err != nil || n < 1 || n > MaxBatchMaxItems {
-		return 0, fmt.Errorf("%q is not a number from 1 to %d", s, MaxBatchMaxItems)
+var parseBatchMaxItems = intFrom1To(MaxBatchMaxItems)
+
+// intFrom1To returns a parser accepting a decimal number from 1 to most.
+func intFrom1To(most int) func(string) (int, error) {
+	return func(s string) (int, error) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > most {
+			return 0, fmt.Errorf("%q is not a number from 1 to %d", s, most)
+		}
+		return n, nil
 	}
-	return n, nil
 }
 
 // parseDir accepts a non-empty path and cleans it.

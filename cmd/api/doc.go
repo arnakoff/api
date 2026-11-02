@@ -25,6 +25,14 @@
 // unreachable, the check routes answer 503, never unchecked. Keys are issued
 // and the schema migrated by the admin command.
 //
+// Each API key may send ARNAKOFF_RATE_LIMIT_KEY requests a minute to the
+// check routes (60 by default), and each client address
+// ARNAKOFF_RATE_LIMIT_IP to the routes needing no key (30 by default); the
+// probes are never limited. The limits are kept in memory, per instance.
+// Behind a proxy, ARNAKOFF_TRUSTED_PROXIES lists its CIDR prefixes, whose
+// X-Forwarded-For field then tells the client's address; "none" says no
+// proxy stands in front. It is required to start with live keys.
+//
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
 package main

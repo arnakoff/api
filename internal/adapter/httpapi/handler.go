@@ -7,9 +7,11 @@ import (
 	"crypto/rand"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"path"
 
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/config"
 )
 
 // Readiness tells whether the API can answer checks.
@@ -49,6 +51,15 @@ type Options struct {
 	// BatchMaxItems is the most items POST /v1/check/batch accepts, at
 	// least one: config.Config.BatchMaxItems.
 	BatchMaxItems int
+	// KeyLimit limits the requests of each API key to the check routes;
+	// nil applies config.DefaultRateLimitKey a minute.
+	KeyLimit Limiter
+	// IPLimit limits the requests of each client address to the routes
+	// needing no key; nil applies config.DefaultRateLimitIP a minute.
+	IPLimit Limiter
+	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
+	// client's address: config.Config.TrustedProxies.
+	TrustedProxies []netip.Prefix
 }
 
 // NewHandler returns the handler of the API: its routes behind the request
@@ -62,11 +73,15 @@ func NewHandler(opts Options) http.Handler {
 	if auth == nil {
 		auth = noAuthenticator{}
 	}
-	keyed := func(h http.Handler) http.Handler { return requireKey(auth, opts.Logger, ps, h) }
+	perKey := newQuota(limiterOr(opts.KeyLimit, config.DefaultRateLimitKey), keyPolicy, ps)
+	keyed := func(h http.Handler) http.Handler { return requireKey(auth, opts.Logger, ps, perKey, h) }
+	perAddr := newQuota(limiterOr(opts.IPLimit, config.DefaultRateLimitIP), ipPolicy, ps)
+	byAddr := func(r *http.Request) string { return clientKey(r, opts.TrustedProxies) }
+	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }
 	mux.Handle("GET /v1/check", keyed(check(opts.Check, ps)))
 	mux.Handle("POST /v1/check/batch", keyed(batch(opts.Check, ps, opts.BatchMaxItems)))
-	mux.Handle("GET /v1/sources", sources(opts.Sources))
-	mux.Handle("GET /v1/signals", signals())
+	mux.Handle("GET /v1/sources", anonymous(sources(opts.Sources)))
+	mux.Handle("GET /v1/signals", anonymous(signals()))
 	return wrap(opts, route(ps, mux))
 }
 

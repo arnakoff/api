@@ -6,6 +6,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/domain"
@@ -67,5 +68,19 @@ func TestNewAuthenticatorOpensLazily(t *testing.T) {
 	defer closeKeys()
 	if auth == nil {
 		t.Error("newAuthenticator() = nil")
+	}
+}
+
+func TestRunRequiresTrustedProxiesWithLiveKeys(t *testing.T) {
+	t.Parallel()
+	if err := run(t.Context(), config.Config{APIKeyEnv: "live"}); !errors.Is(err, config.ErrInvalid) {
+		t.Errorf("run() without ARNAKOFF_TRUSTED_PROXIES error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestPerMinuteAppliesTheQuota(t *testing.T) {
+	t.Parallel()
+	if p := perMinute(42).Policy(); p.Quota != 42 || p.Window != time.Minute {
+		t.Errorf("perMinute(42).Policy() = %+v, want 42 a minute", p)
 	}
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
+	"github.com/arnakoff/api/internal/platform/ratelimit"
 	"github.com/arnakoff/api/internal/platform/startup"
 )
 
@@ -43,6 +44,9 @@ func main() {
 // run is the work of the command, once its configuration is loaded and the
 // redacting logger is the slog default.
 func run(ctx context.Context, cfg config.Config) error {
+	if err := cfg.RequireTrustedProxies(); err != nil {
+		return err
+	}
 	disk, err := store.NewDisk(cfg.SnapshotDir())
 	if err != nil {
 		return err
@@ -71,8 +75,15 @@ func run(ctx context.Context, cfg config.Config) error {
 	}
 	return serve(ctx, cfg, s, httpapi.Options{
 		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
-		BatchMaxItems: cfg.BatchMaxItems,
+		BatchMaxItems: cfg.BatchMaxItems, KeyLimit: perMinute(cfg.RateLimitKey), IPLimit: perMinute(cfg.RateLimitIP),
+		TrustedProxies: cfg.TrustedProxies,
 	})
+}
+
+// perMinute returns a rate limiter allowing each client n requests a
+// minute.
+func perMinute(n int) *ratelimit.Limiter {
+	return ratelimit.New(ratelimit.Policy{Quota: n, Window: time.Minute}, ratelimit.DefaultMaxKeys, clock.System{}.Now)
 }
 
 // serve answers the API of opts on cfg.Addr and reloads the snapshots of s

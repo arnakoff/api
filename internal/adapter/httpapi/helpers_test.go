@@ -10,11 +10,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/logging/loggingtest"
+	"github.com/arnakoff/api/internal/platform/ratelimit"
 )
 
 // problemBase is the documentation of the problems in the handler tests.
@@ -90,7 +92,16 @@ func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	return httpapi.Options{
 		Ready: readiness(ready), Check: &checker{}, Auth: keyring{}, Logger: logger, NewID: func() string { return "GENERATED" },
 		ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
+		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30),
 	}, buf
+}
+
+// frozenLimiter returns a limiter allowing each client quota requests a
+// minute, on a clock that does not move. options sets one no test or
+// benchmark reaches.
+func frozenLimiter(quota int) *ratelimit.Limiter {
+	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	return ratelimit.New(ratelimit.Policy{Quota: quota, Window: time.Minute}, 100, func() time.Time { return now })
 }
 
 // serve sends a request to h and returns the recorded response.
@@ -100,6 +111,11 @@ func serve(t *testing.T, h http.Handler, method, target string, header http.Head
 	for k, vs := range header {
 		req.Header[k] = vs
 	}
+	return do(h, req)
+}
+
+// do sends req to h and returns the recorded response.
+func do(h http.Handler, req *http.Request) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec

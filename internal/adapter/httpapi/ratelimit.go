@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package httpapi
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/arnakoff/api/internal/platform/ratelimit"
+)
+
+// Limiter limits the requests of each client, known by a key.
+type Limiter interface {
+	// Allow spends one request of key.
+	Allow(key string) ratelimit.Decision
+	// Policy returns the policy applied to each key.
+	Policy() ratelimit.Policy
+}
+
+// Names of the quota policies in the RateLimit fields.
+const (
+	keyPolicy = "key"
+	ipPolicy  = "ip"
+)
+
+// Canonical forms of the RateLimit field names
+// (textproto.CanonicalMIMEHeaderKey): admit sets them directly, which
+// spares canonicalising them on every answer.
+const (
+	rateLimitPolicyField = "Ratelimit-Policy"
+	rateLimitField       = "Ratelimit"
+)
+
+// quota applies a Limiter under a policy name.
+type quota struct {
+	limiter Limiter
+	name    string
+	// policy is the RateLimit-Policy field, the same on every answer.
+	policy string
+	ps     problems
+}
+
+// newQuota returns the quota of l under name.
+func newQuota(l Limiter, name string, ps problems) *quota {
+	p := l.Policy()
+	policy := `"` + name + `";q=` + strconv.Itoa(p.Quota) + ";w=" + seconds(p.Window)
+	return &quota{limiter: l, name: name, policy: policy, ps: ps}
+}
+
+// admit spends one request of key and reports whether it may be served;
+// otherwise it answers a 429 with Retry-After. Either way the answer
+// carries the RateLimit-Policy and RateLimit fields
+// (draft-ietf-httpapi-ratelimit-headers-11, sections 3 and 4).
+func (q *quota) admit(w http.ResponseWriter, r *http.Request, key string) bool {
+	d := q.limiter.Allow(key)
+	h := w.Header()
+	h[rateLimitPolicyField] = []string{q.policy}
+	h[rateLimitField] = []string{`"` + q.name + `";r=` + strconv.Itoa(d.Remaining) + ";t=" + seconds(d.Reset)}
+	if !d.Allowed {
+		h.Set("Retry-After", seconds(d.Reset))
+		q.ps.write(w, r, tooManyRequests)
+	}
+	return d.Allowed
+}
+
+// limit answers next only for a request q admits, the client known by
+// keyOf.
+func limit(q *quota, keyOf func(*http.Request) string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if q.admit(w, r, keyOf(r)) {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+// limiterOr returns l, or when it is nil a limiter of n requests a minute
+// per client: the API always limits.
+func limiterOr(l Limiter, n int) Limiter {
+	if l != nil {
+		return l
+	}
+	return ratelimit.New(ratelimit.Policy{Quota: n, Window: time.Minute}, ratelimit.DefaultMaxKeys, time.Now)
+}
+
+// seconds writes d in whole seconds, as delay-seconds (RFC 9110, section
+// 10.2.3).
+func seconds(d time.Duration) string {
+	return strconv.FormatInt(int64(d/time.Second), 10)
+}
