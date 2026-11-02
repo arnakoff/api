@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.0](https://github.com/arnakoff/api/compare/v0.35.0...v0.36.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** serve post /v1/check/batch with a result per item ([#188](https://github.com/arnakoff/api/issues/188)) ([f32f594](https://github.com/arnakoff/api/commit/f32f594ab26f33734a20bfd946c2bd418a8a2f99)), closes [#53](https://github.com/arnakoff/api/issues/53)
+
 ## [0.35.0](https://github.com/arnakoff/api/compare/v0.34.0...v0.35.0) (2026-11-02)
 
 
