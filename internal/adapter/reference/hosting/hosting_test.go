@@ -72,7 +72,16 @@ func TestLoadReadsTheShippedList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	for host, want := range map[string]bool{"linktr.ee": false, "t.me": false, "www.coinhouse.com": true} {
+	shipped := map[string]bool{
+		"linktr.ee":         false,
+		"t.me":              false,
+		"medium.com":        false,
+		"beacons.ai":        false,
+		"bit.ly":            false,
+		"tinyurl.com":       false,
+		"www.coinhouse.com": true,
+	}
+	for host, want := range shipped {
 		if got := standsForSite(t, p, host); got != want {
 			t.Errorf("PageStandsForSite(%s) = %v; want %v", host, got, want)
 		}
