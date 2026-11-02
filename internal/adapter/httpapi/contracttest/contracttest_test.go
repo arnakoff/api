@@ -63,14 +63,15 @@ func firstSignal(v map[string]any) map[string]any {
 }
 
 // exchange is one request and the response the contract is checked on. An
-// empty method, status or header is GET, 200 and JSON. A refused exchange
-// is checked with CheckRefused.
+// empty method, status or header is GET, 200 and JSON. The request carries
+// an API key unless anonymous. A refused exchange is checked with
+// CheckRefused.
 type exchange struct {
 	method, target, reqBody string
 	status                  int
 	header                  http.Header
 	body                    any
-	refused                 bool
+	anonymous, refused      bool
 }
 
 func (e exchange) check(t *testing.T) error {
@@ -88,6 +89,9 @@ func (e exchange) check(t *testing.T) error {
 	if e.reqBody != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if !e.anonymous {
+		req.Header.Set("Authorization", "Bearer ark_test_000000000000000000000000000000abcdef")
+	}
 	rec := httptest.NewRecorder()
 	for k, vs := range e.header {
 		rec.Header()[k] = vs
@@ -103,6 +107,14 @@ func (e exchange) check(t *testing.T) error {
 }
 
 func jsonHeader(ct string) http.Header { return http.Header{"Content-Type": {ct}} }
+
+// challenged returns the header of a 401 problem with the WWW-Authenticate
+// challenge c.
+func challenged(c string) http.Header {
+	h := jsonHeader("application/problem+json")
+	h.Set("WWW-Authenticate", c)
+	return h
+}
 
 func TestCheckAcceptsResponsesThatFollowTheContract(t *testing.T) {
 	t.Parallel()
@@ -122,6 +134,9 @@ func TestCheckAcceptsResponsesThatFollowTheContract(t *testing.T) {
 		"batch":              {method: http.MethodPost, target: "/v1/check/batch", reqBody: batch, body: example(t, "BatchResponseMixed")},
 		"open request":       {method: http.MethodPost, target: "/v1/check/batch", reqBody: `{"items":[{"q":"armen.ltd","note":"x"}],"x":1}`, body: example(t, "BatchResponseMixed")},
 		"sources":            {target: "/v1/sources", body: example(t, "SourceList")},
+		"anonymous sources":  {target: "/v1/sources", body: example(t, "SourceList"), anonymous: true},
+		"invalid key":        {target: "/v1/check?q=armen.ltd", status: http.StatusUnauthorized, header: challenged(`Bearer realm="arnakoff", error="invalid_token"`), body: example(t, "ProblemInvalidApiKey")},
+		"key unchecked":      {target: "/v1/check?q=armen.ltd", status: http.StatusServiceUnavailable, header: problem, body: example(t, "ProblemAuthenticationUnavailable")},
 		"signals":            {target: "/v1/signals", body: example(t, "SignalCatalog")},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -157,6 +172,8 @@ func TestCheckRejectsResponsesThatBreakTheContract(t *testing.T) {
 		"request with an unknown type":   {target: "/v1/check?q=x&type=url", body: report},
 		"request without required param": {target: "/v1/check", body: report},
 		"batch request without items":    {method: http.MethodPost, target: "/v1/check/batch", reqBody: `{"items":[]}`, body: example(t, "BatchResponseMixed")},
+		"request without a key":          {target: "/v1/check?q=armen.ltd", body: report, anonymous: true},
+		"401 without a challenge":        {target: "/v1/check?q=armen.ltd", status: http.StatusUnauthorized, header: jsonHeader("application/problem+json"), body: example(t, "ProblemInvalidApiKey")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -190,6 +207,13 @@ func TestCheckRefusedHoldsTheAnswerToARequestTheContractRefuses(t *testing.T) {
 	}
 	if err := missing.check(t); err != nil {
 		t.Errorf("CheckRefused of a documented problem: %v", err)
+	}
+	noKey := exchange{
+		target: "/v1/check?q=armen.ltd", status: http.StatusUnauthorized, header: challenged(`Bearer realm="arnakoff"`),
+		body: example(t, "ProblemMissingApiKey"), anonymous: true, refused: true,
+	}
+	if err := noKey.check(t); err != nil {
+		t.Errorf("CheckRefused of a request without a key: %v", err)
 	}
 	for name, e := range map[string]exchange{
 		"undocumented status": {target: "/v1/check?q=x&type=url", status: http.StatusTeapot, header: problem, body: example(t, "ProblemInvalidParameter"), refused: true},

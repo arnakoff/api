@@ -23,6 +23,9 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | Dédoublonnage des appels (`golang.org/x/sync` : `singleflight`, BSD-3-Clause) | v0.24.0 (publiée le 23/09/2026) | `proxy.golang.org` |
 | Caractères confusables (`go.mau.fi/util` : `confusable`, MPL-2.0, squelette UTS #39 généré depuis `confusables.txt` d'Unicode 17.0.0) | v0.11.0 (publiée le 16/10/2026) ; seul le paquet `confusable` est compilé, il n'importe que `golang.org/x/text` | `proxy.golang.org` |
 | Limitation du débit sortant (`golang.org/x/time` : `rate`, BSD-3-Clause) | v0.16.0 (publiée le 19/08/2026) | `proxy.golang.org` |
+| PostgreSQL, pilote `jackc/pgx/v5` (MIT ; dépendances `jackc/puddle/v2`, `pgpassfile`, `pgservicefile`, `pgerrcode`, toutes MIT) | v5.11.0 (publiée le 07/09/2026) ; la v5.12.0 (31/10/2026) attend la fin du délai de carence de 7 jours | `proxy.golang.org` |
+| Migrations SQL (`golang-migrate/migrate/v4`, MIT : paquets `database/pgx/v5` et `source/iofs` seulement) | v4.20.1 (publiée le 09/09/2026), choisie par le propriétaire le 02/11/2026 (ADR 0004) | `proxy.golang.org` |
+| Serveur PostgreSQL de la CI (conteneur de service du job Test) | `postgres:18.6`, épinglée par digest ; la 19 n'existe qu'en `rc1` | Docker Hub `library/postgres` |
 | `actions/checkout` / `actions/setup-go` | v7.0.1 / v7.0.0, épinglées par SHA | GitHub releases |
 | `golangci/golangci-lint-action` | v9.3.0, épinglée par SHA | GitHub releases |
 | `github/codeql-action` | v4.39.1, épinglée par SHA | GitHub tags |

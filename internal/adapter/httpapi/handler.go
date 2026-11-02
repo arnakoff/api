@@ -33,6 +33,9 @@ type Options struct {
 	Ready Readiness
 	// Check backs /v1/check and /v1/check/batch.
 	Check Checker
+	// Auth checks the API key of /v1/check and /v1/check/batch; nil
+	// answers them all with a 503.
+	Auth Authenticator
 	// Sources backs /v1/sources.
 	Sources SourceLister
 	// Logger receives the access log and the recovered panics.
@@ -55,8 +58,13 @@ func NewHandler(opts Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /readyz", readyz(opts.Ready))
-	mux.Handle("GET /v1/check", check(opts.Check, ps))
-	mux.Handle("POST /v1/check/batch", batch(opts.Check, ps, opts.BatchMaxItems))
+	auth := opts.Auth
+	if auth == nil {
+		auth = noAuthenticator{}
+	}
+	keyed := func(h http.Handler) http.Handler { return requireKey(auth, opts.Logger, ps, h) }
+	mux.Handle("GET /v1/check", keyed(check(opts.Check, ps)))
+	mux.Handle("POST /v1/check/batch", keyed(batch(opts.Check, ps, opts.BatchMaxItems)))
 	mux.Handle("GET /v1/sources", sources(opts.Sources))
 	mux.Handle("GET /v1/signals", signals())
 	return wrap(opts, route(ps, mux))

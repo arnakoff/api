@@ -16,6 +16,10 @@ info:
     - erreurs au format RFC 9457 (`application/problem+json`) ;
     - un client ignore les champs qu'il ne connaît pas : un champ facultatif, un code de signal ou
       un code d'erreur peut être ajouté sans changer de version.
+
+    Authentification : les routes de vérification demandent une clé API dans l'en-tête
+    `Authorization: Bearer <clé>` (RFC 6750). Les routes de référence (`/v1/sources`,
+    `/v1/signals`) restent publiques.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -37,6 +41,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Q'
         - $ref: '#/components/parameters/Type'
+      security:
+        - apiKey: []
       responses:
         '200':
           description: Rapport de la vérification.
@@ -53,12 +59,16 @@ paths:
                   $ref: '#/components/examples/ReportNoSignal'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/UnprocessableContent'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/AuthenticationUnavailable'
   /v1/check/batch:
     post:
       operationId: checkBatch
@@ -78,6 +88,8 @@ paths:
             examples:
               mixed:
                 $ref: '#/components/examples/BatchRequestMixed'
+      security:
+        - apiKey: []
       responses:
         '200':
           description: Un résultat par élément, dans l'ordre des éléments.
@@ -90,6 +102,8 @@ paths:
                   $ref: '#/components/examples/BatchResponseMixed'
         '400':
           $ref: '#/components/responses/BatchBadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '413':
           $ref: '#/components/responses/ContentTooLarge'
         '415':
@@ -100,6 +114,8 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/AuthenticationUnavailable'
   /v1/sources:
     get:
       operationId: listSources
@@ -143,6 +159,17 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: ark_live_… ou ark_test_…, 45 caractères
+      description: |
+        Clé API envoyée dans l'en-tête `Authorization: Bearer <clé>` (RFC 6750). Une clé commence
+        par `ark_live_` (production) ou `ark_test_` (préproduction), suivi de 30 caractères
+        aléatoires et d'une somme de contrôle de 6 caractères, tous en base62 : un outil de
+        détection de secrets la reconnaît sans interroger l'API. Elle n'est affichée qu'une fois, à
+        sa création ; le serveur n'en garde qu'une empreinte.
   parameters:
     Q:
       name: q
@@ -164,6 +191,14 @@ components:
         $ref: '#/components/schemas/InputType'
       example: domain
   headers:
+    WWWAuthenticate:
+      required: true
+      description: |
+        Défi d'authentification (RFC 6750, section 3) : `Bearer realm="arnakoff"` sans clé,
+        suivi de `error="invalid_token"` pour une clé refusée.
+      schema:
+        type: string
+      example: Bearer realm="arnakoff", error="invalid_token"
     RateLimit:
       required: true
       description: |
@@ -257,6 +292,29 @@ components:
           examples:
             notJSON:
               $ref: '#/components/examples/ProblemUnsupportedMediaType'
+    Unauthorized:
+      description: Clé API absente, mal formée, inconnue ou révoquée.
+      headers:
+        WWW-Authenticate:
+          $ref: '#/components/headers/WWWAuthenticate'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            missing:
+              $ref: '#/components/examples/ProblemMissingApiKey'
+            invalid:
+              $ref: '#/components/examples/ProblemInvalidApiKey'
+    AuthenticationUnavailable:
+      description: La clé API ne peut pas être vérifiée pour le moment.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unavailable:
+              $ref: '#/components/examples/ProblemAuthenticationUnavailable'
     TooManyRequests:
       description: Quota dépassé.
       headers:
@@ -816,6 +874,33 @@ components:
         detail: "Le lot dépasse le nombre maximal d'éléments autorisé : 50."
         instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: too_many_items
+    ProblemMissingApiKey:
+      summary: Clé API manquante
+      value:
+        type: https://arnakoff.com/docs/erreurs/missing_api_key
+        title: Clé API manquante
+        status: 401
+        detail: Cette ressource demande une clé API, envoyée dans l'en-tête Authorization avec le schéma Bearer.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: missing_api_key
+    ProblemInvalidApiKey:
+      summary: Clé API invalide
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_api_key
+        title: Clé API invalide
+        status: 401
+        detail: La clé API est mal formée, inconnue ou révoquée.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_api_key
+    ProblemAuthenticationUnavailable:
+      summary: Authentification indisponible
+      value:
+        type: https://arnakoff.com/docs/erreurs/authentication_unavailable
+        title: Authentification indisponible
+        status: 503
+        detail: La clé API ne peut pas être vérifiée pour le moment. Réessaie plus tard.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: authentication_unavailable
     ProblemTooManyRequests:
       summary: Quota dépassé
       value:

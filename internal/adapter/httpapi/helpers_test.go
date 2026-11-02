@@ -61,11 +61,34 @@ func (c *checker) inputs() []domain.Input {
 	return append([]domain.Input(nil), c.asked...)
 }
 
+// testKey is the API key the fake authenticator of options accepts. Its
+// format is not checked: the fake does not parse it.
+const testKey = "ark_test_000000000000000000000000000000abcdef"
+
+// keyring is a fake authenticator: it answers err, or accepts the key when
+// err is nil.
+type keyring struct {
+	err error
+}
+
+func (k keyring) Authenticate(context.Context, string) (domain.KeyRecord, error) {
+	if k.err != nil {
+		return domain.KeyRecord{}, k.err
+	}
+	return domain.KeyRecord{ID: 1, Environment: domain.KeyTest}, nil
+}
+
+// authorize sets the Authorization field of req to testKey.
+func authorize(req *http.Request) *http.Request {
+	req.Header.Set("Authorization", "Bearer "+testKey)
+	return req
+}
+
 func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	t.Helper()
 	logger, buf := loggingtest.New(t)
 	return httpapi.Options{
-		Ready: readiness(ready), Check: &checker{}, Logger: logger, NewID: func() string { return "GENERATED" },
+		Ready: readiness(ready), Check: &checker{}, Auth: keyring{}, Logger: logger, NewID: func() string { return "GENERATED" },
 		ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
 	}, buf
 }

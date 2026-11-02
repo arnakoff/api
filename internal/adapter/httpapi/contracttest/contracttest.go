@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -92,8 +93,29 @@ func (c *Contract) input(req *http.Request) (*openapi3filter.RequestValidationIn
 	return &openapi3filter.RequestValidationInput{
 		Request: req,
 		Route:   route,
-		Options: &openapi3filter.Options{IncludeResponseStatus: true, MultiError: true},
+		Options: &openapi3filter.Options{
+			IncludeResponseStatus: true, MultiError: true, AuthenticationFunc: bearerPresent,
+		},
 	}, nil
+}
+
+// ErrNoCredentials means a request lacks the Authorization field its
+// operation's security requirement asks for.
+var ErrNoCredentials = errors.New("no credentials of the required scheme")
+
+// bearerPresent holds a request to an HTTP bearer security requirement: it
+// carries an Authorization field of the Bearer scheme with a token. Whether
+// the key is valid is the API's to say, not the contract's.
+func bearerPresent(_ context.Context, in *openapi3filter.AuthenticationInput) error {
+	s := in.SecurityScheme
+	if s.Type != "http" || !strings.EqualFold(s.Scheme, "bearer") {
+		return fmt.Errorf("security scheme %s %s: not supported by the harness", s.Type, s.Scheme)
+	}
+	scheme, token, _ := strings.Cut(in.RequestValidationInput.Request.Header.Get("Authorization"), " ")
+	if !strings.EqualFold(scheme, "Bearer") || token == "" {
+		return ErrNoCredentials
+	}
+	return nil
 }
 
 // validateResponse returns an error unless res is a documented answer to
