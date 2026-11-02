@@ -95,6 +95,35 @@ func TestLoadReadsTheShippedList(t *testing.T) {
 	}
 }
 
+func TestLoadListsBNPParibas(t *testing.T) {
+	t.Parallel()
+
+	o, err := official.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, tc := range []struct {
+		host string
+		want bool
+	}{
+		{"www.bnpparibas.fr", false},             // official domain
+		{"bnpparibas.com", false},                // alternate, redirects to the bank
+		{"mabanque.bnpparibas", false},           // brand suffix, not listed
+		{"mabanque.fr", false},                   // generic label is no name
+		{"mabanque-en-ligne.com", false},         // generic label is no name
+		{"bnpparibas-securite.com", true},        // name
+		{"espace-bnp-paribas.net", true},         // name of several words
+		{"bnp-client.fr", true},                  // short name, owner decision
+		{"bnpparibaas.fr", true},                 // one edit away from the label
+		{"mabanque.bnpparibas-client.com", true}, // name in the registrable domain
+	} {
+		_, found := lookalike(t, o, tc.host)
+		if found != tc.want {
+			t.Errorf("Lookalike(%q) found = %t; want %t", tc.host, found, tc.want)
+		}
+	}
+}
+
 // BenchmarkLookalikeShippedList measures the rule on the /check hot path,
 // against the whole shipped list, for a host that imitates nothing.
 func BenchmarkLookalikeShippedList(b *testing.B) {
