@@ -15,6 +15,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | SDK MCP Go | v1.8.0 | `proxy.golang.org` |
 | oapi-codegen | v2.8.1 | `proxy.golang.org` |
 | benchstat (`golang.org/x/perf`, sans tag : pseudo-version) | v0.0.0-20261009192801-be2c69fb417e | `proxy.golang.org` |
+| vegeta (`tsenart/vegeta/v12`, tests de charge, licence MIT) | v12.13.0, vérifiée le 02/11/2026 | GitHub releases, `proxy.golang.org` |
 | `getkin/kin-openapi` (dépendance d'oapi-codegen, et validation du contrat dans les tests : `api` et `internal/adapter/httpapi/contracttest`) ; oapi-codegen v2.8.1 sert aussi de bibliothèque dans le test de génération de `api` | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
 | Numéros de téléphone (`nyaruka/phonenumbers`) | v1.8.1 | `proxy.golang.org` |
 | IBAN (`jacoelho/banking`) | v1.13.0 | `proxy.golang.org` |
@@ -36,7 +37,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | cosign / syft | v3.1.4 / v1.55.0 | GitHub releases |
 | OpenAPI | 3.2.1 pour `api/openapi.yaml`, dernière version publiée (10/09/2026), décision du propriétaire du 02/11/2026. kin-openapi v0.152.0 la valide (prise en charge partielle des nouveautés de la 3.2, que le contrat n'utilise pas) ; oapi-codegen v2.8.1 la traite comme une 3.1 ou plus (`IsOpenAPI31OrLater`), et un test génère le code depuis le contrat. `@readme/openapi-parser`, sous starlight-openapi 0.27.0, refuse la 3.2 en validation (« OpenAPI 3.2 is currently unsupported. ») mais starlight-openapi n'appelle que `bundle` : rendu **à vérifier** dans `arnakoff/web` | `OAI/OpenAPI-Specification` releases, sources des trois outils |
 
-Outils de développement épinglés avec la directive `tool` de `go.mod` (`go tool govulncheck`, `go tool gofumpt`, `go tool benchstat`, `go tool oapi-codegen`). Leurs dépendances se vérifient avec `go tool govulncheck tool`. golangci-lint s'installe en binaire à la version ci-dessus, comme le recommande son projet.
+Outils de développement épinglés avec la directive `tool` de `go.mod` (`go tool govulncheck`, `go tool gofumpt`, `go tool benchstat`, `go tool oapi-codegen`, `go tool vegeta`). vegeta est épinglé ainsi plutôt qu'installé à part : sa v12.13.0 fixe `golang.org/x/net` v0.27.0 (GO-2026-6603, GO-2026-6610 à 6612, GO-2026-6617, corrigées en v0.60.0 ; GO-2026-5026, en v0.55.0), que la directive `tool` relève à la version du module ; ses dépendances (client Prometheus, Apache-2.0 ; les autres MIT ou BSD) ne sont liées à aucun binaire livré. Leurs dépendances se vérifient avec `go tool govulncheck tool`. golangci-lint s'installe en binaire à la version ci-dessus, comme le recommande son projet.
 
 ## Go
 

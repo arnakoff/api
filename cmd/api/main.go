@@ -20,7 +20,6 @@ import (
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/app"
-	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
@@ -65,7 +64,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	auth, closeKeys, err := newAuthenticator(ctx, cfg)
+	auth, closeKeys, err := postgres.OpenAuthenticator(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -75,15 +74,9 @@ func run(ctx context.Context, cfg config.Config) error {
 	}
 	return serve(ctx, cfg, s, httpapi.Options{
 		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
-		BatchMaxItems: cfg.BatchMaxItems, KeyLimit: perMinute(cfg.RateLimitKey), IPLimit: perMinute(cfg.RateLimitIP),
+		BatchMaxItems: cfg.BatchMaxItems, KeyLimit: ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now), IPLimit: ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
 		TrustedProxies: cfg.TrustedProxies,
 	})
-}
-
-// perMinute returns a rate limiter allowing each client n requests a
-// minute.
-func perMinute(n int) *ratelimit.Limiter {
-	return ratelimit.New(ratelimit.Policy{Quota: n, Window: time.Minute}, ratelimit.DefaultMaxKeys, clock.System{}.Now)
 }
 
 // serve answers the API of opts on cfg.Addr and reloads the snapshots of s
@@ -118,22 +111,4 @@ func newCheck(opts catalog.Options, snaps listing.Snapshots) (*app.Check, error)
 	lists := catalog.Lists(opts, snaps, platforms)
 	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
 	return app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
-}
-
-// newAuthenticator returns the authenticator of the API keys of the
-// configured environment, stored in the configured database, and the
-// function closing that database.
-func newAuthenticator(ctx context.Context, cfg config.Config) (*app.Authenticator, func(), error) {
-	if err := cfg.RequireKeyStore(); err != nil {
-		return nil, nil, err
-	}
-	env, err := domain.ParseKeyEnvironment(cfg.APIKeyEnv)
-	if err != nil {
-		return nil, nil, err
-	}
-	keys, err := postgres.Open(ctx, string(cfg.DatabaseURL.Bytes()))
-	if err != nil {
-		return nil, nil, err
-	}
-	return app.NewAuthenticator(keys, cfg.APIKeySecret.Bytes(), env), keys.Close, nil
 }

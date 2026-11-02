@@ -164,3 +164,11 @@ func TestPolicy(t *testing.T) {
 		t.Errorf("Policy() = %+v, want %+v", p, perMinute)
 	}
 }
+
+func TestPerMinuteAppliesTheQuota(t *testing.T) {
+	t.Parallel()
+
+	if p := ratelimit.PerMinute(42, time.Now).Policy(); p.Quota != 42 || p.Window != time.Minute {
+		t.Errorf("PerMinute(42).Policy() = %+v, want 42 a minute", p)
+	}
+}

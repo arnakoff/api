@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/http/pprof"
+	"os"
+	"path/filepath"
+	"time"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/arnakoff/api/internal/adapter/corpus"
+	"github.com/arnakoff/api/internal/adapter/httpapi"
+	"github.com/arnakoff/api/internal/adapter/reference/hosting"
+	"github.com/arnakoff/api/internal/adapter/registry/live"
+	"github.com/arnakoff/api/internal/adapter/registry/replay"
+	"github.com/arnakoff/api/internal/adapter/source/catalog"
+	"github.com/arnakoff/api/internal/adapter/store"
+	"github.com/arnakoff/api/internal/adapter/store/postgres"
+	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
+	"github.com/arnakoff/api/internal/platform/clock"
+	"github.com/arnakoff/api/internal/platform/config"
+	"github.com/arnakoff/api/internal/platform/ratelimit"
+	"github.com/arnakoff/api/internal/platform/startup"
+)
+
+// exitUsage is the exit code of a misuse of the flags.
+const exitUsage = 2
+
+// checkTimeout bounds a check, as in cmd/api.
+const checkTimeout = 10 * time.Second
+
+// pprofHeaderTimeout bounds the reading of a profile request's header. No
+// write timeout: a CPU profile streams for the seconds it is asked for.
+const pprofHeaderTimeout = 5 * time.Second
+
+func main() {
+	opts, err := parseFlags(os.Args[1:], os.Stderr)
+	if errors.Is(err, flag.ErrHelp) {
+		os.Exit(0)
+	}
+	if err != nil {
+		os.Exit(exitUsage)
+	}
+	if opts.targets != "" {
+		if err := targets(opts, os.Stdout); err != nil {
+			_, _ = io.WriteString(os.Stderr, err.Error()+"\n")
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(startup.Run("loadtest", os.LookupEnv, os.Stderr, func(ctx context.Context, cfg config.Config) error {
+		return run(ctx, opts, cfg)
+	}))
+}
+
+// targets writes the vegeta targets of the corpus of opts to w, carrying
+// the keys of opts.keys if it names a file.
+func targets(opts options, w io.Writer) error {
+	cases, err := corpus.Load(opts.corpus)
+	if err != nil {
+		return err
+	}
+	var keys []domain.APIKey
+	if opts.keys != "" {
+		if keys, err = loadKeys(opts.keys); err != nil {
+			return err
+		}
+	}
+	return writeTargets(w, opts.targets, cases, keys)
+}
+
+// loadKeys returns the API keys of the file at path.
+func loadKeys(path string) ([]domain.APIKey, error) {
+	f, err := os.Open(path) //nolint:gosec // G304: a path the operator names on the command line.
+	if err != nil {
+		return nil, fmt.Errorf("open keys: %w", err)
+	}
+	defer func() { _ = f.Close() }() // Read only: a close error changes nothing.
+	return readKeys(f)
+}
+
+// run serves the API as cmd/api does, but with the registries replayed
+// from the corpus tape after opts.latency, and the profiles on opts.pprof.
+func run(ctx context.Context, opts options, cfg config.Config) error {
+	if err := cfg.RequireTrustedProxies(); err != nil {
+		return err
+	}
+	tape, err := replay.Load(filepath.Join(opts.corpus, "replay"))
+	if err != nil {
+		return err
+	}
+	s, check, err := newCheck(ctx, cfg, tape.Replayed(opts.latency))
+	if err != nil {
+		return err
+	}
+	srcs, err := app.NewSourceList(s, catalog.New(catalog.Offline{}, lists(cfg)).Infos(), append(live.Infos(), signal.IBANInfo())...)
+	if err != nil {
+		return err
+	}
+	auth, closeKeys, err := postgres.OpenAuthenticator(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeKeys()
+	return serve(ctx, cfg, opts.pprof, httpapi.Options{
+		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		BatchMaxItems: cfg.BatchMaxItems, KeyLimit: ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now), IPLimit: ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
+		TrustedProxies: cfg.TrustedProxies,
+	})
+}
+
+// lists are the lists cfg turns on.
+func lists(cfg config.Config) catalog.Options { return catalog.Options{ACPR: cfg.SourceACPR} }
+
+// newCheck restores the stored snapshots and returns them with the check
+// of their lists and of regs, each check bounded by checkTimeout.
+func newCheck(ctx context.Context, cfg config.Config, regs app.Registries) (*app.Sync, *app.Check, error) {
+	disk, err := store.NewDisk(cfg.SnapshotDir())
+	if err != nil {
+		return nil, nil, err
+	}
+	s, err := app.NewSync(disk, clock.System{}, catalog.New(catalog.Offline{}, lists(cfg)).Fetchers()...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.Restore(ctx); err != nil {
+		return nil, nil, err
+	}
+	platforms, err := hosting.Load()
+	if err != nil {
+		return nil, nil, err
+	}
+	l := catalog.Lists(lists(cfg), s, platforms)
+	regs.Blacklists, regs.Whitelists, regs.Numbering = l.Blacklists, l.Whitelists, l.Numbering
+	return s, app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
+}
+
+// serve answers the API of opts on cfg.Addr, and the profiles on
+// pprofAddr unless it is empty, until ctx is done.
+func serve(ctx context.Context, cfg config.Config, pprofAddr string, opts httpapi.Options) error {
+	g, ctx := errgroup.WithContext(ctx)
+	if pprofAddr != "" {
+		g.Go(func() error { return listenAndServe(ctx, pprofAddr, profiles()) })
+	}
+	g.Go(func() error {
+		return listenAndServe(ctx, cfg.Addr, httpapi.NewServer(httpapi.NewHandler(opts), opts.Logger))
+	})
+	return g.Wait()
+}
+
+// listenAndServe serves srv on addr until ctx is done.
+func listenAndServe(ctx context.Context, addr string, srv *http.Server) error {
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
+	if err != nil {
+		return err
+	}
+	return httpapi.Serve(ctx, srv, ln)
+}
+
+// profiles returns the server of the runtime profiles under /debug/pprof/.
+func profiles() *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /debug/pprof/", pprof.Index)
+	mux.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
+	return &http.Server{Handler: mux, ReadHeaderTimeout: pprofHeaderTimeout}
+}
