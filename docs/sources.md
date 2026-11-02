@@ -6,6 +6,19 @@ Inventaire contraignant : une source absente de ce fichier n'est pas utilisée. 
 
 `cmd/sync` télécharge chaque liste à son rythme (`internal/adapter/source/catalog`), plus un délai aléatoire d'au plus un dixième de l'intervalle : toutes les 6 heures les listes AMF (fraîcheur quotidienne) et la liste ACPR (fraîcheur non annoncée), toutes les 24 heures la numérotation ARCEP (fraîcheur hebdomadaire). Au démarrage, une source dont l'instantané stocké a moins d'un intervalle attend son tour. Un échec ou un rejet garde l'instantané précédent et lève une alerte (journal `error` et webhook `ARNAKOFF_ALERT_WEBHOOK`). `cmd/api` recharge les instantanés stockés chaque minute, sans redémarrage.
 
+## Description dans `GET /v1/sources`
+
+Chaque source y est décrite par son éditeur, sa licence et sa page publique, déclarés à côté de son connecteur ou de son registre (`info.go`). Les licences AMF, ARCEP et BODACC sont celles de leurs jeux data.gouv.fr (relevées le 02/11/2026) ; celle de SIRENE vient de la section SIRENE ci-dessous. Sans licence publiée, quatre libellés ont été proposés puis acceptés par le propriétaire (02/11/2026) :
+
+| Source | Éditeur | Licence | Page |
+|---|---|---|---|
+| ACPR | ACPR et AMF (ABE Info Service) | Autorisation de l'éditeur | `https://www.abe-infoservice.fr/liste-noire` |
+| RDAP | Registres des extensions (amorçage IANA) | Données publiques d'enregistrement | `https://www.iana.org/assignments/rdap-dns` |
+| IBAN | SWIFT (registre IBAN, norme ISO 13616) | Aucune donnée téléchargée | page du registre IBAN de SWIFT |
+| Domaines officiels | Arnakoff | Aucune licence tierce | `domains.csv` sur GitHub |
+
+L'ACPR n'est listée qu'une fois la source activée, donc après l'autorisation de réutilisation (#30). L'IBAN reste listé bien qu'aucune donnée ne soit téléchargée. « Domaines officiels » n'apparaît qu'une fois la liste chargée par `cmd/api` (#167).
+
 ## Liste noire AMF
 
 - **Éditeur** : Autorité des marchés financiers.
