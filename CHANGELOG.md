@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.42.0](https://github.com/arnakoff/api/compare/v0.41.0...v0.42.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** add a keyless demo check for the site's checker ([#207](https://github.com/arnakoff/api/issues/207)) ([5118973](https://github.com/arnakoff/api/commit/511897306203e509d599f4c3fef04b56bfa0a5d0)), closes [#60](https://github.com/arnakoff/api/issues/60)
+
 ## [0.41.0](https://github.com/arnakoff/api/compare/v0.40.0...v0.41.0) (2026-11-02)
 
 
