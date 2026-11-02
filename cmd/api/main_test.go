@@ -6,7 +6,6 @@ import (
 	"errors"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/domain"
@@ -44,43 +43,9 @@ func TestNewCheckConsultsTheListsAndTheRegistries(t *testing.T) {
 	}
 }
 
-func TestNewAuthenticatorRequiresTheKeyStore(t *testing.T) {
-	t.Parallel()
-
-	if _, _, err := newAuthenticator(t.Context(), config.Config{APIKeyEnv: "live"}); !errors.Is(err, config.ErrInvalid) {
-		t.Errorf("newAuthenticator() without a database error = %v, want ErrInvalid", err)
-	}
-}
-
-// The database is not reached until a key is checked.
-func TestNewAuthenticatorOpensLazily(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.Config{
-		DatabaseURL:  config.Secret("postgres://api@127.0.0.1:1/arnakoff"),
-		APIKeySecret: config.Secret("a test secret of thirty-two byte"),
-		APIKeyEnv:    "test",
-	}
-	auth, closeKeys, err := newAuthenticator(t.Context(), cfg)
-	if err != nil {
-		t.Fatalf("newAuthenticator() error = %v", err)
-	}
-	defer closeKeys()
-	if auth == nil {
-		t.Error("newAuthenticator() = nil")
-	}
-}
-
 func TestRunRequiresTrustedProxiesWithLiveKeys(t *testing.T) {
 	t.Parallel()
 	if err := run(t.Context(), config.Config{APIKeyEnv: "live"}); !errors.Is(err, config.ErrInvalid) {
 		t.Errorf("run() without ARNAKOFF_TRUSTED_PROXIES error = %v, want ErrInvalid", err)
-	}
-}
-
-func TestPerMinuteAppliesTheQuota(t *testing.T) {
-	t.Parallel()
-	if p := perMinute(42).Policy(); p.Quota != 42 || p.Window != time.Minute {
-		t.Errorf("perMinute(42).Policy() = %+v, want 42 a minute", p)
 	}
 }

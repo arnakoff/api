@@ -71,6 +71,12 @@ func New(p Policy, maxKeys int, now func() time.Time) *Limiter {
 	}
 }
 
+// PerMinute returns a limiter allowing each client n requests a minute,
+// keeping at most DefaultMaxKeys clients.
+func PerMinute(n int, now func() time.Time) *Limiter {
+	return New(Policy{Quota: n, Window: time.Minute}, DefaultMaxKeys, now)
+}
+
 // Policy returns the policy l applies.
 func (l *Limiter) Policy() Policy {
 	return l.policy
