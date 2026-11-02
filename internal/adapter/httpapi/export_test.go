@@ -32,3 +32,6 @@ func ProblemFor(err error) (int, string) {
 	p := problemFor(err)
 	return p.status, p.code
 }
+
+// ClientKey exposes clientKey.
+var ClientKey = clientKey

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/arnakoff/api/internal/app"
@@ -31,10 +32,11 @@ const (
 )
 
 // requireKey answers next only for a request carrying a valid API key in
-// an Authorization field of the Bearer scheme (RFC 6750, section 2.1). A
+// an Authorization field of the Bearer scheme (RFC 6750, section 2.1) and
+// within the quota q of its key, known by its identifier. A
 // key that cannot be checked fails closed with a 503: no request passes
 // unchecked. The key is never logged.
-func requireKey(auth Authenticator, logger *slog.Logger, ps problems, next http.Handler) http.Handler {
+func requireKey(auth Authenticator, logger *slog.Logger, ps problems, q *quota, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header)
 		if !ok {
@@ -42,15 +44,20 @@ func requireKey(auth Authenticator, logger *slog.Logger, ps problems, next http.
 			ps.write(w, r, missingAPIKey)
 			return
 		}
-		var err error
+		var (
+			rec domain.KeyRecord
+			err error
+		)
 		if token == "" {
 			err = domain.ErrInvalidAPIKey
 		} else {
-			_, err = auth.Authenticate(r.Context(), token)
+			rec, err = auth.Authenticate(r.Context(), token)
 		}
 		switch {
 		case err == nil:
-			next.ServeHTTP(w, r)
+			if q.admit(w, r, strconv.FormatInt(rec.ID, 10)) {
+				next.ServeHTTP(w, r)
+			}
 		case refused(err):
 			w.Header().Set("WWW-Authenticate", invalidChallenge)
 			ps.write(w, r, invalidAPIKey)

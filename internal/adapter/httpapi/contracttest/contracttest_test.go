@@ -63,7 +63,8 @@ func firstSignal(v map[string]any) map[string]any {
 }
 
 // exchange is one request and the response the contract is checked on. An
-// empty method, status or header is GET, 200 and JSON. The request carries
+// empty method, status or header is GET, 200 and JSON with the RateLimit
+// fields (served). The request carries
 // an API key unless anonymous. A refused exchange is checked with
 // CheckRefused.
 type exchange struct {
@@ -83,7 +84,7 @@ func (e exchange) check(t *testing.T) error {
 		e.status = http.StatusOK
 	}
 	if e.header == nil {
-		e.header = jsonHeader("application/json")
+		e.header = served()
 	}
 	req := httptest.NewRequestWithContext(t.Context(), e.method, e.target, strings.NewReader(e.reqBody))
 	if e.reqBody != "" {
@@ -107,6 +108,15 @@ func (e exchange) check(t *testing.T) error {
 }
 
 func jsonHeader(ct string) http.Header { return http.Header{"Content-Type": {ct}} }
+
+// served returns the header of a 200 JSON answer, which carries the
+// RateLimit fields.
+func served() http.Header {
+	h := jsonHeader("application/json")
+	h.Set("RateLimit", `"key";r=59;t=1`)
+	h.Set("RateLimit-Policy", `"key";q=60;w=60`)
+	return h
+}
 
 // challenged returns the header of a 401 problem with the WWW-Authenticate
 // challenge c.
@@ -168,6 +178,7 @@ func TestCheckRejectsResponsesThatBreakTheContract(t *testing.T) {
 		"value outside the enumeration":  {target: "/v1/check?q=x", body: spacedStatus},
 		"undocumented status":            {target: "/v1/check?q=x", status: http.StatusTeapot, body: report},
 		"undocumented content type":      {target: "/v1/check?q=x", header: jsonHeader("text/plain"), body: report},
+		"served without rate headers":    {target: "/v1/check?q=x", header: jsonHeader("application/json"), body: report},
 		"rate limited without headers":   {target: "/v1/check?q=x", status: http.StatusTooManyRequests, header: jsonHeader("application/problem+json"), body: example(t, "ProblemInvalidInput")},
 		"request with an unknown type":   {target: "/v1/check?q=x&type=url", body: report},
 		"request without required param": {target: "/v1/check", body: report},

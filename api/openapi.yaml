@@ -46,6 +46,11 @@ paths:
       responses:
         '200':
           description: Rapport de la vérification.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
           content:
             application/json:
               schema:
@@ -93,6 +98,11 @@ paths:
       responses:
         '200':
           description: Un résultat par élément, dans l'ordre des éléments.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
           content:
             application/json:
               schema:
@@ -125,6 +135,11 @@ paths:
       responses:
         '200':
           description: Les sources.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
           content:
             application/json:
               schema:
@@ -147,6 +162,11 @@ paths:
       responses:
         '200':
           description: Le catalogue des signaux.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
           content:
             application/json:
               schema:
@@ -202,20 +222,24 @@ components:
     RateLimit:
       required: true
       description: |
-        Quota restant de la politique en cours (`r`, requêtes restantes ; `t`, secondes avant
-        remise à zéro), selon draft-ietf-httpapi-ratelimit-headers-11.
+        Quota restant de la politique en cours, selon draft-ietf-httpapi-ratelimit-headers-11 :
+        `r`, requêtes encore permises maintenant ; `t`, secondes avant qu'une requête de plus soit
+        rendue (pendant ce délai, pas plus de `r` requêtes), `0` quand le quota est entier.
       schema:
         type: string
-      example: '"default";r=0;t=30'
+      example: '"key";r=59;t=1'
     RateLimitPolicy:
       required: true
       description: |
-        Politique de quota (`q`, requêtes autorisées ; `w`, fenêtre en secondes), selon
-        draft-ietf-httpapi-ratelimit-headers-11. Valeurs de l'exemple données à titre
-        d'illustration : les quotas dépendent de l'offre.
+        Politique de quota, selon draft-ietf-httpapi-ratelimit-headers-11 : `q`, requêtes
+        permises par fenêtre ; `w`, fenêtre en secondes. Le quota entier peut être dépensé d'un
+        coup, puis il revient au même rythme sur la fenêtre. Politique `key` sur les routes de
+        vérification, par clé API (un lot compte pour une requête) ; politique `ip` sur les routes
+        sans clé, par adresse du client (préfixe /64 en IPv6). Valeurs de l'exemple données à
+        titre d'illustration : les quotas dépendent de l'offre.
       schema:
         type: string
-      example: '"default";q=100;w=60'
+      example: '"key";q=60;w=60'
     RetryAfter:
       required: true
       description: Secondes à attendre avant de réessayer (RFC 9110, section 10.2.3).
