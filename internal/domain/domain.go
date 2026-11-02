@@ -86,6 +86,20 @@ func (d Domain) Registrable() string {
 	return d.registrable
 }
 
+// ParseRegistrable parses s, which must be a normalised registrable
+// domain as Registrable returns it ("linktr.ee", not "www.linktr.ee" nor
+// "Linktr.ee"), as the rows of a reference list name domains.
+func ParseRegistrable(s string) (Domain, error) {
+	d, err := ParseDomain(s)
+	if err != nil {
+		return Domain{}, err
+	}
+	if d.name != s || d.registrable != s {
+		return Domain{}, fmt.Errorf("%w: %q is not a normalised registrable domain", ErrInvalidDomain, s)
+	}
+	return d, nil
+}
+
 // Label returns the registrable domain less its public suffix, the name a
 // registrant chose: "ameli" for www.ameli.fr, "atos-limited" for
 // www.atos-limited.co.uk.

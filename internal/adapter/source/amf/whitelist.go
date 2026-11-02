@@ -23,19 +23,21 @@ const (
 	posRegisteredOn = 6
 )
 
-// PSANWhitelist indexes a PSAN snapshot, for listing.NewWhitelistReader. A
-// withdrawn authorisation ends on its end date; a running one has none.
-func PSANWhitelist(snap domain.Snapshot) (*domain.Whitelist, error) {
-	return listing.WhitelistOf(snap, psanColumns, psanAuthorisationOf)
+// PSANWhitelist indexes a PSAN snapshot, for listing.NewWhitelistReader,
+// leaving out the pages of platforms (listing.WhitelistOf). A withdrawn
+// authorisation ends on its end date; a running one has none.
+func PSANWhitelist(snap domain.Snapshot, platforms domain.Platforms) (*domain.Whitelist, error) {
+	return listing.WhitelistOf(snap, psanColumns, psanAuthorisationOf, platforms)
 }
 
 // OffersWhitelist indexes a biens divers snapshot, for
-// listing.NewWhitelistReader.
-func OffersWhitelist(snap domain.Snapshot) (*domain.Whitelist, error) {
+// listing.NewWhitelistReader, leaving out the pages of platforms
+// (listing.WhitelistOf).
+func OffersWhitelist(snap domain.Snapshot, platforms domain.Platforms) (*domain.Whitelist, error) {
 	return listing.WhitelistOf(snap, offersColumns, func(row []string) (domain.Authorisation, error) {
 		from, err := listing.ParseDate(ColumnRegisteredOn, row[posRegisteredOn])
 		return domain.Authorisation{Name: row[posName], Number: row[posNumber], From: from}, err
-	})
+	}, platforms)
 }
 
 // psanAuthorisationOf reads the authorisation of a PSAN snapshot row.

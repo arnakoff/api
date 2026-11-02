@@ -29,7 +29,7 @@ func parsedFixture(t *testing.T, name string, parse func(io.Reader) (domain.Snap
 func TestPSANWhitelist(t *testing.T) {
 	t.Parallel()
 
-	w, err := PSANWhitelist(parsedFixture(t, psanFixture, ParsePSAN))
+	w, err := PSANWhitelist(parsedFixture(t, psanFixture, ParsePSAN), domain.Platforms{})
 	if err != nil {
 		t.Fatalf("PSANWhitelist() error = %v", err)
 	}
@@ -47,7 +47,7 @@ func TestPSANWhitelist(t *testing.T) {
 func TestOffersWhitelist(t *testing.T) {
 	t.Parallel()
 
-	w, err := OffersWhitelist(parsedFixture(t, offersFixture, ParseOffers))
+	w, err := OffersWhitelist(parsedFixture(t, offersFixture, ParseOffers), domain.Platforms{})
 	if err != nil {
 		t.Fatalf("OffersWhitelist() error = %v", err)
 	}
@@ -71,7 +71,7 @@ func TestWhitelistsRejectMalformedRows(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		build func(domain.Snapshot) (*domain.Whitelist, error)
+		build func(domain.Snapshot, domain.Platforms) (*domain.Whitelist, error)
 		snap  domain.Snapshot
 	}{
 		{"PSAN start date", PSANWhitelist, psan("E1", "X", "France", "Enregistrement", "Agréé", "17/03/2020", "")},
@@ -84,7 +84,7 @@ func TestWhitelistsRejectMalformedRows(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := tt.build(tt.snap); !errors.Is(err, listing.ErrSnapshot) {
+			if _, err := tt.build(tt.snap, domain.Platforms{}); !errors.Is(err, listing.ErrSnapshot) {
 				t.Errorf("error = %v, want ErrSnapshot", err)
 			}
 		})
@@ -98,7 +98,7 @@ func TestPSANWhitelistKeepsTheRunningEndOpen(t *testing.T) {
 	snap := domain.Snapshot{Header: psanColumns, Rows: [][]string{{
 		"siren", "815254545", "", "815254545", "E1", "X", "France", "Agrément MICA", "Agréé", "2026-05-07", "2027-07-01",
 	}}}
-	w, err := PSANWhitelist(snap)
+	w, err := PSANWhitelist(snap, domain.Platforms{})
 	if err != nil {
 		t.Fatal(err)
 	}

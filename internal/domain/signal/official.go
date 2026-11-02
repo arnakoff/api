@@ -117,12 +117,9 @@ func prepare(row Official) (reference, error) {
 // officialLabel returns the label of d, which must be a normalised
 // registrable domain.
 func officialLabel(d string) (label, error) {
-	parsed, err := domain.ParseDomain(d)
+	parsed, err := domain.ParseRegistrable(d)
 	if err != nil {
 		return label{}, err
-	}
-	if parsed.String() != d || parsed.Registrable() != d {
-		return label{}, fmt.Errorf("%q is not a normalised registrable domain", d)
 	}
 	ascii := parsed.Label()
 	return label{ascii: ascii, skeleton: []rune(skeleton(ascii)), near: len(ascii) >= NearLabelLength}, nil

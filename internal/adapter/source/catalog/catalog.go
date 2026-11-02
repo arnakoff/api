@@ -158,19 +158,21 @@ func Blacklists(opts Options, snaps listing.Snapshots) []app.Blacklist {
 // one's authorisations follow and how its snapshot is indexed.
 var whitelists = []struct {
 	rule  func() signal.Whitelist
-	build func(domain.Snapshot) (*domain.Whitelist, error)
+	build func(domain.Snapshot, domain.Platforms) (*domain.Whitelist, error)
 }{
 	{signal.AMFPSANWhitelist, amf.PSANWhitelist},
 	{signal.AMFOffersWhitelist, amf.OffersWhitelist},
 }
 
 // Whitelists returns the white lists, each read from the snapshot of its
-// source in snaps, for app.Registries.
-func Whitelists(snaps listing.Snapshots) []app.Whitelist {
+// source in snaps, for app.Registries. A page entry on one of platforms
+// covers nothing (listing.WhitelistOf).
+func Whitelists(snaps listing.Snapshots, platforms domain.Platforms) []app.Whitelist {
 	out := make([]app.Whitelist, 0, len(whitelists))
 	for _, w := range whitelists {
 		rule := w.rule()
-		out = append(out, app.Whitelist{Rule: rule, Reader: listing.NewWhitelistReader(snaps, rule.Source(), w.build)})
+		build := func(snap domain.Snapshot) (*domain.Whitelist, error) { return w.build(snap, platforms) }
+		out = append(out, app.Whitelist{Rule: rule, Reader: listing.NewWhitelistReader(snaps, rule.Source(), build)})
 	}
 	return out
 }
