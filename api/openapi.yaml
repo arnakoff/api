@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-openapi: 3.1.2
+openapi: 3.2.1
 info:
   title: Arnakoff
   version: 1.0.0-draft
@@ -259,6 +259,13 @@ components:
         couvre pas ce type d'entrée).
       enum: [ok, indisponible, non_applicable]
       example: ok
+    SourceAvailability:
+      type: string
+      description: |
+        État d'une source dans `GET /v1/sources` : `ok` quand des données sont en service,
+        `indisponible` sinon. Un registre interrogé à la demande est `ok` tant qu'il est configuré.
+      enum: [ok, indisponible]
+      example: ok
     SourceName:
       type: string
       description: Nom d'une source, tel qu'il est montré aux utilisateurs.
@@ -427,12 +434,7 @@ components:
           description: Page publique de la source.
           example: https://www.data.gouv.fr/datasets/641d5dab1d84b530f7720b08
         status:
-          type: string
-          description: |
-            `ok` quand des données sont en service, `indisponible` sinon. Un registre interrogé à
-            la demande est `ok` tant qu'il est configuré.
-          enum: [ok, indisponible]
-          example: ok
+          $ref: '#/components/schemas/SourceAvailability'
         updated_at:
           type: [string, 'null']
           format: date-time

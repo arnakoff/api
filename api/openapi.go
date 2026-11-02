@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Package api holds the public contract of the HTTP API, openapi.yaml
-// (OpenAPI 3.1.2). Handlers follow it, and contract tests check their
+// (OpenAPI 3.2.1). Handlers follow it, and contract tests check their
 // responses against it.
 package api
 
