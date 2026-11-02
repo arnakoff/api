@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/arnakoff/api/compare/v0.29.1...v0.30.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** add the openapi v1 contract and a contract test harness ([#173](https://github.com/arnakoff/api/issues/173)) ([c9c89d9](https://github.com/arnakoff/api/commit/c9c89d9f07d5083babfdd1be50ab0145406667d2)), closes [#49](https://github.com/arnakoff/api/issues/49)
+
 ## [0.29.1](https://github.com/arnakoff/api/compare/v0.29.0...v0.29.1) (2026-11-02)
 
 
