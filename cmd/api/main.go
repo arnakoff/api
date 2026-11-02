@@ -5,10 +5,14 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/arnakoff/api/internal/adapter/alert"
+	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
@@ -40,7 +44,18 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err := s.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
-	// The sync process posts to the webhook; this one only logs.
-	app.NewReloader(s, clock.System{}, alert.LogOnly(slog.Default()), reloadEvery).Run(ctx)
-	return nil
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Addr)
+	if err != nil {
+		return err
+	}
+	logger := slog.Default()
+	srv := httpapi.NewServer(httpapi.NewHandler(httpapi.Options{Ready: s, Logger: logger}), logger)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		// The sync process posts to the webhook; this one only logs.
+		app.NewReloader(s, clock.System{}, alert.LogOnly(logger), reloadEvery).Run(ctx)
+		return nil
+	})
+	g.Go(func() error { return httpapi.Serve(ctx, srv, ln) })
+	return g.Wait()
 }

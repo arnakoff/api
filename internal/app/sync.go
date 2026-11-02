@@ -83,6 +83,17 @@ func (s *Sync) States() []SourceSync {
 	return states
 }
 
+// Ready reports whether every source has a snapshot in service: until
+// then, a check would miss a whole list.
+func (s *Sync) Ready() bool {
+	for _, f := range s.feeds {
+		if f.current.Load() == nil {
+			return false
+		}
+	}
+	return true
+}
+
 // run fetches, validates, stores and swaps in a new snapshot of f, and
 // records the outcome.
 func (s *Sync) run(ctx context.Context, f *feed) error {
