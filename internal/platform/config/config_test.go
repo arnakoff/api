@@ -53,6 +53,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.ProblemBaseURL != config.DefaultProblemBaseURL {
 		t.Errorf("ProblemBaseURL = %q, want %q", cfg.ProblemBaseURL, config.DefaultProblemBaseURL)
 	}
+	if cfg.BatchMaxItems != config.DefaultBatchMaxItems {
+		t.Errorf("BatchMaxItems = %d, want %d", cfg.BatchMaxItems, config.DefaultBatchMaxItems)
+	}
 }
 
 func TestLoadReadsEveryVariable(t *testing.T) {
@@ -65,6 +68,7 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"ARNAKOFF_SOURCE_ACPR":      "true",
 		"ARNAKOFF_ALERT_WEBHOOK":    webhook,
 		"ARNAKOFF_PROBLEM_BASE_URL": "https://staging.arnakoff.com/docs/erreurs/",
+		"ARNAKOFF_BATCH_MAX_ITEMS":  "1000",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -89,6 +93,9 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if want := "https://staging.arnakoff.com/docs/erreurs/"; cfg.ProblemBaseURL != want {
 		t.Errorf("ProblemBaseURL = %q, want %q", cfg.ProblemBaseURL, want)
+	}
+	if cfg.BatchMaxItems != 1000 {
+		t.Errorf("BatchMaxItems = %d, want 1000", cfg.BatchMaxItems)
 	}
 }
 
@@ -121,6 +128,11 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"problem base without final slash", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs"},
 		{"problem base with query", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs/?code="},
 		{"problem base with fragment", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs/#"},
+		{"batch max items not a number", "ARNAKOFF_BATCH_MAX_ITEMS", "fifty"},
+		{"empty batch max items", "ARNAKOFF_BATCH_MAX_ITEMS", ""},
+		{"batch max items zero", "ARNAKOFF_BATCH_MAX_ITEMS", "0"},
+		{"batch max items negative", "ARNAKOFF_BATCH_MAX_ITEMS", "-1"},
+		{"batch max items over the ceiling", "ARNAKOFF_BATCH_MAX_ITEMS", "1001"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

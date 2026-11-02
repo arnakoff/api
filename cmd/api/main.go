@@ -62,7 +62,9 @@ func run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	logger := slog.Default()
-	opts := httpapi.Options{Ready: s, Check: check, Logger: logger, ProblemBase: cfg.ProblemBaseURL}
+	opts := httpapi.Options{
+		Ready: s, Check: check, Logger: logger, ProblemBase: cfg.ProblemBaseURL, BatchMaxItems: cfg.BatchMaxItems,
+	}
 	srv := httpapi.NewServer(httpapi.NewHandler(opts), logger)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {

@@ -206,6 +206,27 @@ func TestCheckRefusesABadRequestWithoutChecking(t *testing.T) {
 	}
 }
 
+func TestCheckNamesTheTypeAnInvalidInputWasForcedInto(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct{ target, detail string }{
+		{"/v1/check?q=a+b&type=domain", "L'entrée n'est ni un domaine ni une URL valide."},
+		{"/v1/check?q=a+b&type=email", "L'entrée n'est pas une adresse e-mail valide."},
+		{"/v1/check?q=a+b&type=phone", "L'entrée n'est pas un numéro de téléphone valide."},
+		{"/v1/check?q=FR76+0000&type=iban", "L'entrée n'est pas un IBAN valide."},
+		{"/v1/check?q=123&type=siren", "L'entrée n'est pas un SIREN valide."},
+		{"/v1/check?q=123&type=siret", "L'entrée n'est pas un SIRET valide."},
+		// Detected, the input was of no kind: the detail names them all.
+		{"/v1/check?q=a+b", "L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, " +
+			"ni un numéro de téléphone, ni un IBAN, ni un SIREN, ni un SIRET."},
+	} {
+		res, _ := check(t, blacklisted(), tt.target)
+		if got := decode(t, res)["detail"]; got != tt.detail {
+			t.Errorf("%s: detail = %v, want %s", tt.target, got, tt.detail)
+		}
+	}
+}
+
 // BenchmarkCheck measures GET /v1/check through the whole handler, the
 // middleware included, around a check that answers at once: the cost the
 // API adds to the check itself.
@@ -230,3 +251,7 @@ func BenchmarkCheck(b *testing.B) {
 type benchChecker struct{ report domain.Report }
 
 func (c *benchChecker) Check(context.Context, domain.Input) domain.Report { return c.report }
+
+func (c *benchChecker) CheckAll(ctx context.Context, ins []domain.Input) []domain.Report {
+	return checkEach(ctx, c.Check, ins)
+}

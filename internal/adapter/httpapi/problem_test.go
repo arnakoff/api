@@ -19,15 +19,15 @@ import (
 	"github.com/arnakoff/api/internal/domain"
 )
 
-// contractProblems returns the contract's Problem… examples, by code: the
-// list of codes arnakoff/web documents, one page each.
+// contractProblems returns the contract's Problem… examples, by code and
+// detail: arnakoff/web documents one page per code, with each detail of it.
 func contractProblems(t *testing.T) map[string]map[string]any {
 	t.Helper()
 	doc, err := openapi3.NewLoader().LoadFromData(api.Spec())
 	if err != nil {
 		t.Fatal(err)
 	}
-	byCode := make(map[string]map[string]any)
+	examples := make(map[string]map[string]any)
 	for name, ref := range doc.Components.Examples {
 		if !strings.HasPrefix(name, "Problem") {
 			continue
@@ -40,9 +40,14 @@ func contractProblems(t *testing.T) map[string]map[string]any {
 		if err := json.Unmarshal(b, &p); err != nil {
 			t.Fatal(err)
 		}
-		byCode[p["code"].(string)] = p
+		examples[problemKey(p)] = p
 	}
-	return byCode
+	return examples
+}
+
+// problemKey names a problem body by its code and its detail.
+func problemKey(p map[string]any) string {
+	return fmt.Sprintf("%v: %v", p["code"], p["detail"])
 }
 
 func TestEveryProblemIsAContractExample(t *testing.T) {
@@ -50,27 +55,27 @@ func TestEveryProblemIsAContractExample(t *testing.T) {
 
 	examples := contractProblems(t)
 	opts, _ := options(t, true)
-	var codes []string
+	var keys []string
 	for _, p := range httpapi.Catalog {
 		res := serve(t, httpapi.Wrap(opts, httpapi.Answer(opts, p)), http.MethodGet, "/v1/check", nil)
 		got := decode(t, res)
-		code, _ := got["code"].(string)
-		codes = append(codes, code)
-		want, ok := examples[code]
+		key := problemKey(got)
+		keys = append(keys, key)
+		want, ok := examples[key]
 		if !ok {
-			t.Errorf("problem %s has no Problem… example in the contract", code)
+			t.Errorf("problem %s has no Problem… example in the contract", key)
 			continue
 		}
 		want["instance"] = "tag:arnakoff.com,2026:request:GENERATED"
 		if fmt.Sprint(got) != fmt.Sprint(want) {
-			t.Errorf("problem %s:\n got %v\nwant %v", code, got, want)
+			t.Errorf("problem %s:\n got %v\nwant %v", key, got, want)
 		}
 		if res.Code != int(want["status"].(float64)) {
-			t.Errorf("problem %s: status = %d, want %v", code, res.Code, want["status"])
+			t.Errorf("problem %s: status = %d, want %v", key, res.Code, want["status"])
 		}
 	}
-	if missing := slices.Sorted(maps.Keys(examples)); !slices.Equal(missing, slices.Sorted(slices.Values(codes))) {
-		t.Errorf("contract codes %v, catalog codes %v: want the same", missing, codes)
+	if documented := slices.Sorted(maps.Keys(examples)); !slices.Equal(documented, slices.Sorted(slices.Values(keys))) {
+		t.Errorf("contract problems %q,\ncatalog problems %q: want the same", documented, keys)
 	}
 }
 

@@ -43,17 +43,28 @@ func problemsOf(opts Options) problems {
 	return problems{base: opts.ProblemBase}
 }
 
-// write sends p, the answer to r, as application/problem+json. Its type
-// is the page of its code under the base, its instance names the request.
+// write sends p, the answer to r, as application/problem+json. Its
+// instance names the request.
 func (ps problems) write(w http.ResponseWriter, r *http.Request, p problem) {
-	body := problemBody{
-		Type: ps.base + p.code, Title: p.title, Status: p.status, Detail: p.detail, Code: p.code,
-	}
+	body := ps.body(p)
 	if id, ok := logging.RequestID(r.Context()); ok {
 		body.Instance = instancePrefix + id
 	}
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(p.status)
+	writeJSON(w, "application/problem+json", p.status, body)
+}
+
+// writeJSON sends body, of the JSON media type contentType, with status.
+func writeJSON(w http.ResponseWriter, contentType string, status int, body any) {
+	w.Header().Set("Content-Type", contentType)
+	w.WriteHeader(status)
 	// The status is sent: an encoding error can only be a broken connection.
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+// body returns the body of p, without instance: its type is the page of
+// its code under the base.
+func (ps problems) body(p problem) problemBody {
+	return problemBody{
+		Type: ps.base + p.code, Title: p.title, Status: p.status, Detail: p.detail, Code: p.code,
+	}
 }

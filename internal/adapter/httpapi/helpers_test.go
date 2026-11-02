@@ -13,6 +13,7 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/logging/loggingtest"
 )
 
@@ -39,6 +40,20 @@ func (c *checker) Check(_ context.Context, in domain.Input) domain.Report {
 	return c.report
 }
 
+func (c *checker) CheckAll(ctx context.Context, ins []domain.Input) []domain.Report {
+	return checkEach(ctx, c.Check, ins)
+}
+
+// checkEach returns the report check gives of each input, one after the
+// other: the CheckAll of a fake.
+func checkEach(ctx context.Context, check func(context.Context, domain.Input) domain.Report, ins []domain.Input) []domain.Report {
+	reports := make([]domain.Report, len(ins))
+	for i, in := range ins {
+		reports[i] = check(ctx, in)
+	}
+	return reports
+}
+
 // inputs returns the inputs c was asked about.
 func (c *checker) inputs() []domain.Input {
 	c.mu.Lock()
@@ -51,7 +66,7 @@ func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	logger, buf := loggingtest.New(t)
 	return httpapi.Options{
 		Ready: readiness(ready), Check: &checker{}, Logger: logger, NewID: func() string { return "GENERATED" },
-		ProblemBase: problemBase,
+		ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
 	}, buf
 }
 

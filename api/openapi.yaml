@@ -89,13 +89,13 @@ paths:
                 mixed:
                   $ref: '#/components/examples/BatchResponseMixed'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/BatchBadRequest'
         '413':
           $ref: '#/components/responses/ContentTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/UnprocessableContent'
+          $ref: '#/components/responses/BatchUnprocessableContent'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -207,6 +207,36 @@ components:
           examples:
             invalidInput:
               $ref: '#/components/examples/ProblemInvalidInput'
+            invalidDomain:
+              $ref: '#/components/examples/ProblemInvalidDomain'
+            invalidEmail:
+              $ref: '#/components/examples/ProblemInvalidEmail'
+            invalidPhone:
+              $ref: '#/components/examples/ProblemInvalidPhone'
+            invalidIBAN:
+              $ref: '#/components/examples/ProblemInvalidIBAN'
+            invalidSIREN:
+              $ref: '#/components/examples/ProblemInvalidSIREN'
+            invalidSIRET:
+              $ref: '#/components/examples/ProblemInvalidSIRET'
+    BatchBadRequest:
+      description: Corps de requête qui n'est pas un objet JSON avec une liste `items` d'au moins un élément.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidBody:
+              $ref: '#/components/examples/ProblemInvalidBody'
+    BatchUnprocessableContent:
+      description: Lot de plus d'éléments que le maximum fixé par le serveur.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            tooManyItems:
+              $ref: '#/components/examples/ProblemTooManyItems'
     ContentTooLarge:
       description: Corps de requête trop gros.
       content:
@@ -712,6 +742,78 @@ components:
         detail: L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, ni un numéro de téléphone, ni un IBAN, ni un SIREN, ni un SIRET.
         instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: invalid_input
+    ProblemInvalidDomain:
+      summary: Domaine invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est ni un domaine ni une URL valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidEmail:
+      summary: Adresse e-mail invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est pas une adresse e-mail valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidPhone:
+      summary: Numéro de téléphone invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est pas un numéro de téléphone valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidIBAN:
+      summary: IBAN invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est pas un IBAN valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidSIREN:
+      summary: SIREN invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est pas un SIREN valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidSIRET:
+      summary: SIRET invalide pour le type donné
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est pas un SIRET valide.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_input
+    ProblemInvalidBody:
+      summary: Corps de lot mal formé
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_body
+        title: Corps de requête invalide
+        status: 400
+        detail: Le corps de la requête doit être un objet JSON contenant une liste items d'au moins un élément.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_body
+    ProblemTooManyItems:
+      summary: Lot trop grand
+      value:
+        type: https://arnakoff.com/docs/erreurs/too_many_items
+        title: Trop d'éléments
+        status: 422
+        detail: "Le lot dépasse le nombre maximal d'éléments autorisé : 50."
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: too_many_items
     ProblemTooManyRequests:
       summary: Quota dépassé
       value:

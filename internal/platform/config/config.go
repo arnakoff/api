@@ -28,6 +28,8 @@ const (
 	EnvAlertWebhook = "ARNAKOFF_ALERT_WEBHOOK"
 
 	EnvProblemBaseURL = "ARNAKOFF_PROBLEM_BASE_URL"
+
+	EnvBatchMaxItems = "ARNAKOFF_BATCH_MAX_ITEMS"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -43,6 +45,17 @@ const (
 	// DefaultProblemBaseURL is where arnakoff/web documents the problems
 	// the API answers, one page per code.
 	DefaultProblemBaseURL = "https://arnakoff.com/docs/erreurs/"
+)
+
+// Bounds of ARNAKOFF_BATCH_MAX_ITEMS.
+const (
+	// DefaultBatchMaxItems is the most items POST /v1/check/batch accepts,
+	// as the owner set it; the contract's example states it.
+	DefaultBatchMaxItems = 50
+
+	// MaxBatchMaxItems is the highest value Load accepts: beyond, one
+	// request would weigh like a thousand checks.
+	MaxBatchMaxItems = 1000
 )
 
 // MinLogKeyBytes is the shortest log key Load accepts, once hex-decoded:
@@ -81,6 +94,10 @@ type Config struct {
 	// problems, ending with a slash: the type of a problem is its code
 	// under it.
 	ProblemBaseURL string
+
+	// BatchMaxItems is the most items POST /v1/check/batch accepts, from 1
+	// to MaxBatchMaxItems.
+	BatchMaxItems int
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -103,6 +120,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvSourceACPR, DefaultSourceACPR, &cfg.SourceACPR, strconv.ParseBool),
 		parse(lookup, EnvAlertWebhook, "", &cfg.AlertWebhook, parseWebhook),
 		parse(lookup, EnvProblemBaseURL, DefaultProblemBaseURL, &cfg.ProblemBaseURL, parseProblemBase),
+		parse(lookup, EnvBatchMaxItems, strconv.Itoa(DefaultBatchMaxItems), &cfg.BatchMaxItems, parseBatchMaxItems),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
@@ -202,6 +220,15 @@ func parseHTTPS(s string) (*url.URL, error) {
 		return nil, errors.New("credentials before the host are not allowed")
 	}
 	return u, nil
+}
+
+// parseBatchMaxItems accepts a decimal number from 1 to MaxBatchMaxItems.
+func parseBatchMaxItems(s string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 1 || n > MaxBatchMaxItems {
+		return 0, fmt.Errorf("%q is not a number from 1 to %d", s, MaxBatchMaxItems)
+	}
+	return n, nil
 }
 
 // parseDir accepts a non-empty path and cleans it.

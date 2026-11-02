@@ -13,6 +13,10 @@
 // never downloaded here. A stored snapshot that cannot be reloaded is
 // logged once, until it reloads again.
 //
+// POST /v1/check/batch checks up to ARNAKOFF_BATCH_MAX_ITEMS inputs (50 by
+// default) in one request, a few at a time, within the time of one check:
+// an input still waiting then has its registries reported unavailable.
+//
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
 package main
