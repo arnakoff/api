@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.39.0](https://github.com/arnakoff/api/compare/v0.38.0...v0.39.0) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **httpapi:** require an api key on the check routes ([#196](https://github.com/arnakoff/api/issues/196))
+
+### Features
+
+* **httpapi:** require an api key on the check routes ([#196](https://github.com/arnakoff/api/issues/196)) ([c696240](https://github.com/arnakoff/api/commit/c696240e615345a12f42e0a4530b17bbf7e28438)), closes [#57](https://github.com/arnakoff/api/issues/57)
+
 ## [0.38.0](https://github.com/arnakoff/api/compare/v0.37.0...v0.38.0) (2026-11-02)
 
 
