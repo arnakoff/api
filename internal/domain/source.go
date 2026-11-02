@@ -41,3 +41,15 @@ type SourceState struct {
 	Source Source
 	Status SourceStatus
 }
+
+// SourceInfo is what a source is, as GET /v1/sources shows it: who
+// publishes it, under which licence it is reused and where to read it.
+type SourceInfo struct {
+	Name Source
+	// Publisher is the body that publishes the source.
+	Publisher string
+	// Licence is the licence the source is reused under.
+	Licence string
+	// URL is the public page of the source.
+	URL string
+}

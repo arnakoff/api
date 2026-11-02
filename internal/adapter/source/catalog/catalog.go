@@ -52,12 +52,14 @@ type Options struct {
 }
 
 // source is one row of the table: how to build its fetcher, the hosts it
-// reaches, how often it is synced and whether Options turn it on.
+// reaches, how often it is synced, whether Options turn it on and what it
+// is.
 type source struct {
 	fetcher func(Getter) app.SourceFetcher
 	hosts   func() []string
 	every   time.Duration
 	on      func(Options) bool
+	info    func() domain.SourceInfo
 }
 
 func always(Options) bool      { return true }
@@ -65,13 +67,13 @@ func acprOn(opts Options) bool { return opts.ACPR }
 
 // sources is the one list of sources, in a stable order.
 var sources = []source{
-	{func(c Getter) app.SourceFetcher { return amf.NewBlacklist(c, amf.BlacklistDatasetURL) }, amf.Hosts, everyDaily, always},
-	{func(c Getter) app.SourceFetcher { return amf.NewPSAN(c, amf.PSANDatasetURL) }, amf.Hosts, everyDaily, always},
-	{func(c Getter) app.SourceFetcher { return amf.NewOffers(c, amf.OffersDatasetURL) }, amf.Hosts, everyDaily, always},
-	{func(c Getter) app.SourceFetcher { return acpr.NewBlacklist(c, acpr.BlacklistURL) }, acpr.Hosts, everyDaily, acprOn},
+	{func(c Getter) app.SourceFetcher { return amf.NewBlacklist(c, amf.BlacklistDatasetURL) }, amf.Hosts, everyDaily, always, amf.BlacklistInfo},
+	{func(c Getter) app.SourceFetcher { return amf.NewPSAN(c, amf.PSANDatasetURL) }, amf.Hosts, everyDaily, always, amf.PSANInfo},
+	{func(c Getter) app.SourceFetcher { return amf.NewOffers(c, amf.OffersDatasetURL) }, amf.Hosts, everyDaily, always, amf.OffersInfo},
+	{func(c Getter) app.SourceFetcher { return acpr.NewBlacklist(c, acpr.BlacklistURL) }, acpr.Hosts, everyDaily, acprOn, acpr.BlacklistInfo},
 	{func(c Getter) app.SourceFetcher {
 		return arcep.NewNumbering(c, arcep.NumberingURL, arcep.OperatorsURL)
-	}, arcep.Hosts, everyWeekly, always},
+	}, arcep.Hosts, everyWeekly, always, arcep.NumberingInfo},
 }
 
 // Catalog is the list of the sources turned on, in a stable order.
@@ -82,6 +84,7 @@ type Catalog struct {
 type entry struct {
 	fetcher app.SourceFetcher
 	every   time.Duration
+	info    domain.SourceInfo
 }
 
 // New returns the catalog of the sources opts turns on, downloading through
@@ -90,7 +93,7 @@ func New(client Getter, opts Options) *Catalog {
 	c := &Catalog{}
 	for _, src := range sources {
 		if src.on(opts) {
-			c.entries = append(c.entries, entry{src.fetcher(client), src.every})
+			c.entries = append(c.entries, entry{src.fetcher(client), src.every, src.info()})
 		}
 	}
 	return c
@@ -129,6 +132,15 @@ func (c *Catalog) Plans() []app.Plan {
 		ps[i] = app.Plan{Source: e.fetcher.Spec().Source, Every: e.every}
 	}
 	return ps
+}
+
+// Infos describes each source, for app.NewSourceList.
+func (c *Catalog) Infos() []domain.SourceInfo {
+	infos := make([]domain.SourceInfo, len(c.entries))
+	for i, e := range c.entries {
+		infos[i] = e.info
+	}
+	return infos
 }
 
 // blacklists are the blacklists among the sources, with the rule each

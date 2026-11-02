@@ -48,6 +48,9 @@ func ACPRBlacklist() Blacklist {
 // Source returns the source of the signal.
 func (b Blacklist) Source() domain.Source { return b.source }
 
+// URL returns the public page of the blacklist the signal cites.
+func (b Blacklist) URL() string { return b.url }
+
 // Signal returns the alerte stating that the checked input is on the
 // blacklist, from its listings there and the time the list was fetched;
 // false when it has no listing. Several listings give one signal: every

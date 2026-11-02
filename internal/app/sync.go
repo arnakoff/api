@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
@@ -126,10 +127,13 @@ func (s *Sync) refresh(ctx context.Context, f *feed, now time.Time) error {
 
 // feed returns the feed of source, or nil.
 func (s *Sync) feed(source domain.Source) *feed {
-	for _, f := range s.feeds {
-		if f.spec.Source == source {
-			return f
-		}
+	if i := s.index(source); i >= 0 {
+		return s.feeds[i]
 	}
 	return nil
+}
+
+// index returns the index of the feed of source, or -1.
+func (s *Sync) index(source domain.Source) int {
+	return slices.IndexFunc(s.feeds, func(f *feed) bool { return f.spec.Source == source })
 }
