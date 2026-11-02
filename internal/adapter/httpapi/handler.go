@@ -3,10 +3,13 @@
 package httpapi
 
 import (
+	"context"
 	"crypto/rand"
 	"log/slog"
 	"net/http"
 	"path"
+
+	"github.com/arnakoff/api/internal/domain"
 )
 
 // Readiness tells whether the API can answer checks.
@@ -15,10 +18,19 @@ type Readiness interface {
 	Ready() bool
 }
 
+// Checker checks an input against the sources.
+type Checker interface {
+	// Check returns the report of in; a source it could not consult is
+	// reported unavailable, never an error.
+	Check(ctx context.Context, in domain.Input) domain.Report
+}
+
 // Options configures the handler.
 type Options struct {
 	// Ready backs /readyz.
 	Ready Readiness
+	// Check backs /v1/check.
+	Check Checker
 	// Logger receives the access log and the recovered panics.
 	Logger *slog.Logger
 	// NewID makes a request identifier when the client sent no valid one;
@@ -32,10 +44,12 @@ type Options struct {
 // NewHandler returns the handler of the API: its routes behind the request
 // middleware.
 func NewHandler(opts Options) http.Handler {
+	ps := problemsOf(opts)
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /readyz", readyz(opts.Ready))
-	return wrap(opts, route(problemsOf(opts), mux))
+	mux.Handle("GET /v1/check", check(opts.Check, ps))
+	return wrap(opts, route(ps, mux))
 }
 
 // wrap applies the request middleware to next, outermost first: request

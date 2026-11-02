@@ -100,7 +100,7 @@ func (f fakeChecker) Check(_ context.Context, in domain.Input) domain.Report {
 	if a.unavailable {
 		states = append(states, domain.SourceState{Source: "SIRENE", Status: domain.SourceUnavailable})
 	}
-	return domain.NewReport(in.String(), signals, states)
+	return domain.NewReport(in.String(), t0, signals, states)
 }
 
 func scamCase(t *testing.T, in string) app.Case {

@@ -13,16 +13,13 @@ import (
 	"github.com/arnakoff/api/internal/adapter/corpus"
 	"github.com/arnakoff/api/internal/adapter/reference/hosting"
 	"github.com/arnakoff/api/internal/adapter/reference/official"
-	"github.com/arnakoff/api/internal/adapter/registry/bodacc"
-	"github.com/arnakoff/api/internal/adapter/registry/rdap"
+	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
-	"github.com/arnakoff/api/internal/adapter/registry/sirene"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
-	"github.com/arnakoff/api/internal/platform/httpclient"
 	"github.com/arnakoff/api/internal/platform/startup"
 )
 
@@ -83,14 +80,14 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 // registries returns the lists and the live registries recorded on the
 // tape, or the tape's alone offline, less those the run leaves out.
 func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Registries, error) {
-	var live app.Registries
+	var online app.Registries
 	if !opts.offline {
 		var err error
-		if live, err = liveRegistries(); err != nil {
+		if online, err = live.Registries(); err != nil {
 			return app.Registries{}, err
 		}
 	}
-	regs := tape.Registries(live)
+	regs := tape.Registries(online)
 	regs.Blacklists, regs.Whitelists, regs.Numbering, regs.Officials = lists.Blacklists, lists.Whitelists, lists.Numbering, lists.Officials
 	return regs.Without(opts.leftOut), nil
 }
@@ -122,44 +119,7 @@ func storedLists(ctx context.Context, dir string) (app.Registries, error) {
 	if err != nil {
 		return app.Registries{}, err
 	}
-	return app.Registries{
-		Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s, platforms), Numbering: catalog.Numbering(s),
-		Officials: officials,
-	}, nil
-}
-
-// liveRegistries returns the RDAP, SIRENE and BODACC clients, each with an
-// HTTP client allowed its own hosts only.
-func liveRegistries() (app.Registries, error) {
-	iana, err := httpclient.New(httpclient.Config{AllowedHosts: rdap.BootstrapHosts()})
-	if err != nil {
-		return app.Registries{}, err
-	}
-	domains, err := rdap.New(iana, rdap.BootstrapURL, func(hosts []string) (rdap.Getter, error) {
-		c, err := httpclient.New(httpclient.Config{AllowedHosts: hosts})
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-	})
-	if err != nil {
-		return app.Registries{}, err
-	}
-	sc, err := httpclient.New(httpclient.Config{AllowedHosts: sirene.Hosts()})
-	if err != nil {
-		return app.Registries{}, err
-	}
-	companies, err := sirene.New(sc, sirene.BaseURL)
-	if err != nil {
-		return app.Registries{}, err
-	}
-	bc, err := httpclient.New(httpclient.Config{AllowedHosts: bodacc.Hosts()})
-	if err != nil {
-		return app.Registries{}, err
-	}
-	notices, err := bodacc.New(bc, bodacc.BaseURL)
-	if err != nil {
-		return app.Registries{}, err
-	}
-	return app.Registries{Domains: domains, Companies: companies, Notices: notices}, nil
+	lists := catalog.Lists(opts, s, platforms)
+	lists.Officials = officials
+	return lists, nil
 }

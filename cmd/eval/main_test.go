@@ -88,19 +88,6 @@ func TestRunRejectsAMissingCorpus(t *testing.T) {
 	}
 }
 
-// The live registries are built without reaching the network.
-func TestLiveRegistries(t *testing.T) {
-	t.Parallel()
-
-	r, err := liveRegistries()
-	if err != nil {
-		t.Fatalf("liveRegistries: %v", err)
-	}
-	if r.Domains.Source() != "RDAP" || r.Companies.Source() != "SIRENE" || r.Notices.Source() != "BODACC" {
-		t.Errorf("liveRegistries = %+v, want RDAP, SIRENE and BODACC", r)
-	}
-}
-
 func writeFile(t *testing.T, dir, name, content string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {

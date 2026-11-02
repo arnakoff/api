@@ -44,24 +44,61 @@ func Load() (*Contract, error) {
 	return &Contract{doc: doc}, nil
 }
 
+// ErrRequestValid means CheckRefused was given a request the contract
+// accepts: Check is the one to hold it.
+var ErrRequestValid = errors.New("request follows the contract")
+
 // Check returns an error unless req and res follow the contract: the
 // operation is documented, the request's parameters and body are valid,
 // and the response's status, headers, content type and body are the
 // documented ones. It reads and closes both bodies.
 func (c *Contract) Check(ctx context.Context, req *http.Request, res *http.Response) error {
+	return c.hold(ctx, req, res, true)
+}
+
+// CheckRefused returns an error unless req is a documented operation the
+// contract refuses, such as one without a required parameter, and res is a
+// documented answer to it. It is how the problems answering invalid
+// requests are held to the contract. It reads and closes both bodies.
+func (c *Contract) CheckRefused(ctx context.Context, req *http.Request, res *http.Response) error {
+	return c.hold(ctx, req, res, false)
+}
+
+// hold returns an error unless req is a documented operation, valid when
+// valid is true and refused otherwise, and res a documented answer to it.
+// It reads and closes both bodies.
+func (c *Contract) hold(ctx context.Context, req *http.Request, res *http.Response, valid bool) error {
 	defer func() { _ = res.Body.Close() }() // The body is read in full; a close error changes nothing.
-	route, err := c.route(req)
+	in, err := c.input(req)
 	if err != nil {
 		return err
 	}
-	in := &openapi3filter.RequestValidationInput{
+	err = openapi3filter.ValidateRequest(ctx, in)
+	switch {
+	case valid && err != nil:
+		return fmt.Errorf("request %s %s: %w", req.Method, req.URL, err)
+	case !valid && err == nil:
+		return fmt.Errorf("%w: %s %s", ErrRequestValid, req.Method, req.URL)
+	}
+	return validateResponse(ctx, in, res)
+}
+
+// input returns the validation input of req, or ErrUndocumented.
+func (c *Contract) input(req *http.Request) (*openapi3filter.RequestValidationInput, error) {
+	route, err := c.route(req)
+	if err != nil {
+		return nil, err
+	}
+	return &openapi3filter.RequestValidationInput{
 		Request: req,
 		Route:   route,
 		Options: &openapi3filter.Options{IncludeResponseStatus: true, MultiError: true},
-	}
-	if err := openapi3filter.ValidateRequest(ctx, in); err != nil {
-		return fmt.Errorf("request %s %s: %w", req.Method, req.URL, err)
-	}
+	}, nil
+}
+
+// validateResponse returns an error unless res is a documented answer to
+// the request of in.
+func validateResponse(ctx context.Context, in *openapi3filter.RequestValidationInput, res *http.Response) error {
 	out := &openapi3filter.ResponseValidationInput{
 		RequestValidationInput: in,
 		Status:                 res.StatusCode,
@@ -70,6 +107,7 @@ func (c *Contract) Check(ctx context.Context, req *http.Request, res *http.Respo
 		Options:                in.Options,
 	}
 	if err := openapi3filter.ValidateResponse(ctx, out); err != nil {
+		req := in.Request
 		return fmt.Errorf("response %d to %s %s: %w", res.StatusCode, req.Method, req.URL, err)
 	}
 	return nil

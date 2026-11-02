@@ -5,27 +5,30 @@ package domain
 import (
 	"cmp"
 	"slices"
+	"time"
 )
 
-// Report is the result of checking one input: its signals, most severe
-// first, and the state of each source consulted. A Report is immutable: its
-// accessors return copies.
+// Report is the result of checking one input at one time: its signals,
+// most severe first, and the state of each source consulted. A Report is
+// immutable: its accessors return copies.
 type Report struct {
-	input   string
-	signals []Signal
-	sources []SourceState
+	input     string
+	checkedAt time.Time
+	signals   []Signal
+	sources   []SourceState
 }
 
-// NewReport builds the report for the normalised input. A signal repeating
+// NewReport builds the report for the normalised input, checked at
+// checkedAt. A signal repeating
 // the code, source and message of an earlier one is dropped. Signals are
 // sorted by level, most severe first; signals of equal level keep their
 // order. The slices are copied, the caller's are left untouched.
-func NewReport(input string, signals []Signal, sources []SourceState) Report {
+func NewReport(input string, checkedAt time.Time, signals []Signal, sources []SourceState) Report {
 	sorted := distinct(signals)
 	slices.SortStableFunc(sorted, func(a, b Signal) int {
 		return cmp.Compare(b.Level, a.Level)
 	})
-	return Report{input: input, signals: sorted, sources: slices.Clone(sources)}
+	return Report{input: input, checkedAt: checkedAt, signals: sorted, sources: slices.Clone(sources)}
 }
 
 // distinct returns a copy of signals without the ones repeating the code,
@@ -50,6 +53,9 @@ func distinct(signals []Signal) []Signal {
 
 // Input returns the normalised input that was checked.
 func (r Report) Input() string { return r.input }
+
+// CheckedAt returns when the input was checked.
+func (r Report) CheckedAt() time.Time { return r.checkedAt }
 
 // Signals returns a copy of the signals, most severe first.
 func (r Report) Signals() []Signal { return slices.Clone(r.signals) }

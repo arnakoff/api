@@ -182,3 +182,12 @@ func Whitelists(snaps listing.Snapshots, platforms domain.Platforms) []app.White
 func Numbering(snaps listing.Snapshots) []app.Numbering {
 	return []app.Numbering{{Reader: listing.NewNumberingReader(snaps, arcep.NumberingSource, arcep.Plan)}}
 }
+
+// Lists returns the lists a check reads, each from the snapshot of its
+// source in snaps: the blacklists opts turns on, the white lists and the
+// numbering plan. The registries are left to the caller.
+func Lists(opts Options, snaps listing.Snapshots, platforms domain.Platforms) app.Registries {
+	return app.Registries{
+		Blacklists: Blacklists(opts, snaps), Whitelists: Whitelists(snaps, platforms), Numbering: Numbering(snaps),
+	}
+}

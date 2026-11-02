@@ -23,7 +23,7 @@ const (
 )
 
 // String returns the status's stable French code: "ok", "indisponible" or
-// "non applicable".
+// "non_applicable", the values of the public contract.
 func (s SourceStatus) String() string {
 	switch s {
 	case SourceOK:
@@ -31,7 +31,7 @@ func (s SourceStatus) String() string {
 	case SourceUnavailable:
 		return "indisponible"
 	case SourceNotApplicable:
-		return "non applicable"
+		return "non_applicable"
 	}
 	return "SourceStatus(" + strconv.Itoa(int(s)) + ")"
 }

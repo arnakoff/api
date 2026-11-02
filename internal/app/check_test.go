@@ -41,6 +41,9 @@ func TestCheckConsultsTheRegistriesOfTheInputKind(t *testing.T) {
 			if got.Input() != parse(t, tt.in).String() {
 				t.Errorf("Input() = %q, want the normalised input", got.Input())
 			}
+			if !got.CheckedAt().Equal(t0) {
+				t.Errorf("CheckedAt() = %v, want the clock's %v", got.CheckedAt(), t0)
+			}
 			if !slices.Equal(got.Sources(), tt.want) {
 				t.Errorf("Sources() = %v, want %v", got.Sources(), tt.want)
 			}
