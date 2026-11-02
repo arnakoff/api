@@ -168,7 +168,7 @@ func (c *Check) domainLookup(in domain.Input) lookup {
 		if err != nil {
 			return nil, err
 		}
-		return signalOf(signal.DomainRecent(d, rec, source, c.clock.Now())), nil
+		return signalOf(signal.DomainRecent(d, rec, c.clock.Now())), nil
 	}}
 }
 
@@ -186,7 +186,7 @@ func (c *Check) companyLookup(in domain.Input) lookup {
 		if err != nil {
 			return nil, err
 		}
-		return signalOf(signal.CompanyClosed(company, source, c.clock.Now())), nil
+		return signalOf(signal.CompanyClosed(company, c.clock.Now())), nil
 	}}
 }
 
@@ -204,7 +204,7 @@ func (c *Check) noticeLookup(in domain.Input) lookup {
 		if err != nil {
 			return nil, err
 		}
-		return signalOf(signal.CompanyProcedure(notices, source, c.clock.Now())), nil
+		return signalOf(signal.CompanyProcedure(notices, c.clock.Now())), nil
 	}}
 }
 

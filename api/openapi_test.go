@@ -4,8 +4,6 @@ package api_test
 
 import (
 	"bytes"
-	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -14,6 +12,7 @@ import (
 	"github.com/oapi-codegen/oapi-codegen/v2/pkg/codegen"
 
 	"github.com/arnakoff/api/api"
+	"github.com/arnakoff/api/internal/domain/signal"
 )
 
 func load(t *testing.T) *openapi3.T {
@@ -69,22 +68,12 @@ func TestSpecReturnsACopy(t *testing.T) {
 	}
 }
 
-// documentedCode matches a code in the table of docs/signals.md.
-var documentedCode = regexp.MustCompile("(?m)^\\| `([a-z][a-z0-9_]*)` \\|")
-
 func TestSpecListsEverySignalCode(t *testing.T) {
 	t.Parallel()
 
-	page, err := os.ReadFile("../docs/signals.md")
-	if err != nil {
-		t.Fatal(err)
-	}
 	var want []string
-	for _, m := range documentedCode.FindAllSubmatch(page, -1) {
-		want = append(want, string(m[1]))
-	}
-	if len(want) == 0 {
-		t.Fatal("no signal code found in docs/signals.md")
+	for _, d := range signal.Catalog() {
+		want = append(want, d.Code)
 	}
 
 	var got []string
@@ -92,8 +81,9 @@ func TestSpecListsEverySignalCode(t *testing.T) {
 		got = append(got, e.(string))
 	}
 	slices.Sort(want)
+	want = slices.Compact(want)
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
-		t.Errorf("Signal.code examples = %v, want the codes of docs/signals.md %v", got, want)
+		t.Errorf("Signal.code examples = %v, want the codes of the catalog %v", got, want)
 	}
 }

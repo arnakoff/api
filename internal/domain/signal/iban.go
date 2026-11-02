@@ -47,12 +47,6 @@ func IBANCountry(i domain.IBAN, now time.Time) (domain.Signal, bool) {
 	if name == "" || name == code {
 		return domain.Signal{}, false
 	}
-	return domain.Signal{
-		Code:       "iban_country",
-		Level:      domain.LevelInfo,
-		Message:    "Pays de tenue du compte : " + name + " (code " + code + " de l'IBAN).",
-		Source:     IBANSource,
-		SourceURL:  IBANRegistryURL,
-		ObservedAt: now,
-	}, true
+	message := "Pays de tenue du compte : " + name + " (code " + code + " de l'IBAN)."
+	return ibanCountry.signal(message, "", IBANRegistryURL, now), true
 }

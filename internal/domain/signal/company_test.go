@@ -40,7 +40,7 @@ func TestCompanyClosedSignal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := signal.CompanyClosed(tt.company, "SIRENE", checkedAt)
+			got, ok := signal.CompanyClosed(tt.company, checkedAt)
 			if tt.want == "" {
 				if ok {
 					t.Fatalf("CompanyClosed() = %+v, want no signal", got)
@@ -108,7 +108,7 @@ func TestCompanyProcedureSignal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := signal.CompanyProcedure(tt.notices, "BODACC", checkedAt)
+			got, ok := signal.CompanyProcedure(tt.notices, checkedAt)
 			if tt.want == "" {
 				if ok {
 					t.Fatalf("CompanyProcedure() = %+v, want no signal", got)

@@ -58,6 +58,7 @@ func NewHandler(opts Options) http.Handler {
 	mux.Handle("GET /v1/check", check(opts.Check, ps))
 	mux.Handle("POST /v1/check/batch", batch(opts.Check, ps, opts.BatchMaxItems))
 	mux.Handle("GET /v1/sources", sources(opts.Sources))
+	mux.Handle("GET /v1/signals", signals())
 	return wrap(opts, route(ps, mux))
 }
 

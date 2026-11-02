@@ -125,7 +125,9 @@ paths:
       operationId: listSignals
       tags: [référence]
       summary: Lister les signaux
-      description: Le catalogue des signaux qu'une vérification peut donner.
+      description: |
+        Le catalogue des signaux qu'une vérification peut donner, celui de `docs/signals.md`. Un code
+        donné par plusieurs sources a une entrée par source, comme un signal de `GET /v1/check`.
       responses:
         '200':
           description: Le catalogue des signaux.

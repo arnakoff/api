@@ -26,54 +26,57 @@ const impersonation = "Des sites imitent des acteurs enregistrés : vérifie l'a
 // Whitelist is a published white list and the signals its authorisations
 // give.
 type Whitelist struct {
-	source domain.Source
-	list   string // the list, as the message names it
-	label  func(domain.Authorisation) string
+	registered *Definition
+	ended      *Definition // nil when the list publishes no end date
+	list       string      // the list, as the message names it
+	label      func(domain.Authorisation) string
 }
 
 // AMFPSANWhitelist is the AMF list of digital asset service providers,
 // labelled by their kind of authorisation.
 func AMFPSANWhitelist() Whitelist {
 	return Whitelist{
-		source: PSANSource,
-		list:   "la liste des prestataires sur actifs numériques de l'AMF",
-		label:  func(a domain.Authorisation) string { return a.Kind },
+		registered: &psanRegistered,
+		ended:      &psanEnded,
+		list:       "la liste des prestataires sur actifs numériques de l'AMF",
+		label:      func(a domain.Authorisation) string { return a.Kind },
 	}
 }
 
 // AMFOffersWhitelist is the AMF list of registered offers in goods,
-// labelled by their number.
+// labelled by their number. It publishes no end date.
 func AMFOffersWhitelist() Whitelist {
 	return Whitelist{
-		source: OffersSource,
-		list:   "la liste des offres de biens divers enregistrées par l'AMF",
-		label:  func(a domain.Authorisation) string { return "n° " + a.Number },
+		registered: &offerRegistered,
+		list:       "la liste des offres de biens divers enregistrées par l'AMF",
+		label:      func(a domain.Authorisation) string { return "n° " + a.Number },
 	}
 }
 
 // Source returns the source of the signals.
-func (w Whitelist) Source() domain.Source { return w.source }
+func (w Whitelist) Source() domain.Source { return w.registered.Source }
 
 // Signal returns the info stating that the checked input is on the white
 // list, from its authorisations there and the time the list was fetched;
 // false when it has none. Running authorisations give amf_registered, since
 // the first of them started; when all have ended, they give
-// amf_registration_ended, from the first start to the last end.
+// amf_registration_ended, from the first start to the last end, on a list
+// that publishes end dates.
 func (w Whitelist) Signal(auths []domain.Authorisation, observedAt time.Time) (domain.Signal, bool) {
 	if len(auths) == 0 {
 		return domain.Signal{}, false
 	}
-	s := domain.Signal{Level: domain.LevelInfo, Source: w.source, SourceURL: whitelistsURL, ObservedAt: observedAt}
 	running := slices.DeleteFunc(slices.Clone(auths), domain.Authorisation.Ended)
 	if len(running) > 0 {
-		s.Code, s.Advice = "amf_registered", impersonation
-		s.Message = "Figure sur " + w.list + " : " + w.names(running) + " depuis le " + domain.FormatDate(firstStart(running)) + "."
-		return s, true
+		message := "Figure sur " + w.list + " : " + w.names(running) + " depuis le " + domain.FormatDate(firstStart(running)) + "."
+		return w.registered.signal(message, impersonation, whitelistsURL, observedAt), true
 	}
-	s.Code = "amf_registration_ended"
-	s.Message = "A figuré sur " + w.list + " : " + w.names(auths) + " du " +
+	if w.ended == nil {
+		return domain.Signal{}, false
+	}
+	message := "A figuré sur " + w.list + " : " + w.names(auths) + " du " +
 		domain.FormatDate(firstStart(auths)) + " au " + domain.FormatDate(lastEnd(auths)) + "."
-	return s, true
+	return w.ended.signal(message, "", whitelistsURL, observedAt), true
 }
 
 // names returns « NAME (label) » for each authorisation, each once, in
