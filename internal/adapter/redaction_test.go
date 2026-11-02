@@ -3,7 +3,6 @@
 package adapter_test
 
 import (
-	"bytes"
 	"context"
 	"log/slog"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/logging"
+	"github.com/arnakoff/api/internal/platform/logging/loggingtest"
 )
 
 // TestLoggerNeverWritesPersonalData logs the domain's personal data value
@@ -31,11 +31,7 @@ func TestLoggerNeverWritesPersonalData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var buf bytes.Buffer
-	logger, err := logging.New(&buf, logging.Config{Key: bytes.Repeat([]byte{0x42}, logging.MinKeyBytes)})
-	if err != nil {
-		t.Fatal(err)
-	}
+	logger, buf := loggingtest.New(t)
 	ctx := logging.WithRequestID(context.Background(), "req-1")
 	logger.InfoContext(ctx, "check", "email", email, "phone", phone, "iban", iban)
 	logger.With("email", &email).WarnContext(ctx, "lookup failed", slog.Group("input", "phone", &phone, "iban", &iban))
