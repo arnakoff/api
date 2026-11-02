@@ -74,7 +74,7 @@ func TestAPanicGivesAProblemAndAnErrorLine(t *testing.T) {
 	t.Parallel()
 
 	opts, logs := options(t, true)
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil)
+	req := authorize(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil))
 	rec := httptest.NewRecorder()
 	httpapi.Wrap(opts, panicking).ServeHTTP(rec, req)
 

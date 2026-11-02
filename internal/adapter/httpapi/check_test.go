@@ -48,7 +48,7 @@ func check(t *testing.T, report domain.Report, target string) (*httptest.Respons
 	opts, _ := options(t, true)
 	c := &checker{report: report}
 	opts.Check = c
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+	req := authorize(httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
 	rec := httptest.NewRecorder()
 	httpapi.NewHandler(opts).ServeHTTP(rec, req)
 	ct, err := contract()
@@ -232,10 +232,10 @@ func TestCheckNamesTheTypeAnInvalidInputWasForcedInto(t *testing.T) {
 // API adds to the check itself.
 func BenchmarkCheck(b *testing.B) {
 	h := httpapi.NewHandler(httpapi.Options{
-		Ready: readiness(true), Check: &benchChecker{report: blacklisted()},
+		Ready: readiness(true), Check: &benchChecker{report: blacklisted()}, Auth: keyring{},
 		Logger: slog.New(slog.DiscardHandler), ProblemBase: problemBase,
 	})
-	req := httptest.NewRequestWithContext(b.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil)
+	req := authorize(httptest.NewRequestWithContext(b.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil))
 	b.ReportAllocs()
 	for b.Loop() {
 		rec := httptest.NewRecorder()

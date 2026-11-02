@@ -17,6 +17,14 @@
 // default) in one request, a few at a time, within the time of one check:
 // an input still waiting then has its registries reported unavailable.
 //
+// Both check routes require an API key, "Authorization: Bearer ark_live_…"
+// (RFC 6750): its keyed digest is looked up in the PostgreSQL database of
+// ARNAKOFF_DATABASE_URL under ARNAKOFF_API_KEY_SECRET, and only keys of
+// ARNAKOFF_API_KEY_ENV ("live" by default) are accepted. Both variables are
+// required to start. The database is not reached at start: while it is
+// unreachable, the check routes answer 503, never unchecked. Keys are issued
+// and the schema migrated by the admin command.
+//
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
 package main

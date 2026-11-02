@@ -48,6 +48,18 @@ var (
 		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
 		"Le corps de la requête doit être un objet JSON contenant une liste items d'au moins un élément.",
 	}
+	missingAPIKey = problem{
+		http.StatusUnauthorized, "missing_api_key", "Clé API manquante",
+		"Cette ressource demande une clé API, envoyée dans l'en-tête Authorization avec le schéma Bearer.",
+	}
+	invalidAPIKey = problem{
+		http.StatusUnauthorized, "invalid_api_key", "Clé API invalide",
+		"La clé API est mal formée, inconnue ou révoquée.",
+	}
+	authenticationUnavailable = problem{
+		http.StatusServiceUnavailable, "authentication_unavailable", "Authentification indisponible",
+		"La clé API ne peut pas être vérifiée pour le moment. Réessaie plus tard.",
+	}
 	tooManyRequests = problem{
 		http.StatusTooManyRequests, "too_many_requests", "Trop de requêtes",
 		"Le quota de requêtes est atteint. Réessaie après le délai de l'en-tête Retry-After.",
@@ -95,7 +107,8 @@ func tooManyItems(limit int) problem {
 // contract's examples, the list arnakoff/web documents.
 var problemCatalog = append([]problem{
 	invalidKind, missingParameter, notFound, methodNotAllowed, contentTooLarge,
-	unsupportedMediaType, invalidBody, tooManyRequests, internalError, serviceUnavailable,
+	unsupportedMediaType, invalidBody, missingAPIKey, invalidAPIKey, authenticationUnavailable,
+	tooManyRequests, internalError, serviceUnavailable,
 }, slices.Collect(maps.Values(invalidInputOf))...)
 
 // problemFor returns the problem answering err, an error of the domain

@@ -18,7 +18,9 @@ import (
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/adapter/store"
+	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
@@ -59,23 +61,32 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+	auth, closeKeys, err := newAuthenticator(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeKeys()
 	if err := s.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
+	return serve(ctx, cfg, s, httpapi.Options{
+		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		BatchMaxItems: cfg.BatchMaxItems,
+	})
+}
+
+// serve answers the API of opts on cfg.Addr and reloads the snapshots of s
+// until ctx is done.
+func serve(ctx context.Context, cfg config.Config, s *app.Sync, opts httpapi.Options) error {
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Addr)
 	if err != nil {
 		return err
 	}
-	logger := slog.Default()
-	opts := httpapi.Options{
-		Ready: s, Check: check, Sources: srcs, Logger: logger, ProblemBase: cfg.ProblemBaseURL,
-		BatchMaxItems: cfg.BatchMaxItems,
-	}
-	srv := httpapi.NewServer(httpapi.NewHandler(opts), logger)
+	srv := httpapi.NewServer(httpapi.NewHandler(opts), opts.Logger)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		// The sync process posts to the webhook; this one only logs.
-		app.NewReloader(s, clock.System{}, alert.LogOnly(logger), reloadEvery).Run(ctx)
+		app.NewReloader(s, clock.System{}, alert.LogOnly(opts.Logger), reloadEvery).Run(ctx)
 		return nil
 	})
 	g.Go(func() error { return httpapi.Serve(ctx, srv, ln) })
@@ -96,4 +107,22 @@ func newCheck(opts catalog.Options, snaps listing.Snapshots) (*app.Check, error)
 	lists := catalog.Lists(opts, snaps, platforms)
 	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
 	return app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
+}
+
+// newAuthenticator returns the authenticator of the API keys of the
+// configured environment, stored in the configured database, and the
+// function closing that database.
+func newAuthenticator(ctx context.Context, cfg config.Config) (*app.Authenticator, func(), error) {
+	if err := cfg.RequireKeyStore(); err != nil {
+		return nil, nil, err
+	}
+	env, err := domain.ParseKeyEnvironment(cfg.APIKeyEnv)
+	if err != nil {
+		return nil, nil, err
+	}
+	keys, err := postgres.Open(ctx, string(cfg.DatabaseURL.Bytes()))
+	if err != nil {
+		return nil, nil, err
+	}
+	return app.NewAuthenticator(keys, cfg.APIKeySecret.Bytes(), env), keys.Close, nil
 }

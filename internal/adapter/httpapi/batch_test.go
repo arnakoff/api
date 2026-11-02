@@ -53,7 +53,7 @@ func (call batchCall) send(t *testing.T, report domain.Report) (*httptest.Respon
 // read a body.
 func (call batchCall) request(t *testing.T) *http.Request {
 	t.Helper()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/check/batch", strings.NewReader(call.body))
+	req := authorize(httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/check/batch", strings.NewReader(call.body)))
 	switch call.contentType {
 	case "":
 		req.Header.Set("Content-Type", "application/json")
@@ -197,13 +197,13 @@ func TestBatchIsNeverCached(t *testing.T) {
 // adds to the checks themselves.
 func BenchmarkCheckBatch(b *testing.B) {
 	h := httpapi.NewHandler(httpapi.Options{
-		Ready: readiness(true), Check: &benchChecker{report: blacklisted()},
+		Ready: readiness(true), Check: &benchChecker{report: blacklisted()}, Auth: keyring{},
 		Logger: slog.New(slog.DiscardHandler), ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
 	})
 	body := items(config.DefaultBatchMaxItems, `{"q":"armen.ltd"}`)
 	b.ReportAllocs()
 	for b.Loop() {
-		req := httptest.NewRequestWithContext(b.Context(), http.MethodPost, "/v1/check/batch", strings.NewReader(body))
+		req := authorize(httptest.NewRequestWithContext(b.Context(), http.MethodPost, "/v1/check/batch", strings.NewReader(body)))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)

@@ -30,6 +30,10 @@ const (
 	EnvProblemBaseURL = "ARNAKOFF_PROBLEM_BASE_URL"
 
 	EnvBatchMaxItems = "ARNAKOFF_BATCH_MAX_ITEMS"
+
+	EnvDatabaseURL  = "ARNAKOFF_DATABASE_URL"
+	EnvAPIKeySecret = "ARNAKOFF_API_KEY_SECRET" //nolint:gosec // G101: the name of a variable, not its value.
+	EnvAPIKeyEnv    = "ARNAKOFF_API_KEY_ENV"    //nolint:gosec // G101: the name of a variable, not its value.
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -98,6 +102,18 @@ type Config struct {
 	// BatchMaxItems is the most items POST /v1/check/batch accepts, from 1
 	// to MaxBatchMaxItems.
 	BatchMaxItems int
+
+	// DatabaseURL is the PostgreSQL connection string of the API key store;
+	// nil when unset or empty. RequireKeyStore tells whether it is set.
+	DatabaseURL Secret
+
+	// APIKeySecret is the HMAC key the API keys are digested with, kept
+	// out of the database; nil when unset or empty.
+	APIKeySecret Secret
+
+	// APIKeyEnv is the environment of the API keys accepted: "live" or
+	// "test".
+	APIKeyEnv string
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -121,6 +137,9 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvAlertWebhook, "", &cfg.AlertWebhook, parseWebhook),
 		parse(lookup, EnvProblemBaseURL, DefaultProblemBaseURL, &cfg.ProblemBaseURL, parseProblemBase),
 		parse(lookup, EnvBatchMaxItems, strconv.Itoa(DefaultBatchMaxItems), &cfg.BatchMaxItems, parseBatchMaxItems),
+		parse(lookup, EnvDatabaseURL, "", &cfg.DatabaseURL, parseOptionalSecret),
+		parse(lookup, EnvAPIKeySecret, "", &cfg.APIKeySecret, parseOptionalKey),
+		parse(lookup, EnvAPIKeyEnv, DefaultAPIKeyEnv, &cfg.APIKeyEnv, parseAPIKeyEnv),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
