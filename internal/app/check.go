@@ -60,6 +60,7 @@ type Check struct {
 	registries Registries
 	clock      Clock
 	timeout    time.Duration
+	batchLimit int
 }
 
 // CheckOption configures a Check.
@@ -74,7 +75,7 @@ func WithTimeout(d time.Duration) CheckOption {
 // NewCheck returns a Check of the registries, which dates its findings
 // with clock.
 func NewCheck(r Registries, clock Clock, opts ...CheckOption) *Check {
-	c := &Check{registries: r, clock: clock}
+	c := &Check{registries: r, clock: clock, batchLimit: defaultBatchLimit}
 	for _, opt := range opts {
 		opt(c)
 	}

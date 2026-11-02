@@ -3,7 +3,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -20,23 +19,25 @@ func check(c Checker, ps problems) http.Handler {
 			ps.write(w, r, p)
 			return
 		}
-		body := reportOf(in.Kind(), c.Check(r.Context(), in))
-		w.Header().Set("Content-Type", "application/json")
-		// The status is sent: an encoding error can only be a broken connection.
-		_ = json.NewEncoder(w).Encode(body)
+		writeJSON(w, "application/json", http.StatusOK, reportOf(in.Kind(), c.Check(r.Context(), in)))
 	})
 }
 
 // checkInput returns the input the query asks to check, or the problem
-// refusing it: q is required, type, when present, names a kind.
+// refusing it.
 func checkInput(query url.Values) (domain.Input, problem, bool) {
-	raw := query.Get("q")
+	return parseInput(query.Get("q"), query.Get("type"), query.Has("type"))
+}
+
+// parseInput returns the input raw names, of the kind typ names when
+// hasType, or the problem refusing it: raw is required, typ names a kind.
+func parseInput(raw, typ string, hasType bool) (domain.Input, problem, bool) {
 	if raw == "" {
 		return nil, missingParameter, false
 	}
 	kind := domain.KindAuto
-	if query.Has("type") {
-		k, err := domain.ParseKind(query.Get("type"))
+	if hasType {
+		k, err := domain.ParseKind(typ)
 		if err != nil {
 			return nil, problemFor(err), false
 		}
@@ -44,7 +45,7 @@ func checkInput(query url.Values) (domain.Input, problem, bool) {
 	}
 	in, err := domain.ParseInput(raw, kind)
 	if err != nil {
-		return nil, problemFor(err), false
+		return nil, inputProblem(kind, err), false
 	}
 	return in, problem{}, true
 }

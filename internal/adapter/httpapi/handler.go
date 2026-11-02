@@ -23,13 +23,15 @@ type Checker interface {
 	// Check returns the report of in; a source it could not consult is
 	// reported unavailable, never an error.
 	Check(ctx context.Context, in domain.Input) domain.Report
+	// CheckAll returns the report of each input, in the order of ins.
+	CheckAll(ctx context.Context, ins []domain.Input) []domain.Report
 }
 
 // Options configures the handler.
 type Options struct {
 	// Ready backs /readyz.
 	Ready Readiness
-	// Check backs /v1/check.
+	// Check backs /v1/check and /v1/check/batch.
 	Check Checker
 	// Logger receives the access log and the recovered panics.
 	Logger *slog.Logger
@@ -39,6 +41,9 @@ type Options struct {
 	// ProblemBase is the URL of the documentation of the problems, ending
 	// with a slash: the type of a problem is its code under it.
 	ProblemBase string
+	// BatchMaxItems is the most items POST /v1/check/batch accepts, at
+	// least one: config.Config.BatchMaxItems.
+	BatchMaxItems int
 }
 
 // NewHandler returns the handler of the API: its routes behind the request
@@ -49,6 +54,7 @@ func NewHandler(opts Options) http.Handler {
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /readyz", readyz(opts.Ready))
 	mux.Handle("GET /v1/check", check(opts.Check, ps))
+	mux.Handle("POST /v1/check/batch", batch(opts.Check, ps, opts.BatchMaxItems))
 	return wrap(opts, route(ps, mux))
 }
 
