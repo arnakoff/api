@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.0](https://github.com/arnakoff/api/compare/v0.34.0...v0.35.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** serve get /v1/check with the report of the input ([#185](https://github.com/arnakoff/api/issues/185)) ([76c7996](https://github.com/arnakoff/api/commit/76c7996ebf77b817dbfc4988161cf0a4a29e8fc6)), closes [#52](https://github.com/arnakoff/api/issues/52)
+
 ## [0.34.0](https://github.com/arnakoff/api/compare/v0.33.0...v0.34.0) (2026-11-02)
 
 
