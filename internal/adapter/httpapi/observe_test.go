@@ -28,19 +28,7 @@ func TestAccessLogNamesTheRouteNeverThePathOrQuery(t *testing.T) {
 			opts, logs := options(t, true)
 			serve(t, httpapi.NewHandler(opts), http.MethodGet, tt.target, nil)
 
-			lines := logs.Lines(t)
-			if len(lines) != 1 {
-				t.Fatalf("logged %d lines, want 1", len(lines))
-			}
-			line := lines[0]
-			for k, want := range map[string]any{"msg": "request", "method": "GET", "route": tt.route, "status": tt.status} {
-				if line[k] != want {
-					t.Errorf("log %s = %v, want %v", k, line[k], want)
-				}
-			}
-			if _, ok := line["duration"]; !ok {
-				t.Error("log has no duration")
-			}
+			accessLine(t, logs.Lines(t), map[string]any{"method": "GET", "route": tt.route, "status": tt.status})
 			if strings.Contains(logs.String(), "dupont") {
 				t.Errorf("log %s quotes the request's path or query", logs.String())
 			}
@@ -48,17 +36,32 @@ func TestAccessLogNamesTheRouteNeverThePathOrQuery(t *testing.T) {
 	}
 }
 
+// accessLine fails unless lines is one access line holding want.
+func accessLine(t *testing.T, lines []map[string]any, want map[string]any) {
+	t.Helper()
+	if len(lines) != 1 {
+		t.Fatalf("logged %d lines, want 1", len(lines))
+	}
+	if _, ok := lines[0]["duration"]; !ok || lines[0]["msg"] != "request" {
+		t.Errorf("log = %v, want an access line with a duration", lines[0])
+	}
+	for k, v := range want {
+		if lines[0][k] != v {
+			t.Errorf("log %s = %v, want %v", k, lines[0][k], v)
+		}
+	}
+}
+
 func TestRoutesGetTheirPathWildcards(t *testing.T) {
 	t.Parallel()
 
 	opts, _ := options(t, true)
+	var id string
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /v1/items/{id}", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(r.PathValue("id")))
-	})
-	res := serve(t, httpapi.Wrap(opts, httpapi.Route(mux)), http.MethodGet, "/v1/items/42", nil)
-	if got := res.Body.String(); got != "42" {
-		t.Errorf("PathValue(id) = %q, want 42", got)
+	mux.HandleFunc("GET /v1/items/{id}", func(_ http.ResponseWriter, r *http.Request) { id = r.PathValue("id") })
+	serve(t, httpapi.Wrap(opts, httpapi.Route(mux)), http.MethodGet, "/v1/items/42", nil)
+	if id != "42" {
+		t.Errorf("PathValue(id) = %q, want 42", id)
 	}
 }
 
