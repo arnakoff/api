@@ -19,6 +19,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
+	"github.com/arnakoff/api/internal/adapter/turnstile"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
@@ -72,14 +73,28 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err := s.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
-	return serve(ctx, cfg, s, httpapi.Options{
+	opts, err := withAccess(cfg, httpapi.Options{
 		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
-		BatchMaxItems:  cfg.BatchMaxItems,
-		KeyLimit:       ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now),
-		IPLimit:        ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
-		AuthLimit:      ratelimit.PerMinute(cfg.RateLimitAuth, clock.System{}.Now),
-		TrustedProxies: cfg.TrustedProxies,
+		BatchMaxItems: cfg.BatchMaxItems, TrustedProxies: cfg.TrustedProxies,
 	})
+	if err != nil {
+		return err
+	}
+	return serve(ctx, cfg, s, opts)
+}
+
+// withAccess returns opts with the access rules of cfg: its rate limits
+// and its demo access.
+func withAccess(cfg config.Config, opts httpapi.Options) (httpapi.Options, error) {
+	demo, err := newDemo(cfg.Demo)
+	if err != nil {
+		return httpapi.Options{}, err
+	}
+	opts.KeyLimit = ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now)
+	opts.IPLimit = ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now)
+	opts.AuthLimit = ratelimit.PerMinute(cfg.RateLimitAuth, clock.System{}.Now)
+	opts.Demo = demo
+	return opts, nil
 }
 
 // serve answers the API of opts on cfg.Addr and reloads the snapshots of s
@@ -114,4 +129,23 @@ func newCheck(opts catalog.Options, snaps listing.Snapshots) (*app.Check, error)
 	lists := catalog.Lists(opts, snaps, platforms)
 	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
 	return app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
+}
+
+// newDemo returns the demo access cfg configures: without a verifier when
+// it is off, so that the route answers 503.
+func newDemo(cfg config.Demo) (httpapi.DemoOptions, error) {
+	opts := httpapi.DemoOptions{
+		Origin:      cfg.Origin,
+		Limit:       ratelimit.PerMinute(cfg.RateLimit, clock.System{}.Now),
+		GlobalLimit: ratelimit.PerMinute(cfg.RateLimitGlobal, clock.System{}.Now),
+	}
+	if !cfg.Enabled() {
+		return opts, nil
+	}
+	v, err := turnstile.NewLive(cfg.TurnstileSecret.Bytes(), cfg.Hostname())
+	if err != nil {
+		return httpapi.DemoOptions{}, err
+	}
+	opts.Verifier = v
+	return opts, nil
 }

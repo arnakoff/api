@@ -49,3 +49,32 @@ func TestRunRequiresTrustedProxiesWithLiveKeys(t *testing.T) {
 		t.Errorf("run() without ARNAKOFF_TRUSTED_PROXIES error = %v, want ErrInvalid", err)
 	}
 }
+
+func TestNewDemoHasAVerifierOnlyWhenOn(t *testing.T) {
+	t.Parallel()
+	limits := config.Demo{RateLimit: config.DefaultRateLimitDemo, RateLimitGlobal: config.DefaultRateLimitDemoGlobal}
+	on := limits
+	on.Origin, on.TurnstileSecret = "https://arnakoff.com", config.Secret("s3cr3t")
+	for _, tt := range []struct {
+		name string
+		cfg  config.Demo
+		want bool
+	}{
+		{"off", limits, false},
+		{"on", on, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			demo, err := newDemo(tt.cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := demo.Verifier != nil; got != tt.want {
+				t.Errorf("verifier set = %t, want %t", got, tt.want)
+			}
+			if demo.Origin != tt.cfg.Origin || demo.Limit == nil || demo.GlobalLimit == nil {
+				t.Errorf("demo = %+v, want the origin and both limits", demo)
+			}
+		})
+	}
+}

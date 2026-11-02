@@ -4,10 +4,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"io"
-	"mime"
 	"net/http"
 
 	"github.com/arnakoff/api/internal/domain"
@@ -19,9 +15,6 @@ const (
 	batchBytesPerItem = 1 << 10
 	minBatchBytes     = 64 << 10
 )
-
-// errTrailingData means a body holds more than one JSON value.
-var errTrailingData = errors.New("data after the JSON value")
 
 // batchRequest is a request as the contract's BatchRequest schema
 // describes it; unknown fields are ignored.
@@ -64,16 +57,10 @@ func batch(c Checker, ps problems, maxItems int) http.Handler {
 // refusing it: a body other than JSON, larger than the limit of maxItems,
 // without an item or with more than maxItems.
 func batchItems(w http.ResponseWriter, r *http.Request, maxItems int) ([]batchItem, problem, bool) {
-	if !isJSON(r.Header.Get("Content-Type")) {
-		return nil, unsupportedMediaType, false
-	}
 	limit := max(minBatchBytes, int64(maxItems)*batchBytesPerItem)
 	var req batchRequest
-	if err := decodeOne(http.MaxBytesReader(w, r.Body, limit), &req); err != nil {
-		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			return nil, contentTooLarge, false
-		}
-		return nil, invalidBody, false
+	if p, ok := decodeBody(w, r, limit, &req, invalidBody); !ok {
+		return nil, p, false
 	}
 	switch {
 	case len(req.Items) == 0:
@@ -82,28 +69,6 @@ func batchItems(w http.ResponseWriter, r *http.Request, maxItems int) ([]batchIt
 		return nil, tooManyItems(maxItems), false
 	}
 	return req.Items, problem{}, true
-}
-
-// isJSON reports whether contentType names application/json, whatever its
-// case and parameters.
-func isJSON(contentType string) bool {
-	mt, _, err := mime.ParseMediaType(contentType)
-	return err == nil && mt == "application/json"
-}
-
-// decodeOne decodes into v the one JSON value r holds.
-func decodeOne(r io.Reader, v any) error {
-	dec := json.NewDecoder(r)
-	if err := dec.Decode(v); err != nil {
-		return err
-	}
-	switch _, err := dec.Token(); {
-	case err == io.EOF:
-		return nil
-	case err != nil:
-		return err
-	}
-	return errTrailingData
 }
 
 // checkItems returns the result of each item: the inputs it parses are
