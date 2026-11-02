@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.0](https://github.com/arnakoff/api/compare/v0.40.0...v0.41.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** limit refused api keys per client address before the key lookup ([#204](https://github.com/arnakoff/api/issues/204)) ([5edea29](https://github.com/arnakoff/api/commit/5edea291a4bc97df0ad39b74d0d8c252f347ba19)), closes [#197](https://github.com/arnakoff/api/issues/197)
+
 ## [0.40.0](https://github.com/arnakoff/api/compare/v0.39.0...v0.40.0) (2026-11-02)
 
 
