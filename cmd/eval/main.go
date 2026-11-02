@@ -89,12 +89,13 @@ func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Regi
 		}
 	}
 	regs := tape.Registries(live)
-	regs.Blacklists, regs.Whitelists = lists.Blacklists, lists.Whitelists
+	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
 	return regs.Without(opts.leftOut), nil
 }
 
-// storedLists returns the AMF and ACPR blacklists and the AMF white lists
-// of the snapshots stored in dir, as the API serves them. The ACPR
+// storedLists returns the AMF and ACPR blacklists, the AMF white lists and
+// the ARCEP numbering plan of the snapshots stored in dir, as the API
+// serves them. The ACPR
 // blacklist is read whatever the configuration: the corpus measures it
 // (testdata/corpus/README.md). A list without a stored snapshot is
 // reported unavailable.
@@ -111,7 +112,7 @@ func storedLists(ctx context.Context, dir string) (app.Registries, error) {
 	if err := s.Restore(ctx); err != nil {
 		return app.Registries{}, err
 	}
-	return app.Registries{Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s)}, nil
+	return app.Registries{Blacklists: catalog.Blacklists(opts, s), Whitelists: catalog.Whitelists(s), Numbering: catalog.Numbering(s)}, nil
 }
 
 // liveRegistries returns the RDAP, SIRENE and BODACC clients, each with an

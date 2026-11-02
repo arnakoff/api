@@ -8,7 +8,8 @@
 // (identifiants_CE). The files are Windows-1252 ("ANSI") and replaced
 // whole after each update.
 //
-// Each snapshot row is one assigned range. Index looks a phone number up
-// among them. An assignment says which operator holds a number's range,
-// nothing about who uses the number.
+// Each snapshot row is one assigned range. Plan indexes them into the
+// domain.NumberingPlan phone numbers are looked up in. An assignment says
+// which operator holds a number's range, nothing about who uses the
+// number.
 package arcep

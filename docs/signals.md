@@ -9,11 +9,13 @@ Liste publique des signaux. Un code est stable : le renommer passe par `api-chan
 | `amf_registered` | url, domaine, e-mail, téléphone, siren, siret | info | Listes blanches AMF (PSAN, biens divers) | Site, adresse, numéro ou SIREN d'une autorisation en cours (voir ci-dessous) |
 | `amf_registration_ended` | url, domaine, e-mail, téléphone, siren, siret | info | Liste blanche AMF PSAN | Toutes les autorisations trouvées sont radiées |
 | `domain_recent` | url, domaine, e-mail | attention | RDAP | Domaine créé il y a moins de 30 jours |
+| `phone_operator` | téléphone | info | Numérotation ARCEP | Numéro dans une tranche attribuée (voir ci-dessous) |
+| `phone_unassigned` | téléphone | attention | Numérotation ARCEP | Numéro du plan français hors de toute tranche attribuée |
 | `company_closed` | siren, siret | attention | SIRENE | Établissement siège fermé |
 | `company_procedure` | siren, siret | attention | BODACC | Avis publié de procédure collective, radiation, conciliation ou rétablissement professionnel |
 | `iban_country` | iban | info | IBAN | Pays de tenue du compte, d'après le code pays de l'IBAN |
 
-Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une marque, IBAN étranger pour une société française, numéro non attribué selon l'ARCEP.
+Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une marque, IBAN étranger pour une société française.
 
 ## Listes noires
 
@@ -60,3 +62,13 @@ Signaux prévus, non implémentés : imitation d'un domaine officiel ou d'une ma
 - **Liens** : `source_url` de `company_closed` est l'adresse de l'API Recherche d'entreprises interrogée (`https://recherche-entreprises.api.gouv.fr/search?include=siege&minimal=true&per_page=5&q=<siren>`), réponse JSON publique (décision du propriétaire, 02/11/2026) ; celui de `company_procedure` est la page de l'avis sur `www.bodacc.fr` (`url_complete`).
 - **Date d'observation** : `observed_at` est l'heure de la vérification ; les réponses peuvent venir du cache (24 h au plus).
 - **Niveau** `attention` : le fait est publié par le registre, la conclusion reste à l'utilisateur. Pas de signal si le registre ne répond pas.
+
+## Numérotation téléphonique
+
+- **Couverture** : les numéros du plan de numérotation français, métropole et départements d'outre-mer qui se composent comme des numéros français (`domain.NumberingPlanCovers`). Un numéro étranger laisse la source « non applicable » ; sans instantané ARCEP en service, elle est « indisponible » et ne donne aucun signal.
+- **`phone_operator`** (`info`) : « Le numéro appartient à une tranche attribuée à Société française du radiotéléphone (SFR0) le 08/12/2011 (numérotation ARCEP). Le numéro a pu être porté chez un autre opérateur. » Le nom est celui du fichier des opérateurs, suivi du mnémonique ; le mnémonique seul quand le nom manque. La seconde phrase rappelle la portabilité : l'attributaire de la tranche n'est pas forcément l'opérateur du numéro (décision du propriétaire, 02/11/2026).
+- **`phone_unassigned`** (`attention`) : « Le numéro n'appartient à aucune tranche attribuée par l'ARCEP : il ne peut pas être en service. »
+- **Conseil** des deux signaux : « Un numéro affiché peut être usurpé : rappelle l'organisme au numéro que tu trouves toi-même sur son site officiel. »
+- **Lien** : `https://www.data.gouv.fr/datasets/ressources-en-numerotation-telephonique` (vérifié le 02/11/2026), page du jeu qui mène aux fichiers (décision du propriétaire, 02/11/2026).
+- **Date d'observation** : `observed_at` est l'heure de téléchargement de l'instantané en service.
+- **Niveau** : un numéro hors tranche ne peut pas être en service, mais l'affichage d'un appel peut l'être quand même (usurpation) : `attention`, pas `alerte`.

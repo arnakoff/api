@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/domain/signal"
 )
 
 // NumberingSource is the name of the numbering plan, as shown to users.
-const NumberingSource domain.Source = "ARCEP"
+const NumberingSource = signal.NumberingSource
 
 // NumberingURL is the file of the assigned numbering ranges (MAJNUM).
 const NumberingURL = "https://extranet.arcep.fr/uploads/MAJNUM.csv"
@@ -66,7 +67,7 @@ func ParseNumbering(r io.Reader, operators map[string]Operator) (domain.Snapshot
 	if err != nil {
 		return domain.Snapshot{}, err
 	}
-	if _, err := NewIndex(snap); err != nil {
+	if _, err := Plan(snap); err != nil {
 		return domain.Snapshot{}, err
 	}
 	return snap, nil
@@ -78,9 +79,6 @@ func addRange(snap *domain.Snapshot, rec []string, operators map[string]Operator
 	prefix, first, last, code, territory := rec[0], rec[1], rec[2], rec[3], rec[4]
 	if prefix == "" {
 		return errEmpty(numberingHeader[0])
-	}
-	if _, _, err := parseBounds(first, last); err != nil {
-		return err
 	}
 	if !strings.HasPrefix(first, prefix) || !strings.HasPrefix(last, prefix) {
 		return fmt.Errorf("%w: range outside its prefix", ErrFormat)

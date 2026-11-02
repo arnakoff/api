@@ -174,3 +174,9 @@ func Whitelists(snaps listing.Snapshots) []app.Whitelist {
 	}
 	return out
 }
+
+// Numbering returns the ARCEP numbering plan, read from its snapshot in
+// snaps, for app.Registries.
+func Numbering(snaps listing.Snapshots) []app.Numbering {
+	return []app.Numbering{{Reader: listing.NewNumberingReader(snaps, arcep.NumberingSource, arcep.Plan)}}
+}

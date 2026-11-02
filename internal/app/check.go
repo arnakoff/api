@@ -13,10 +13,12 @@ import (
 )
 
 // Registries are the sources a Check consults: the blacklists, the white
-// lists, then the registries. A nil registry is left out of the reports.
+// lists, the numbering plan, then the registries. A nil registry is left
+// out of the reports.
 type Registries struct {
 	Blacklists []Blacklist
 	Whitelists []Whitelist
+	Numbering  []Numbering
 	Domains    DomainRegistry
 	Companies  CompanyRegistry
 	Notices    NoticeRegistry
@@ -30,6 +32,9 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	r.Whitelists = slices.DeleteFunc(slices.Clone(r.Whitelists), func(w Whitelist) bool {
 		return leave(w.Rule.Source())
 	})
+	r.Numbering = slices.DeleteFunc(slices.Clone(r.Numbering), func(n Numbering) bool {
+		return leave(n.source())
+	})
 	if r.Domains != nil && leave(r.Domains.Source()) {
 		r.Domains = nil
 	}
@@ -42,9 +47,10 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	return r
 }
 
-// Check reads the blacklists and white lists, reads the input itself and
-// consults the registries, all at once, about an input, and reports the signals they give and the
-// state of each. It is safe for concurrent use when the registries are.
+// Check reads the blacklists, the white lists, the numbering plan and the
+// input itself, and consults the registries, all at once, about an input,
+// and reports the signals they give and the state of each. It is safe for
+// concurrent use when the registries are.
 type Check struct {
 	registries Registries
 	clock      Clock
@@ -82,9 +88,10 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	// One slice holds every state: the hot path allocates it once.
 	lookups := c.lookups(in)
 	r := c.registries
-	states := make([]domain.SourceState, 0, len(r.Blacklists)+len(r.Whitelists)+len(lookups))
+	states := make([]domain.SourceState, 0, len(r.Blacklists)+len(r.Whitelists)+len(r.Numbering)+len(lookups))
 	signals, states := readLists(r.Blacklists, in, nil, states)
 	signals, states = readLists(r.Whitelists, in, signals, states)
+	signals, states = readLists(r.Numbering, in, signals, states)
 	signals = readInput(in, c.clock, signals)
 	signals, states = collect(ctx, lookups, signals, states)
 	return domain.NewReport(in.String(), signals, states)
