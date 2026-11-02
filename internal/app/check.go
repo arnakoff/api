@@ -14,11 +14,13 @@ import (
 
 // Registries are the sources a Check consults: the blacklists, the white
 // lists, the numbering plan, then the registries. A nil registry is left
-// out of the reports.
+// out of the reports. Officials, the reference list of official domains,
+// is read with the input and never reported as a source.
 type Registries struct {
 	Blacklists []Blacklist
 	Whitelists []Whitelist
 	Numbering  []Numbering
+	Officials  signal.Officials
 	Domains    DomainRegistry
 	Companies  CompanyRegistry
 	Notices    NoticeRegistry
@@ -35,6 +37,9 @@ func (r Registries) Without(leave func(domain.Source) bool) Registries {
 	r.Numbering = slices.DeleteFunc(slices.Clone(r.Numbering), func(n Numbering) bool {
 		return leave(n.source())
 	})
+	if leave(signal.LookalikeSource) {
+		r.Officials = signal.Officials{}
+	}
 	if r.Domains != nil && leave(r.Domains.Source()) {
 		r.Domains = nil
 	}
@@ -92,20 +97,24 @@ func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
 	signals, states := readLists(r.Blacklists, in, nil, states)
 	signals, states = readLists(r.Whitelists, in, signals, states)
 	signals, states = readLists(r.Numbering, in, signals, states)
-	signals = readInput(in, c.clock, signals)
+	signals = c.readInput(in, signals)
 	signals, states = collect(ctx, lookups, signals, states)
 	return domain.NewReport(in.String(), signals, states)
 }
 
 // readInput appends to signals what in tells about itself, without
-// consulting any source: the country of an IBAN.
-func readInput(in domain.Input, clock Clock, signals []domain.Signal) []domain.Signal {
-	i, ok := in.(domain.IBAN)
-	if !ok {
-		return signals
+// consulting any source: the country of an IBAN, a domain imitating an
+// official one.
+func (c *Check) readInput(in domain.Input, signals []domain.Signal) []domain.Signal {
+	if i, ok := in.(domain.IBAN); ok {
+		if s, found := signal.IBANCountry(i, c.clock.Now()); found {
+			signals = append(signals, s)
+		}
 	}
-	if s, found := signal.IBANCountry(i, clock.Now()); found {
-		signals = append(signals, s)
+	if d, ok := domainOf(in); ok {
+		if s, found := c.registries.Officials.Lookalike(d, c.clock.Now()); found {
+			signals = append(signals, s)
+		}
 	}
 	return signals
 }

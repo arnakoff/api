@@ -153,3 +153,40 @@ func BenchmarkParseDomain(b *testing.B) {
 		})
 	}
 }
+
+func TestDomainLabel(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"www.ameli.fr":           "ameli",
+		"impots.gouv.fr":         "impots",
+		"www.atos-limited.co.uk": "atos-limited",
+		"arnaque.github.io":      "arnaque",
+		"xn--bcher-kva.de":       "xn--bcher-kva",
+	}
+	for in, want := range tests {
+		d, err := domain.ParseDomain(in)
+		if err != nil {
+			t.Fatalf("ParseDomain(%q) error = %v", in, err)
+		}
+		if got := d.Label(); got != want {
+			t.Errorf("ParseDomain(%q).Label() = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestDecodeName(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"xn--bcher-kva.de":     "bücher.de",
+		"www.xn--bcher-kva":    "www.bücher",
+		"exemple.fr":           "exemple.fr",
+		"xn--invalid-.example": "xn--invalid-.example", // not decodable: kept
+	}
+	for in, want := range tests {
+		if got := domain.DecodeName(in); got != want {
+			t.Errorf("DecodeName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

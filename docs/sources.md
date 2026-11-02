@@ -91,6 +91,15 @@ Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier 
 - **Origine** : aucune source téléchargée. Le pays est lu dans l'IBAN lui-même, validé par `github.com/jacoelho/banking` (MIT) d'après le registre ISO 13616 de SWIFT ; le nom français du pays vient des tables CLDR générées dans `golang.org/x/text/language/display` (module sous BSD-3-Clause ; tables CLDR 32 d'après `display.CLDRVersion`, x/text v0.43.0).
 - **Usage** : signal `info` `iban_country` (`docs/signals.md`). Ne dit rien du titulaire du compte.
 
+## Domaines officiels (liste de référence)
+
+- **Origine** : aucune source téléchargée. Liste tenue dans le dépôt, `internal/adapter/reference/official/domains.csv`, embarquée dans le binaire : 27 domaines officiels souvent imités (15 services publics, 12 banques de détail), relevés le 02/11/2026. Colonnes : `domain` (domaine enregistrable), `alternates` (autres domaines du même organisme), `names` (noms cherchés comme mots dans un hôte), `of` (l'organisme, tel que le message le cite), `proof` (page de l'organisme qui le prouve).
+- **Vérification** : pour chaque ligne, `curl -sIL` mène le domaine au site de l'organisme, et la page `proof` (mentions légales, ou pied de page pour `service-public.gouv.fr`) nomme l'éditeur. Un domaine secondaire n'est listé que s'il redirige vers le domaine principal ou si les mentions légales de l'organisme le nomment. Les mentions légales de `caf.fr` et `labanquepostale.fr`, qui refusent `curl` (protection anti-robots), ont été lues avec un outil de récupération de pages web.
+- **Écartés** : `cic.com` et `msa.com` appartiennent à d'autres entreprises ; `qonto.com` (éditeur non nommé hors PDF) ; BNP Paribas, dont le site `mabanque.bnpparibas` a un label générique (« ma banque ») et dont les domaines `bnpparibas.*` refusent la vérification (403) ; noms descriptifs (« assurance maladie », « allocations familiales ») et sigles courants (`ants`, `amf`, `msa`, `cic`), qui désignent aussi des sites légitimes.
+- **Licence** : faits relevés par nous (noms de domaine et éditeurs), sans reprise de contenu ; aucune licence tierce.
+- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `official.Load`, donc la commande qui charge la liste (aujourd'hui `cmd/eval`).
+- **Usage** : signal `attention` `domain_lookalike` (`docs/signals.md`). Ne dit rien de l'exploitant du domaine signalé.
+
 ## Refusées
 
 - **OpenSanctions** : licence non commerciale. Les listes AMF sont reprises directement à la source.

@@ -42,6 +42,7 @@ var idnaProfile = idna.New(
 type Domain struct {
 	name        string
 	registrable string
+	label       string
 }
 
 // ParseDomain normalises a domain name or a web URL, as a user would paste
@@ -63,11 +64,12 @@ func parseHostname(host string) (Domain, error) {
 	if err != nil {
 		return Domain{}, err
 	}
-	registrable, err := registrableOf(name)
+	registrable, suffix, err := registrableOf(name)
 	if err != nil {
 		return Domain{}, err
 	}
-	return Domain{name: name, registrable: registrable}, nil
+	label := strings.TrimSuffix(registrable, "."+suffix)
+	return Domain{name: name, registrable: registrable, label: label}, nil
 }
 
 // String returns the normalised name, such as "www.groupe-ytria.com".
@@ -82,6 +84,24 @@ func (d Domain) String() string {
 // domain.
 func (d Domain) Registrable() string {
 	return d.registrable
+}
+
+// Label returns the registrable domain less its public suffix, the name a
+// registrant chose: "ameli" for www.ameli.fr, "atos-limited" for
+// www.atos-limited.co.uk.
+func (d Domain) Label() string {
+	return d.label
+}
+
+// DecodeName returns name with its A-labels decoded to Unicode under the
+// profile that encodes them ("xn--bcher-kva.de" is "bücher.de"), or name as
+// it is when it does not decode.
+func DecodeName(name string) string {
+	u, err := idnaProfile.ToUnicode(name)
+	if err != nil {
+		return name
+	}
+	return u
 }
 
 // hostOf returns the host of s, read as a URL when it starts with a scheme
@@ -150,19 +170,19 @@ func endsInNumber(name string) bool {
 	return strings.Trim(label, "0123456789") == ""
 }
 
-// registrableOf returns the public suffix of name plus one label. It rejects
-// a name under a TLD missing from the Public Suffix List and a name that is
-// itself a public suffix.
-func registrableOf(name string) (string, error) {
+// registrableOf returns the public suffix of name plus one label, and that
+// suffix. It rejects a name under a TLD missing from the Public Suffix List
+// and a name that is itself a public suffix.
+func registrableOf(name string) (registrable, suffix string, err error) {
 	suffix, icann := publicsuffix.PublicSuffix(name)
 	if !icann && !strings.Contains(suffix, ".") {
-		return "", fmt.Errorf("%w: unknown top-level domain %q", ErrInvalidDomain, suffix)
+		return "", "", fmt.Errorf("%w: unknown top-level domain %q", ErrInvalidDomain, suffix)
 	}
-	registrable, err := publicsuffix.EffectiveTLDPlusOne(name)
+	registrable, err = publicsuffix.EffectiveTLDPlusOne(name)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrInvalidDomain, err)
+		return "", "", fmt.Errorf("%w: %w", ErrInvalidDomain, err)
 	}
-	return registrable, nil
+	return registrable, suffix, nil
 }
 
 func isASCIILetter(c byte) bool { return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' }

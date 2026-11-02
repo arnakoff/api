@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/bodacc"
 	"github.com/arnakoff/api/internal/adapter/registry/rdap"
 	"github.com/arnakoff/api/internal/adapter/registry/sirene"
@@ -24,6 +25,7 @@ const defaultCorpus = "testdata/corpus"
 // leavable are the sources -without may name, lower case.
 var leavable = lowerNames(
 	amf.BlacklistSource, acpr.BlacklistSource, amf.PSANSource, amf.OffersSource, rdap.Source, sirene.Source, bodacc.Source,
+	official.Source,
 )
 
 // lowerNames returns the lower-case names of sources.
