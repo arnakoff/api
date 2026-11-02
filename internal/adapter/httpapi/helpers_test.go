@@ -13,6 +13,9 @@ import (
 	"github.com/arnakoff/api/internal/platform/logging/loggingtest"
 )
 
+// problemBase is the documentation of the problems in the handler tests.
+const problemBase = "https://arnakoff.com/docs/erreurs/"
+
 // readiness is a fake readiness.
 type readiness bool
 
@@ -21,7 +24,10 @@ func (r readiness) Ready() bool { return bool(r) }
 func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	t.Helper()
 	logger, buf := loggingtest.New(t)
-	return httpapi.Options{Ready: readiness(ready), Logger: logger, NewID: func() string { return "GENERATED" }}, buf
+	return httpapi.Options{
+		Ready: readiness(ready), Logger: logger, NewID: func() string { return "GENERATED" },
+		ProblemBase: problemBase,
+	}, buf
 }
 
 // serve sends a request to h and returns the recorded response.

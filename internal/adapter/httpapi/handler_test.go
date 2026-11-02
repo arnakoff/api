@@ -54,7 +54,7 @@ func TestUnmatchedRequestsGetAProblemNeverHTML(t *testing.T) {
 			t.Errorf("%s %s: Allow = %q, want %q", tt.method, tt.target, got, tt.allow)
 		}
 		p := decode(t, res)
-		if p["code"] != tt.code || p["type"] != "/problemes/"+tt.code || p["status"] != float64(tt.status) {
+		if p["code"] != tt.code || p["type"] != problemBase+tt.code || p["status"] != float64(tt.status) {
 			t.Errorf("%s %s: problem = %v, want code %s", tt.method, tt.target, p, tt.code)
 		}
 	}

@@ -49,7 +49,8 @@ func run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	logger := slog.Default()
-	srv := httpapi.NewServer(httpapi.NewHandler(httpapi.Options{Ready: s, Logger: logger}), logger)
+	opts := httpapi.Options{Ready: s, Logger: logger, ProblemBase: cfg.ProblemBaseURL}
+	srv := httpapi.NewServer(httpapi.NewHandler(opts), logger)
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		// The sync process posts to the webhook; this one only logs.

@@ -24,6 +24,9 @@ type Options struct {
 	// NewID makes a request identifier when the client sent no valid one;
 	// nil means crypto/rand.Text.
 	NewID func() string
+	// ProblemBase is the URL of the documentation of the problems, ending
+	// with a slash: the type of a problem is its code under it.
+	ProblemBase string
 }
 
 // NewHandler returns the handler of the API: its routes behind the request
@@ -32,7 +35,7 @@ func NewHandler(opts Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", healthz())
 	mux.Handle("GET /readyz", readyz(opts.Ready))
-	return wrap(opts, route(mux))
+	return wrap(opts, route(problemsOf(opts), mux))
 }
 
 // wrap applies the request middleware to next, outermost first: request
@@ -42,7 +45,7 @@ func wrap(opts Options, next http.Handler) http.Handler {
 	if newID == nil {
 		newID = rand.Text
 	}
-	return withRequestID(newID, observe(opts.Logger, secure(next)))
+	return withRequestID(newID, observe(opts.Logger, problemsOf(opts), secure(next)))
 }
 
 // secure sets the headers every response carries. A handler may replace
@@ -59,10 +62,10 @@ func secure(next http.Handler) http.Handler {
 // route dispatches to mux, but answers a problem where mux would answer a
 // text error or redirect to the canonical path with an HTML body: the API
 // redirects nothing.
-func route(mux *http.ServeMux) http.Handler {
+func route(ps problems, mux *http.ServeMux) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if path.Clean(r.URL.Path) != r.URL.Path {
-			writeProblem(w, notFound)
+			ps.write(w, r, notFound)
 			return
 		}
 		h, pattern := mux.Handler(r)
@@ -76,10 +79,10 @@ func route(mux *http.ServeMux) http.Handler {
 		probe := &statusOnly{header: w.Header()}
 		h.ServeHTTP(probe, r)
 		if probe.status == http.StatusMethodNotAllowed {
-			writeProblem(w, methodNotAllowed)
+			ps.write(w, r, methodNotAllowed)
 			return
 		}
-		writeProblem(w, notFound)
+		ps.write(w, r, notFound)
 	})
 }
 

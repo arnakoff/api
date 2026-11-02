@@ -17,18 +17,19 @@ import (
 // data for an email, a phone number or an IBAN. A
 // panic is logged with its type and stack, never its value, which may
 // quote the input.
-func observe(logger *slog.Logger, next http.Handler) http.Handler {
+func observe(logger *slog.Logger, ps problems, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec := &recorder{ResponseWriter: w}
 		start := time.Now()
-		defer func() { finish(logger, r, rec, start, recover()) }()
+		defer func() { finish(logger, ps, r, rec, start, recover()) }()
 		next.ServeHTTP(rec, r)
 	})
 }
 
-// finish ends the request r: it recovers the panic v, if any, and logs the
-// access line. http.ErrAbortHandler is panicked again, as net/http expects.
-func finish(logger *slog.Logger, r *http.Request, rec *recorder, start time.Time, v any) {
+// finish ends the request r: it recovers the panic v, if any, answering a
+// problem with ps, and logs the access line. http.ErrAbortHandler is
+// panicked again, as net/http expects.
+func finish(logger *slog.Logger, ps problems, r *http.Request, rec *recorder, start time.Time, v any) {
 	ctx := r.Context()
 	if v != nil {
 		if err, ok := v.(error); ok && errors.Is(err, http.ErrAbortHandler) {
@@ -37,7 +38,7 @@ func finish(logger *slog.Logger, r *http.Request, rec *recorder, start time.Time
 		logger.ErrorContext(ctx, "panic serving a request",
 			"panic", fmt.Sprintf("%T", v), "stack", string(debug.Stack()))
 		if rec.status == 0 {
-			writeProblem(rec, internalError)
+			ps.write(rec, r, internalError)
 		}
 	}
 	status := rec.status

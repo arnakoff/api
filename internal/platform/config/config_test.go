@@ -50,17 +50,21 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AlertWebhook != nil {
 		t.Errorf("AlertWebhook is set by default")
 	}
+	if cfg.ProblemBaseURL != config.DefaultProblemBaseURL {
+		t.Errorf("ProblemBaseURL = %q, want %q", cfg.ProblemBaseURL, config.DefaultProblemBaseURL)
+	}
 }
 
 func TestLoadReadsEveryVariable(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(map[string]string{
-		"ARNAKOFF_ADDR":          "127.0.0.1:9000",
-		"ARNAKOFF_LOG_LEVEL":     "debug",
-		"ARNAKOFF_LOG_KEY":       strings.ToUpper(validKey) + "20",
-		"ARNAKOFF_DATA_DIR":      "/data/",
-		"ARNAKOFF_SOURCE_ACPR":   "true",
-		"ARNAKOFF_ALERT_WEBHOOK": webhook,
+		"ARNAKOFF_ADDR":             "127.0.0.1:9000",
+		"ARNAKOFF_LOG_LEVEL":        "debug",
+		"ARNAKOFF_LOG_KEY":          strings.ToUpper(validKey) + "20",
+		"ARNAKOFF_DATA_DIR":         "/data/",
+		"ARNAKOFF_SOURCE_ACPR":      "true",
+		"ARNAKOFF_ALERT_WEBHOOK":    webhook,
+		"ARNAKOFF_PROBLEM_BASE_URL": "https://staging.arnakoff.com/docs/erreurs/",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -82,6 +86,9 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if got := string(cfg.AlertWebhook.Bytes()); got != webhook {
 		t.Errorf("AlertWebhook = %q, want %q", got, webhook)
+	}
+	if want := "https://staging.arnakoff.com/docs/erreurs/"; cfg.ProblemBaseURL != want {
+		t.Errorf("ProblemBaseURL = %q, want %q", cfg.ProblemBaseURL, want)
 	}
 }
 
@@ -107,6 +114,13 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"webhook with credentials", "ARNAKOFF_ALERT_WEBHOOK", "https://user:T0K3N@hooks.example.net/"},
 		{"webhook not a URL", "ARNAKOFF_ALERT_WEBHOOK", "https://hooks.example.net/%zzT0K3N"},
 		{"webhook relative", "ARNAKOFF_ALERT_WEBHOOK", "hooks.example.net/T0K3N"},
+		{"empty problem base", "ARNAKOFF_PROBLEM_BASE_URL", ""},
+		{"problem base relative", "ARNAKOFF_PROBLEM_BASE_URL", "/docs/erreurs/"},
+		{"problem base not https", "ARNAKOFF_PROBLEM_BASE_URL", "http://arnakoff.com/docs/erreurs/"},
+		{"problem base with credentials", "ARNAKOFF_PROBLEM_BASE_URL", "https://u:p@arnakoff.com/docs/erreurs/"},
+		{"problem base without final slash", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs"},
+		{"problem base with query", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs/?code="},
+		{"problem base with fragment", "ARNAKOFF_PROBLEM_BASE_URL", "https://arnakoff.com/docs/erreurs/#"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -5,37 +5,55 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/arnakoff/api/internal/platform/logging"
 )
 
-// problem is an RFC 9457 problem detail, as the contract's Problem schema
-// describes it.
+// instancePrefix makes the instance of a problem from the request
+// identifier: a tag URI (RFC 4151), which names without locating.
+const instancePrefix = "tag:arnakoff.com,2026:request:"
+
+// problem is a type of error the API answers. Every one has a Problem…
+// example in the contract, which arnakoff/web documents at the type URI.
 type problem struct {
-	Type   string `json:"type"`
-	Title  string `json:"title"`
-	Status int    `json:"status"`
-	Detail string `json:"detail"`
-	Code   string `json:"code"`
+	status int
+	code   string
+	title  string
+	detail string
 }
 
-// newProblem returns the problem code, documented at /problemes/<code>.
-func newProblem(status int, code, title, detail string) problem {
-	return problem{Type: "/problemes/" + code, Title: title, Status: status, Detail: detail, Code: code}
+// problemBody is an RFC 9457 problem detail, as the contract's Problem
+// schema describes it.
+type problemBody struct {
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	Status   int    `json:"status"`
+	Detail   string `json:"detail"`
+	Instance string `json:"instance,omitempty"`
+	Code     string `json:"code"`
 }
 
-// Problems the middleware answers.
-var (
-	notFound = newProblem(http.StatusNotFound, "not_found",
-		"Ressource introuvable", "Aucune ressource ne correspond à ce chemin.")
-	methodNotAllowed = newProblem(http.StatusMethodNotAllowed, "method_not_allowed",
-		"Méthode non autorisée", "Cette ressource n'accepte pas cette méthode.")
-	internalError = newProblem(http.StatusInternalServerError, "internal_error",
-		"Erreur interne", "Le serveur a rencontré une erreur. Réessaie plus tard.")
-)
+// problems writes the problems of the API, typed under base.
+type problems struct {
+	base string
+}
 
-// writeProblem sends p as application/problem+json.
-func writeProblem(w http.ResponseWriter, p problem) {
+// problemsOf returns the problem writer opts configures.
+func problemsOf(opts Options) problems {
+	return problems{base: opts.ProblemBase}
+}
+
+// write sends p, the answer to r, as application/problem+json. Its type
+// is the page of its code under the base, its instance names the request.
+func (ps problems) write(w http.ResponseWriter, r *http.Request, p problem) {
+	body := problemBody{
+		Type: ps.base + p.code, Title: p.title, Status: p.status, Detail: p.detail, Code: p.code,
+	}
+	if id, ok := logging.RequestID(r.Context()); ok {
+		body.Instance = instancePrefix + id
+	}
 	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(p.Status)
+	w.WriteHeader(p.status)
 	// The status is sent: an encoding error can only be a broken connection.
-	_ = json.NewEncoder(w).Encode(p)
+	_ = json.NewEncoder(w).Encode(body)
 }

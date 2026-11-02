@@ -59,7 +59,7 @@ func TestRoutesGetTheirPathWildcards(t *testing.T) {
 	var id string
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/items/{id}", func(_ http.ResponseWriter, r *http.Request) { id = r.PathValue("id") })
-	serve(t, httpapi.Wrap(opts, httpapi.Route(mux)), http.MethodGet, "/v1/items/42", nil)
+	serve(t, httpapi.Wrap(opts, httpapi.Route(opts, mux)), http.MethodGet, "/v1/items/42", nil)
 	if id != "42" {
 		t.Errorf("PathValue(id) = %q, want 42", id)
 	}
