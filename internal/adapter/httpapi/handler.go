@@ -57,6 +57,10 @@ type Options struct {
 	// IPLimit limits the requests of each client address to the routes
 	// needing no key; nil applies config.DefaultRateLimitIP a minute.
 	IPLimit Limiter
+	// AuthLimit limits the refused API keys of each client address on the
+	// check routes, before the key is looked up; nil applies
+	// config.DefaultRateLimitAuth a minute.
+	AuthLimit Limiter
 	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
 	// client's address: config.Config.TrustedProxies.
 	TrustedProxies []netip.Prefix
@@ -73,13 +77,16 @@ func NewHandler(opts Options) http.Handler {
 	if auth == nil {
 		auth = noAuthenticator{}
 	}
-	perKey := newQuota(limiterOr(opts.KeyLimit, config.DefaultRateLimitKey), keyPolicy, ps)
-	keyed := func(h http.Handler) http.Handler { return requireKey(auth, opts.Logger, ps, perKey, h) }
-	perAddr := newQuota(limiterOr(opts.IPLimit, config.DefaultRateLimitIP), ipPolicy, ps)
 	byAddr := func(r *http.Request) string { return clientKey(r, opts.TrustedProxies) }
+	gate := &keyGate{
+		auth: auth, logger: opts.Logger, ps: ps, clientOf: byAddr,
+		perKey:   newQuota(limiterOr(opts.KeyLimit, config.DefaultRateLimitKey), keyPolicy, ps),
+		refusals: newQuota(limiterOr(opts.AuthLimit, config.DefaultRateLimitAuth), authPolicy, ps),
+	}
+	perAddr := newQuota(limiterOr(opts.IPLimit, config.DefaultRateLimitIP), ipPolicy, ps)
 	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }
-	mux.Handle("GET /v1/check", keyed(check(opts.Check, ps)))
-	mux.Handle("POST /v1/check/batch", keyed(batch(opts.Check, ps, opts.BatchMaxItems)))
+	mux.Handle("GET /v1/check", gate.require(check(opts.Check, ps)))
+	mux.Handle("POST /v1/check/batch", gate.require(batch(opts.Check, ps, opts.BatchMaxItems)))
 	mux.Handle("GET /v1/sources", anonymous(sources(opts.Sources)))
 	mux.Handle("GET /v1/signals", anonymous(signals()))
 	return wrap(opts, route(ps, mux))

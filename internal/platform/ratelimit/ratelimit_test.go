@@ -105,7 +105,7 @@ func TestAllowRefusesNewKeysOverTheCap(t *testing.T) {
 	l := ratelimit.New(perMinute, 2, clk.Now)
 	l.Allow("a")
 	l.Allow("b")
-	want := ratelimit.Decision{Allowed: false, Remaining: 0, Reset: perMinute.Window}
+	want := ratelimit.Decision{Allowed: false, Remaining: 0, Reset: perMinute.Window, Full: true}
 	if d := l.Allow("c"); d != want {
 		t.Errorf("Allow(c) over the cap = %+v, want %+v", d, want)
 	}
@@ -170,5 +170,64 @@ func TestPerMinuteAppliesTheQuota(t *testing.T) {
 
 	if p := ratelimit.PerMinute(42, time.Now).Policy(); p.Quota != 42 || p.Window != time.Minute {
 		t.Errorf("PerMinute(42).Policy() = %+v, want 42 a minute", p)
+	}
+}
+
+func TestRefundGivesBackASpentRequest(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, newClock().Now)
+	l.Allow("k")
+	l.Allow("k")
+	l.Refund("k")
+	want := ratelimit.Decision{Allowed: true, Remaining: 0, Reset: 30 * time.Second}
+	if d := l.Allow("k"); d != want {
+		t.Errorf("Allow() after Refund = %+v, want %+v", d, want)
+	}
+}
+
+func TestRefundAfterTimeHasPassed(t *testing.T) {
+	t.Parallel()
+	clk := newClock()
+	l := ratelimit.New(perMinute, 10, clk.Now)
+	for range perMinute.Quota {
+		l.Allow("k")
+	}
+	clk.advance(500 * time.Millisecond)
+	l.Refund("k")
+	if d := l.Allow("k"); !d.Allowed || d.Remaining != 0 {
+		t.Errorf("Allow() after a late Refund = %+v, want allowed with nothing left", d)
+	}
+}
+
+func TestRefundNeverExceedsTheQuota(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, newClock().Now)
+	l.Allow("k")
+	l.Refund("k")
+	l.Refund("k")
+	want := ratelimit.Decision{Allowed: true, Remaining: 1, Reset: 30 * time.Second}
+	if d := l.Allow("k"); d != want {
+		t.Errorf("Allow() after two Refunds of one request = %+v, want %+v", d, want)
+	}
+}
+
+func TestRefundOfAnUnknownKeyKeepsNothing(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(perMinute, 10, newClock().Now)
+	l.Refund("never-seen")
+	if n := ratelimit.Len(l); n != 0 {
+		t.Errorf("Len() after Refund of an unknown key = %d, want 0", n)
+	}
+}
+
+func TestAllowTellsAFullLimiterApart(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 1, Window: time.Minute}, 1, newClock().Now)
+	l.Allow("a")
+	if d := l.Allow("a"); d.Allowed || d.Full {
+		t.Errorf("Allow(a) over its quota = %+v, want refused and not Full", d)
+	}
+	if d := l.Allow("b"); d.Allowed || !d.Full {
+		t.Errorf("Allow(b) on a full limiter = %+v, want refused and Full", d)
 	}
 }

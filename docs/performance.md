@@ -56,6 +56,27 @@ Lecture :
 - Profil CPU à 8 000 requêtes par seconde, sans latence : la recherche de la clé dans PostgreSQL (`Authenticator.Authenticate` → `Keys.FindKey` → `pgxpool`) prend 4,15 s des 4,95 s passées dans le handler, soit 84 % ; la vérification elle-même (`Check.Check`) 0,22 s et l'écriture JSON 0,19 s. Le goulot est l'aller-retour à la base par requête, pas le moteur de signaux. C'est la mesure qu'attendent #198 (cache des clés valides, durée à valider par le propriétaire) et #197 (flot de clés inconnues) ; aucun correctif n'est fait ici.
 - Ces chiffres valent pour cette machine, avec la base et le générateur sur le même hôte. L'hébergeur n'est pas choisi (#70) : le banc est à rejouer sur la machine de production avant le lancement.
 
+## Flot de clés inconnues (#197)
+
+Une clé bien formée se fabrique sans rien demander : sa somme de contrôle CRC-32 est publique. Avant #197, chaque clé bien formée mais jamais émise coûtait une recherche dans PostgreSQL. Depuis, chaque adresse cliente (préfixe /64 en IPv6) a un budget de clés refusées, `ARNAKOFF_RATE_LIMIT_AUTH` par minute (30 par défaut). Il est dépensé avant la recherche et rendu quand la clé est valide ou que la base ne répond pas. Une fois le budget épuisé, les requêtes de cette adresse reçoivent `429` sans recherche.
+
+Mesure du 02/11/2026, même machine et même banc que ci-dessus, registres rejoués sans latence. `ARNAKOFF_TRUSTED_PROXIES=127.0.0.1/32` : chaque cible porte un `X-Forwarded-For`, ce qui donne deux adresses clientes depuis un seul hôte. Pendant 30 s, en même temps : 1 000 requêtes par seconde avec les 100 clés valides depuis `198.51.100.1`, et un flot de 20 000 clés bien formées jamais émises depuis `203.0.113.9`. Réponses aux clés valides :
+
+| Flot de clés inconnues | Version | p50 | p99 | max | Succès | Recherches du flot en base |
+|---|---|---|---|---|---|---|
+| 4 000/s | avant (`main`) | 0,28 ms | 0,75 ms | 20,7 ms | 100 % | 120 000 |
+| 4 000/s | après | 0,29 ms | 1,57 ms | 29,5 ms | 100 % | 44 |
+| 12 000/s | avant (`main`) | 0,48 ms | 12,5 ms | 45,4 ms | 100 % | 360 002 |
+| 12 000/s | après | 0,30 ms | 0,94 ms | 32,8 ms | 100 % | 44 |
+
+Lecture :
+
+- Depuis une seule adresse, le flot n'atteint plus la base que 44 fois en 30 s : la rafale de 30, puis le budget rendu au rythme de 30 par minute. Toutes les autres requêtes reçoivent `429` en 54 µs au p50.
+- À 4 000 clés inconnues par seconde, la base locale suit sans peine, avant comme après. L'écart de p99 entre les deux lignes vient d'une série à l'autre, pas du budget : le banc tourne sur un poste partagé, et une série précédente, avec la même logique avant simplification, avait donné 0,44 ms.
+- Avant #197, la base et le générateur sur le même hôte, les clés valides ne recevaient aucun `503`. Leur p99 était cependant multiplié par 17 à 12 000 clés inconnues par seconde. Qu'une base distante, au pool saturé, finisse par renvoyer `503` une fois sa recherche bornée à 3 s dépassée reste « à vérifier » : ce cas n'est pas mesuré ici.
+- Le budget ne protège que contre un flot venu d'un petit nombre d'adresses. Un flot réparti sur beaucoup d'adresses atteint encore la base, à raison de 30 recherches par minute et par adresse. Seul le cache des clés valides de #198 rend les clés valides indépendantes de la base. Si le budget suit déjà autant d'adresses qu'il le peut (`ratelimit.DefaultMaxKeys`, 100 000), une adresse nouvelle n'est pas suivie et sa clé est vérifiée en base : un flot réparti ne peut pas fermer la porte à tous les nouveaux clients.
+- Coût sur le chemin chaud (`go test -bench`, Apple M4, deux séries de 6 passes contre `main`) : une allocation de plus par requête (`BenchmarkCheck` 40 → 41), la clé de l'adresse cliente. L'écart de temps reste dans le bruit : +4,0 % sur une série, −6,6 % sur l'autre (`BenchmarkCheck` 3,30 µs). `Limiter.Allow` passe de 53,9 à 23,1 ns : son seau à jetons, écrit pour pouvoir rendre une requête, remplace `golang.org/x/time/rate`.
+
 ## Budget de latence
 
 Budget **validé par le propriétaire le 02/11/2026** ; seuils mesurés côté client sur `GET /v1/check`, à un débit soutenu de 100 requêtes par seconde :

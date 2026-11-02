@@ -21,6 +21,9 @@ func TestLoadAppliesTheLimitDefaults(t *testing.T) {
 		t.Errorf("RateLimitKey, RateLimitIP = %d, %d, want %d, %d",
 			cfg.RateLimitKey, cfg.RateLimitIP, config.DefaultRateLimitKey, config.DefaultRateLimitIP)
 	}
+	if cfg.RateLimitAuth != config.DefaultRateLimitAuth {
+		t.Errorf("RateLimitAuth = %d, want %d", cfg.RateLimitAuth, config.DefaultRateLimitAuth)
+	}
 	if cfg.TrustedProxies != nil {
 		t.Errorf("TrustedProxies = %v, want nil when unset", cfg.TrustedProxies)
 	}
@@ -30,6 +33,7 @@ func TestLoadReadsTheLimits(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.Load(env(map[string]string{
 		"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_RATE_LIMIT_KEY": "600", "ARNAKOFF_RATE_LIMIT_IP": "1",
+		"ARNAKOFF_RATE_LIMIT_AUTH": "5",
 		"ARNAKOFF_TRUSTED_PROXIES": "10.0.0.0/8, 2001:db8::/32",
 	}))
 	if err != nil {
@@ -37,6 +41,9 @@ func TestLoadReadsTheLimits(t *testing.T) {
 	}
 	if cfg.RateLimitKey != 600 || cfg.RateLimitIP != 1 {
 		t.Errorf("RateLimitKey, RateLimitIP = %d, %d, want 600, 1", cfg.RateLimitKey, cfg.RateLimitIP)
+	}
+	if cfg.RateLimitAuth != 5 {
+		t.Errorf("RateLimitAuth = %d, want 5", cfg.RateLimitAuth)
 	}
 	want := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("2001:db8::/32")}
 	if !slices.Equal(cfg.TrustedProxies, want) {
@@ -61,6 +68,7 @@ func TestLoadRejectsInvalidLimits(t *testing.T) {
 		{"key limit zero", "ARNAKOFF_RATE_LIMIT_KEY", "0"},
 		{"key limit too high", "ARNAKOFF_RATE_LIMIT_KEY", "10001"},
 		{"ip limit not a number", "ARNAKOFF_RATE_LIMIT_IP", "30/min"},
+		{"auth limit zero", "ARNAKOFF_RATE_LIMIT_AUTH", "0"},
 		{"empty proxies", "ARNAKOFF_TRUSTED_PROXIES", ""},
 		{"proxy without length", "ARNAKOFF_TRUSTED_PROXIES", "10.0.0.1"},
 		{"proxy with host bits", "ARNAKOFF_TRUSTED_PROXIES", "10.0.0.1/8"},

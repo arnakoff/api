@@ -28,7 +28,11 @@
 // Each API key may send ARNAKOFF_RATE_LIMIT_KEY requests a minute to the
 // check routes (60 by default), and each client address
 // ARNAKOFF_RATE_LIMIT_IP to the routes needing no key (30 by default); the
-// probes are never limited. The limits are kept in memory, per instance.
+// probes are never limited. Each client address may also send
+// ARNAKOFF_RATE_LIMIT_AUTH refused keys a minute to the check routes (30 by
+// default): over it, its keys are answered 429 without being looked up, so
+// a flood of unknown keys cannot hold the key database. The limits are kept
+// in memory, per instance.
 // Behind a proxy, ARNAKOFF_TRUSTED_PROXIES lists its CIDR prefixes, whose
 // X-Forwarded-For field then tells the client's address; "none" says no
 // proxy stands in front. It is required to start with live keys.

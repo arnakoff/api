@@ -16,12 +16,16 @@ type Limiter interface {
 	Allow(key string) ratelimit.Decision
 	// Policy returns the policy applied to each key.
 	Policy() ratelimit.Policy
+	// Refund gives back one request of key, spent by Allow.
+	Refund(key string)
 }
 
 // Names of the quota policies in the RateLimit fields.
 const (
 	keyPolicy = "key"
 	ipPolicy  = "ip"
+	// authPolicy limits the refused API keys of each client address.
+	authPolicy = "auth"
 )
 
 // Canonical forms of the RateLimit field names
@@ -54,14 +58,27 @@ func newQuota(l Limiter, name string, ps problems) *quota {
 // (draft-ietf-httpapi-ratelimit-headers-11, sections 3 and 4).
 func (q *quota) admit(w http.ResponseWriter, r *http.Request, key string) bool {
 	d := q.limiter.Allow(key)
+	if !d.Allowed {
+		q.deny(w, r, d)
+		return false
+	}
+	q.describe(w.Header(), d)
+	return true
+}
+
+// deny answers the 429 of d, a request q refused, with Retry-After and the
+// RateLimit fields.
+func (q *quota) deny(w http.ResponseWriter, r *http.Request, d ratelimit.Decision) {
 	h := w.Header()
+	q.describe(h, d)
+	h.Set("Retry-After", seconds(d.Reset))
+	q.ps.write(w, r, tooManyRequests)
+}
+
+// describe sets the RateLimit-Policy and RateLimit fields of d in h.
+func (q *quota) describe(h http.Header, d ratelimit.Decision) {
 	h[rateLimitPolicyField] = []string{q.policy}
 	h[rateLimitField] = []string{`"` + q.name + `";r=` + strconv.Itoa(d.Remaining) + ";t=" + seconds(d.Reset)}
-	if !d.Allowed {
-		h.Set("Retry-After", seconds(d.Reset))
-		q.ps.write(w, r, tooManyRequests)
-	}
-	return d.Allowed
 }
 
 // limit answers next only for a request q admits, the client known by
@@ -80,7 +97,7 @@ func limiterOr(l Limiter, n int) Limiter {
 	if l != nil {
 		return l
 	}
-	return ratelimit.New(ratelimit.Policy{Quota: n, Window: time.Minute}, ratelimit.DefaultMaxKeys, time.Now)
+	return ratelimit.PerMinute(n, time.Now)
 }
 
 // seconds writes d in whole seconds, as delay-seconds (RFC 9110, section

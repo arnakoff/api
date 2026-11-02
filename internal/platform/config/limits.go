@@ -15,6 +15,10 @@ const (
 	DefaultRateLimitKey = 60
 	DefaultRateLimitIP  = 30
 
+	// DefaultRateLimitAuth is the number of refused API keys a minute of
+	// a client address, as the owner set it (#197).
+	DefaultRateLimitAuth = 30
+
 	// MaxRateLimit is the highest limit Load accepts.
 	MaxRateLimit = 10000
 )
