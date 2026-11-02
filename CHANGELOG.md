@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.38.0](https://github.com/arnakoff/api/compare/v0.37.0...v0.38.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** serve get /v1/signals from the signal catalog ([#193](https://github.com/arnakoff/api/issues/193)) ([210225e](https://github.com/arnakoff/api/commit/210225e7531a4096802916a02a3814f1bf7650a4)), closes [#55](https://github.com/arnakoff/api/issues/55)
+
 ## [0.37.0](https://github.com/arnakoff/api/compare/v0.36.0...v0.37.0) (2026-11-02)
 
 
