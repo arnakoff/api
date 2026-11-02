@@ -12,9 +12,9 @@ import (
 // users.
 const NumberingSource domain.Source = "ARCEP"
 
-// numberingURL is the data.gouv.fr page of the ARCEP numbering plan, which
+// NumberingURL is the data.gouv.fr page of the ARCEP numbering plan, which
 // links to its files; checked on 02/11/2026 (decision of the owner).
-const numberingURL = "https://www.data.gouv.fr/datasets/ressources-en-numerotation-telephonique"
+const NumberingURL = "https://www.data.gouv.fr/datasets/ressources-en-numerotation-telephonique"
 
 // spoofingAdvice is the advice of the phone signals: the number a call or
 // a message shows can be spoofed.
@@ -29,7 +29,7 @@ func Numbering(p domain.Phone, plan *domain.NumberingPlan, observedAt time.Time)
 	if !domain.NumberingPlanCovers(p) {
 		return domain.Signal{}, false
 	}
-	s := domain.Signal{Advice: spoofingAdvice, Source: NumberingSource, SourceURL: numberingURL, ObservedAt: observedAt}
+	s := domain.Signal{Advice: spoofingAdvice, Source: NumberingSource, SourceURL: NumberingURL, ObservedAt: observedAt}
 	a, ok := plan.Lookup(p)
 	if !ok {
 		s.Code, s.Level = "phone_unassigned", domain.LevelAttention

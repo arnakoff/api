@@ -10,6 +10,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/registry/rdap"
 	"github.com/arnakoff/api/internal/adapter/registry/sirene"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/httpclient"
 )
 
@@ -53,4 +54,10 @@ func domainRegistry() (*rdap.Client, error) {
 		}
 		return c, nil
 	})
+}
+
+// Infos describes the registries Registries returns, in the same order,
+// for app.NewSourceList.
+func Infos() []domain.SourceInfo {
+	return []domain.SourceInfo{rdap.Info(), sirene.Info(), bodacc.Info()}
 }

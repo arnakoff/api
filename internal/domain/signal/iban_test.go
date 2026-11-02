@@ -107,3 +107,13 @@ func BenchmarkIBANCountry(b *testing.B) {
 		signal.IBANCountry(in, checkedAt)
 	}
 }
+
+func TestIBANInfoNamesTheRegistryTheSignalCites(t *testing.T) {
+	t.Parallel()
+
+	info := signal.IBANInfo()
+
+	if info.Name != signal.IBANSource || info.URL != ibanRegistryURL || info.Publisher == "" || info.Licence == "" {
+		t.Errorf("IBANInfo() = %+v, want %s at %s with a publisher and a licence", info, signal.IBANSource, ibanRegistryURL)
+	}
+}

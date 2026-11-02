@@ -19,6 +19,17 @@ const IBANSource domain.Source = "IBAN"
 // by SWIFT, which lists the country code of every IBAN country.
 const IBANRegistryURL = "https://www.swift.com/standards/data-standards/iban-international-bank-account-number"
 
+// IBANInfo describes the source of iban_country for GET /v1/sources:
+// nothing is downloaded, the country is read in the IBAN itself.
+func IBANInfo() domain.SourceInfo {
+	return domain.SourceInfo{
+		Name:      IBANSource,
+		Publisher: "SWIFT (registre IBAN, norme ISO 13616)",
+		Licence:   "Aucune donnée téléchargée",
+		URL:       IBANRegistryURL,
+	}
+}
+
 // frenchRegions names countries in French, from the CLDR data of x/text.
 var frenchRegions = display.French.Regions()
 

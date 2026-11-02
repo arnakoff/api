@@ -140,3 +140,14 @@ func BenchmarkLookalikeShippedList(b *testing.B) {
 		o.Lookalike(d, checkedAt)
 	}
 }
+
+func TestInfoPointsAtTheShippedList(t *testing.T) {
+	t.Parallel()
+
+	info := official.Info()
+
+	if info.Name != official.Source || info.Publisher == "" || info.Licence == "" ||
+		!strings.HasSuffix(info.URL, "/internal/adapter/reference/official/domains.csv") {
+		t.Errorf("Info() = %+v, want %s pointing at domains.csv with a publisher and a licence", info, official.Source)
+	}
+}

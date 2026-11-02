@@ -19,6 +19,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/startup"
@@ -54,6 +55,10 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+	srcs, err := app.NewSourceList(s, cat.Infos(), append(live.Infos(), signal.IBANInfo())...)
+	if err != nil {
+		return err
+	}
 	if err := s.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
@@ -63,7 +68,8 @@ func run(ctx context.Context, cfg config.Config) error {
 	}
 	logger := slog.Default()
 	opts := httpapi.Options{
-		Ready: s, Check: check, Logger: logger, ProblemBase: cfg.ProblemBaseURL, BatchMaxItems: cfg.BatchMaxItems,
+		Ready: s, Check: check, Sources: srcs, Logger: logger, ProblemBase: cfg.ProblemBaseURL,
+		BatchMaxItems: cfg.BatchMaxItems,
 	}
 	srv := httpapi.NewServer(httpapi.NewHandler(opts), logger)
 	g, ctx := errgroup.WithContext(ctx)

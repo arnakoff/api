@@ -33,6 +33,8 @@ type Options struct {
 	Ready Readiness
 	// Check backs /v1/check and /v1/check/batch.
 	Check Checker
+	// Sources backs /v1/sources.
+	Sources SourceLister
 	// Logger receives the access log and the recovered panics.
 	Logger *slog.Logger
 	// NewID makes a request identifier when the client sent no valid one;
@@ -55,6 +57,7 @@ func NewHandler(opts Options) http.Handler {
 	mux.Handle("GET /readyz", readyz(opts.Ready))
 	mux.Handle("GET /v1/check", check(opts.Check, ps))
 	mux.Handle("POST /v1/check/batch", batch(opts.Check, ps, opts.BatchMaxItems))
+	mux.Handle("GET /v1/sources", sources(opts.Sources))
 	return wrap(opts, route(ps, mux))
 }
 
