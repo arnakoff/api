@@ -4,6 +4,7 @@ package domain_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/arnakoff/api/internal/domain"
@@ -113,6 +114,26 @@ func TestParseInputRejects(t *testing.T) {
 				t.Errorf("ParseInput(%q, %v) error = %v, want it to wrap %v", tt.in, tt.hint, err, tt.cause)
 			}
 		})
+	}
+}
+
+// An invalid IBAN is rejected, never checked (decision of the owner,
+// 02/11/2026): the error, which ends up in logs and in the API's problem
+// details, must not quote it.
+func TestParseInputErrorDoesNotQuoteAnIBAN(t *testing.T) {
+	t.Parallel()
+
+	const in = "FR15 2004 1010 0505 0001 3M02 606"
+	for _, hint := range []domain.Kind{domain.KindAuto, domain.KindIBAN} {
+		_, err := domain.ParseInput(in, hint)
+		if !errors.Is(err, domain.ErrInvalidIBAN) {
+			t.Fatalf("ParseInput(%v) error = %v, want %v", hint, err, domain.ErrInvalidIBAN)
+		}
+		for _, part := range []string{"FR15", "2004", "3M02", "606"} {
+			if strings.Contains(err.Error(), part) {
+				t.Errorf("ParseInput(%v) error %q quotes %q", hint, err, part)
+			}
+		}
 	}
 }
 
