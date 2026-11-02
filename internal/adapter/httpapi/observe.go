@@ -12,8 +12,9 @@ import (
 )
 
 // observe logs one access line per request and turns a panic into a 500
-// problem. The line holds the path, never the query: the query holds the
-// checked input, personal data for an email, a phone number or an IBAN. A
+// problem. The line names the matched route, never the path or the query:
+// both are the client's, and the query holds the checked input, personal
+// data for an email, a phone number or an IBAN. A
 // panic is logged with its type and stack, never its value, which may
 // quote the input.
 func observe(logger *slog.Logger, next http.Handler) http.Handler {
@@ -44,7 +45,7 @@ func finish(logger *slog.Logger, r *http.Request, rec *recorder, start time.Time
 		status = http.StatusOK // net/http sends 200 for a handler that wrote nothing
 	}
 	logger.LogAttrs(ctx, slog.LevelInfo, "request",
-		slog.String("method", r.Method), slog.String("path", r.URL.Path), slog.Int("status", status),
+		slog.String("method", r.Method), slog.String("route", r.Pattern), slog.Int("status", status),
 		slog.Int("bytes", rec.bytes), slog.Duration("duration", time.Since(start)))
 }
 

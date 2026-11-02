@@ -13,27 +13,52 @@ import (
 	"github.com/arnakoff/api/internal/adapter/httpapi/contracttest"
 )
 
-func TestAccessLogLeavesTheQueryOut(t *testing.T) {
+func TestAccessLogNamesTheRouteNeverThePathOrQuery(t *testing.T) {
 	t.Parallel()
 
-	opts, logs := options(t, true)
-	serve(t, httpapi.NewHandler(opts), http.MethodGet, "/healthz?q=jean.dupont@exemple.fr", nil)
+	for _, tt := range []struct {
+		name, target, route string
+		status              float64
+	}{
+		{"matched", "/healthz?q=jean.dupont@exemple.fr", "GET /healthz", 200},
+		{"unmatched", "/jean.dupont@exemple.fr", "", 404},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			opts, logs := options(t, true)
+			serve(t, httpapi.NewHandler(opts), http.MethodGet, tt.target, nil)
 
-	lines := logs.Lines(t)
-	if len(lines) != 1 {
-		t.Fatalf("logged %d lines, want 1", len(lines))
+			lines := logs.Lines(t)
+			if len(lines) != 1 {
+				t.Fatalf("logged %d lines, want 1", len(lines))
+			}
+			line := lines[0]
+			for k, want := range map[string]any{"msg": "request", "method": "GET", "route": tt.route, "status": tt.status} {
+				if line[k] != want {
+					t.Errorf("log %s = %v, want %v", k, line[k], want)
+				}
+			}
+			if _, ok := line["duration"]; !ok {
+				t.Error("log has no duration")
+			}
+			if strings.Contains(logs.String(), "dupont") {
+				t.Errorf("log %s quotes the request's path or query", logs.String())
+			}
+		})
 	}
-	line := lines[0]
-	for k, want := range map[string]any{"msg": "request", "method": "GET", "path": "/healthz", "status": float64(200)} {
-		if line[k] != want {
-			t.Errorf("log %s = %v, want %v", k, line[k], want)
-		}
-	}
-	if _, ok := line["duration"]; !ok {
-		t.Error("log has no duration")
-	}
-	if strings.Contains(logs.String(), "dupont") {
-		t.Errorf("log %s quotes the query", logs.String())
+}
+
+func TestRoutesGetTheirPathWildcards(t *testing.T) {
+	t.Parallel()
+
+	opts, _ := options(t, true)
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(r.PathValue("id")))
+	})
+	res := serve(t, httpapi.Wrap(opts, httpapi.Route(mux)), http.MethodGet, "/v1/items/42", nil)
+	if got := res.Body.String(); got != "42" {
+		t.Errorf("PathValue(id) = %q, want 42", got)
 	}
 }
 

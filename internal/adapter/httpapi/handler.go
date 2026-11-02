@@ -67,7 +67,9 @@ func route(mux *http.ServeMux) http.Handler {
 		}
 		h, pattern := mux.Handler(r)
 		if pattern != "" {
-			h.ServeHTTP(w, r)
+			// mux sets r.Pattern, which the access log names, and the
+			// path wildcards: mux.Handler sets neither.
+			mux.ServeHTTP(w, r)
 			return
 		}
 		// Let mux tell 404 from 405 and set Allow, then discard its body.
