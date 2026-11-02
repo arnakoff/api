@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.40.0](https://github.com/arnakoff/api/compare/v0.39.0...v0.40.0) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **httpapi:** limit requests per api key and per client address ([#201](https://github.com/arnakoff/api/issues/201))
+
+### Features
+
+* **httpapi:** limit requests per api key and per client address ([#201](https://github.com/arnakoff/api/issues/201)) ([2f69a4b](https://github.com/arnakoff/api/commit/2f69a4bf3db58f6c7efdb217c0d983f5ce6e4231)), closes [#58](https://github.com/arnakoff/api/issues/58)
+
 ## [0.39.0](https://github.com/arnakoff/api/compare/v0.38.0...v0.39.0) (2026-11-02)
 
 
