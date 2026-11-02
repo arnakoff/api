@@ -1,0 +1,644 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+openapi: 3.1.2
+info:
+  title: Arnakoff
+  version: 1.0.0-draft
+  summary: Signaux sourcés sur un site, une adresse e-mail, un numéro de téléphone, un IBAN, un SIREN ou un SIRET.
+  description: |
+    Arnakoff renvoie des signaux sourcés (listes noires de l'AMF et de l'ACPR, SIRENE, BODACC,
+    âge du domaine, numérotation ARCEP…), chacun avec sa source et sa date d'observation.
+
+    Aucun signal ne veut dire « Aucun signal connu dans nos sources » : l'absence d'une liste
+    noire ne prouve rien.
+
+    Conventions :
+    - champs JSON en `snake_case`, dates et heures en RFC 3339, en UTC ;
+    - erreurs au format RFC 9457 (`application/problem+json`) ;
+    - un client ignore les champs qu'il ne connaît pas : un champ facultatif, un code de signal ou
+      un code d'erreur peut être ajouté sans changer de version.
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+tags:
+  - name: vérification
+    description: Vérifier une ou plusieurs entrées.
+  - name: référence
+    description: Sources consultées et signaux possibles.
+paths:
+  /v1/check:
+    get:
+      operationId: check
+      tags: [vérification]
+      summary: Vérifier une entrée
+      description: |
+        Détecte le type de l'entrée (sauf si `type` est donné), la normalise, puis consulte les
+        sources qui la couvrent. Une source qui ne répond pas est marquée `indisponible` dans
+        `sources` : la vérification n'échoue pas pour autant.
+      parameters:
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/Type'
+      responses:
+        '200':
+          description: Rapport de la vérification.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+              examples:
+                blacklisted:
+                  $ref: '#/components/examples/ReportBlacklisted'
+                lookalike:
+                  $ref: '#/components/examples/ReportLookalike'
+                noSignal:
+                  $ref: '#/components/examples/ReportNoSignal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/check/batch:
+    post:
+      operationId: checkBatch
+      tags: [vérification]
+      summary: Vérifier plusieurs entrées
+      description: |
+        Vérifie chaque élément comme `GET /v1/check`. Les résultats suivent l'ordre des éléments ;
+        un élément invalide donne une erreur à sa place sans faire échouer le lot. Chaque élément
+        compte dans le quota. Le nombre maximal d'éléments est fixé par le serveur : au-delà, la
+        requête est refusée en `422`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRequest'
+            examples:
+              mixed:
+                $ref: '#/components/examples/BatchRequestMixed'
+      responses:
+        '200':
+          description: Un résultat par élément, dans l'ordre des éléments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResponse'
+              examples:
+                mixed:
+                  $ref: '#/components/examples/BatchResponseMixed'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/sources:
+    get:
+      operationId: listSources
+      tags: [référence]
+      summary: Lister les sources
+      description: Les sources consultées, leur licence et l'état de leurs données en service.
+      responses:
+        '200':
+          description: Les sources.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceList'
+              examples:
+                sources:
+                  $ref: '#/components/examples/SourceList'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /v1/signals:
+    get:
+      operationId: listSignals
+      tags: [référence]
+      summary: Lister les signaux
+      description: Le catalogue des signaux qu'une vérification peut donner.
+      responses:
+        '200':
+          description: Le catalogue des signaux.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalCatalog'
+              examples:
+                signals:
+                  $ref: '#/components/examples/SignalCatalog'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    Q:
+      name: q
+      in: query
+      required: true
+      description: |
+        L'entrée telle que l'utilisateur l'a collée : un domaine, une URL, une adresse e-mail, un
+        numéro de téléphone, un IBAN, un SIREN ou un SIRET.
+      schema:
+        type: string
+        minLength: 1
+      example: armen.ltd
+    Type:
+      name: type
+      in: query
+      required: false
+      description: Force le type de l'entrée au lieu de le détecter.
+      schema:
+        $ref: '#/components/schemas/InputType'
+      example: domain
+  headers:
+    RateLimit:
+      required: true
+      description: |
+        Quota restant de la politique en cours (`r`, requêtes restantes ; `t`, secondes avant
+        remise à zéro), selon draft-ietf-httpapi-ratelimit-headers-11.
+      schema:
+        type: string
+      example: '"default";r=0;t=30'
+    RateLimitPolicy:
+      required: true
+      description: |
+        Politique de quota (`q`, requêtes autorisées ; `w`, fenêtre en secondes), selon
+        draft-ietf-httpapi-ratelimit-headers-11. Valeurs de l'exemple données à titre
+        d'illustration : les quotas dépendent de l'offre.
+      schema:
+        type: string
+      example: '"default";q=100;w=60'
+    RetryAfter:
+      required: true
+      description: Secondes à attendre avant de réessayer (RFC 9110, section 10.2.3).
+      schema:
+        type: integer
+        minimum: 0
+      example: 30
+  responses:
+    BadRequest:
+      description: Requête mal formée, par exemple sans paramètre `q`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            missingQ:
+              $ref: '#/components/examples/ProblemMissingParameter'
+    UnprocessableContent:
+      description: Entrée reconnue comme d'aucun type, ou invalide pour le type donné.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidInput:
+              $ref: '#/components/examples/ProblemInvalidInput'
+    ContentTooLarge:
+      description: Corps de requête trop gros.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnsupportedMediaType:
+      description: Corps de requête qui n'est pas en `application/json`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Quota dépassé.
+      headers:
+        RateLimit:
+          $ref: '#/components/headers/RateLimit'
+        RateLimit-Policy:
+          $ref: '#/components/headers/RateLimitPolicy'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InternalError:
+      description: Erreur interne du serveur.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    InputType:
+      type: string
+      description: |
+        Type d'une entrée. Une URL est vérifiée comme son domaine (`domain`).
+      enum: [domain, email, phone, iban, siren, siret]
+      example: domain
+    Level:
+      type: string
+      description: |
+        Gravité d'un signal, de la plus faible à la plus forte : `info` (fait neutre),
+        `attention` (indice à vérifier avant d'agir), `alerte` (fait publié par une autorité,
+        comme une inscription sur une liste noire).
+      enum: [info, attention, alerte]
+      example: alerte
+    SourceStatus:
+      type: string
+      description: |
+        Rôle d'une source dans une vérification : `ok` (consultée), `indisponible` (pas
+        consultée : l'absence de signal de cette source ne prouve rien), `non_applicable` (ne
+        couvre pas ce type d'entrée).
+      enum: [ok, indisponible, non_applicable]
+      example: ok
+    SourceName:
+      type: string
+      description: Nom d'une source, tel qu'il est montré aux utilisateurs.
+      minLength: 1
+      examples: [AMF, ACPR, AMF PSAN, AMF biens divers, ARCEP, RDAP, SIRENE, BODACC, Domaines officiels, IBAN]
+    Report:
+      type: object
+      description: Rapport de la vérification d'une entrée.
+      required: [input, type, checked_at, summary, signals, sources]
+      properties:
+        input:
+          type: string
+          description: |
+            L'entrée normalisée qui a été vérifiée, comme le domaine extrait d'une URL. Pour une
+            adresse e-mail, un numéro de téléphone ou un IBAN, c'est une donnée personnelle : la
+            réponse n'est jamais mise en cache.
+          example: armen.ltd
+        type:
+          $ref: '#/components/schemas/InputType'
+        checked_at:
+          type: string
+          format: date-time
+          description: Heure de la vérification.
+          example: '2026-11-02T08:25:53Z'
+        summary:
+          type: [string, 'null']
+          description: |
+            « Aucun signal connu dans nos sources » quand `signals` est vide, `null` sinon : les
+            signaux parlent d'eux-mêmes. Ce n'est jamais une garantie.
+          enum: [Aucun signal connu dans nos sources, null]
+          example: null
+        signals:
+          type: array
+          description: Les signaux, du plus grave au moins grave.
+          items:
+            $ref: '#/components/schemas/Signal'
+        sources:
+          type: array
+          description: L'état de chaque source pour cette vérification.
+          items:
+            $ref: '#/components/schemas/SourceState'
+    Signal:
+      type: object
+      description: Un fait sourcé sur l'entrée vérifiée.
+      required: [code, level, message, source, source_url, observed_at]
+      properties:
+        code:
+          type: string
+          description: |
+            Identifiant stable de la règle (liste ouverte, voir `GET /v1/signals`) : un nouveau
+            code peut apparaître sans changer de version.
+          pattern: '^[a-z][a-z0-9_]*$'
+          examples:
+            - amf_blacklist
+            - acpr_blacklist
+            - amf_registered
+            - amf_registration_ended
+            - domain_recent
+            - domain_lookalike
+            - phone_operator
+            - phone_unassigned
+            - company_closed
+            - company_procedure
+            - iban_country
+        level:
+          $ref: '#/components/schemas/Level'
+        message:
+          type: string
+          description: Une phrase factuelle en français qui dit ce qui a été observé.
+          minLength: 1
+          example: Figure sur la liste noire de l'AMF (catégorie Usurpation) depuis le 08/10/2026.
+        advice:
+          type: string
+          description: Conseil facultatif en français, absent quand le signal n'en a pas.
+          minLength: 1
+          example: Tape toi-même l'adresse officielle plutôt que de suivre un lien reçu.
+        source:
+          $ref: '#/components/schemas/SourceName'
+        source_url:
+          type: string
+          format: uri
+          description: Page publique où le fait se vérifie.
+          example: https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-noires-et-mises-en-garde
+        observed_at:
+          type: string
+          format: date-time
+          description: |
+            Heure à laquelle le fait a été lu à la source : téléchargement de la liste en service,
+            ou heure de la vérification pour un registre interrogé à la demande.
+          example: '2026-11-02T08:14:42Z'
+    SourceState:
+      type: object
+      description: L'état d'une source pour une vérification.
+      required: [source, status]
+      properties:
+        source:
+          $ref: '#/components/schemas/SourceName'
+        status:
+          $ref: '#/components/schemas/SourceStatus'
+    BatchRequest:
+      type: object
+      description: Les entrées à vérifier.
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: Les entrées, au moins une.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/BatchItem'
+    BatchItem:
+      type: object
+      description: Une entrée à vérifier, comme les paramètres de `GET /v1/check`.
+      required: [q]
+      properties:
+        q:
+          type: string
+          description: L'entrée telle que l'utilisateur l'a collée.
+          minLength: 1
+          example: armen.ltd
+        type:
+          $ref: '#/components/schemas/InputType'
+    BatchResponse:
+      type: object
+      description: Un résultat par élément du lot, dans l'ordre des éléments.
+      required: [results]
+      properties:
+        results:
+          type: array
+          description: Les résultats, dans l'ordre des éléments.
+          items:
+            $ref: '#/components/schemas/BatchResult'
+    BatchResult:
+      description: Le rapport d'un élément, ou l'erreur qui l'a empêché d'être vérifié.
+      oneOf:
+        - type: object
+          description: Élément vérifié.
+          required: [report]
+          properties:
+            report:
+              $ref: '#/components/schemas/Report'
+        - type: object
+          description: Élément refusé, sans effet sur les autres.
+          required: [error]
+          properties:
+            error:
+              $ref: '#/components/schemas/Problem'
+    Source:
+      type: object
+      description: Une source consultée et l'état de ses données en service.
+      required: [name, publisher, licence, url, status, updated_at, entries]
+      properties:
+        name:
+          $ref: '#/components/schemas/SourceName'
+        publisher:
+          type: string
+          description: Éditeur de la source.
+          example: Autorité des marchés financiers
+        licence:
+          type: string
+          description: Licence sous laquelle la source est réutilisée.
+          example: Licence Ouverte 2.0
+        url:
+          type: string
+          format: uri
+          description: Page publique de la source.
+          example: https://www.data.gouv.fr/datasets/641d5dab1d84b530f7720b08
+        status:
+          type: string
+          description: |
+            `ok` quand des données sont en service, `indisponible` sinon. Un registre interrogé à
+            la demande est `ok` tant qu'il est configuré.
+          enum: [ok, indisponible]
+          example: ok
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+          description: |
+            Téléchargement des données en service ; `null` pour un registre interrogé à la demande
+            ou quand aucune donnée n'est en service.
+          example: '2026-11-02T08:14:42Z'
+        entries:
+          type: [integer, 'null']
+          minimum: 0
+          description: |
+            Nombre d'entrées en service ; `null` pour un registre interrogé à la demande.
+          example: 3466
+    SourceList:
+      type: object
+      description: Les sources.
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+    SignalDefinition:
+      type: object
+      description: Un signal qu'une vérification peut donner.
+      required: [code, level, inputs, source, condition]
+      properties:
+        code:
+          type: string
+          description: Identifiant stable du signal.
+          pattern: '^[a-z][a-z0-9_]*$'
+          example: amf_blacklist
+        level:
+          $ref: '#/components/schemas/Level'
+        inputs:
+          type: array
+          description: Les types d'entrée qui peuvent donner ce signal.
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/InputType'
+        source:
+          $ref: '#/components/schemas/SourceName'
+        condition:
+          type: string
+          description: Quand le signal est donné, en français.
+          example: Site inscrit ou adresse e-mail inscrite à l'identique
+    SignalCatalog:
+      type: object
+      description: Le catalogue des signaux.
+      required: [signals]
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignalDefinition'
+    Problem:
+      type: object
+      description: Erreur au format RFC 9457 (`application/problem+json`).
+      required: [type, title, status, detail, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: Référence de la page qui documente ce type d'erreur.
+          example: /problemes/invalid_input
+        title:
+          type: string
+          description: Résumé du type d'erreur, en français, le même pour toutes ses occurrences.
+          example: Entrée invalide
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: Code de statut HTTP de la réponse.
+          example: 422
+        detail:
+          type: string
+          description: Explication de cette occurrence, en français. Ne cite jamais une donnée personnelle.
+          example: L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, ni un numéro de téléphone, ni un IBAN, ni un SIREN, ni un SIRET.
+        instance:
+          type: string
+          format: uri-reference
+          description: Référence de cette occurrence, comme l'identifiant de la requête.
+          example: urn:uuid:3f1c2a64-1d0e-4b5e-9a57-2c8f0c6d7e21
+        code:
+          type: string
+          description: Identifiant stable du type d'erreur (liste ouverte).
+          pattern: '^[a-z][a-z0-9_]*$'
+          example: invalid_input
+  examples:
+    ReportBlacklisted:
+      summary: Domaine inscrit sur la liste noire de l'AMF
+      value: &blacklisted
+        input: armen.ltd
+        type: domain
+        checked_at: '2026-11-02T08:25:53Z'
+        summary: null
+        signals:
+          - code: amf_blacklist
+            level: alerte
+            message: Figure sur la liste noire de l'AMF (catégorie Usurpation) depuis le 08/10/2026.
+            source: AMF
+            source_url: https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-noires-et-mises-en-garde
+            observed_at: '2026-11-02T08:14:42Z'
+        sources:
+          - {source: AMF, status: ok}
+          - {source: ACPR, status: indisponible}
+          - {source: AMF PSAN, status: ok}
+          - {source: AMF biens divers, status: ok}
+          - {source: ARCEP, status: non_applicable}
+          - {source: RDAP, status: ok}
+          - {source: SIRENE, status: non_applicable}
+          - {source: BODACC, status: non_applicable}
+    ReportLookalike:
+      summary: Domaine qui ressemble à un domaine officiel
+      value:
+        input: ameli-remboursement.com
+        type: domain
+        checked_at: '2026-11-02T08:25:53Z'
+        summary: null
+        signals:
+          - code: domain_lookalike
+            level: attention
+            message: Le domaine ameli-remboursement.com ressemble à ameli.fr, site officiel de l'Assurance Maladie, mais n'en fait pas partie.
+            advice: Tape toi-même l'adresse officielle plutôt que de suivre un lien reçu.
+            source: Domaines officiels
+            source_url: https://www.ameli.fr/assure/mentions-legales-cgu
+            observed_at: '2026-11-02T08:25:53Z'
+        sources:
+          - {source: AMF, status: ok}
+          - {source: ACPR, status: indisponible}
+          - {source: AMF PSAN, status: ok}
+          - {source: AMF biens divers, status: ok}
+          - {source: ARCEP, status: non_applicable}
+          - {source: RDAP, status: indisponible}
+          - {source: SIRENE, status: non_applicable}
+          - {source: BODACC, status: non_applicable}
+    ReportNoSignal:
+      summary: Aucun signal
+      value:
+        input: '552100554'
+        type: siren
+        checked_at: '2026-11-02T08:25:53Z'
+        summary: Aucun signal connu dans nos sources
+        signals: []
+        sources:
+          - {source: AMF, status: non_applicable}
+          - {source: ACPR, status: non_applicable}
+          - {source: AMF PSAN, status: ok}
+          - {source: AMF biens divers, status: ok}
+          - {source: ARCEP, status: non_applicable}
+          - {source: RDAP, status: non_applicable}
+          - {source: SIRENE, status: indisponible}
+          - {source: BODACC, status: indisponible}
+    BatchRequestMixed:
+      summary: Un domaine et une entrée invalide
+      value:
+        items:
+          - q: armen.ltd
+          - q: FR76 0000
+            type: iban
+    BatchResponseMixed:
+      summary: Un rapport et une erreur
+      value:
+        results:
+          - report: *blacklisted
+          - error:
+              type: /problemes/invalid_input
+              title: Entrée invalide
+              status: 422
+              detail: L'entrée n'est pas un IBAN valide.
+              code: invalid_input
+    SourceList:
+      summary: Une liste synchronisée
+      value:
+        sources:
+          - name: AMF
+            publisher: Autorité des marchés financiers
+            licence: Licence Ouverte 2.0
+            url: https://www.data.gouv.fr/datasets/641d5dab1d84b530f7720b08
+            status: ok
+            updated_at: '2026-11-02T08:14:42Z'
+            entries: 3466
+    SignalCatalog:
+      summary: Un signal du catalogue
+      value:
+        signals:
+          - code: amf_blacklist
+            level: alerte
+            inputs: [domain, email]
+            source: AMF
+            condition: Site inscrit ou adresse e-mail inscrite à l'identique
+    ProblemMissingParameter:
+      summary: Paramètre q absent
+      value:
+        type: /problemes/missing_parameter
+        title: Paramètre manquant
+        status: 400
+        detail: Le paramètre q est obligatoire.
+        code: missing_parameter
+    ProblemInvalidInput:
+      summary: Entrée d'aucun type reconnu
+      value:
+        type: /problemes/invalid_input
+        title: Entrée invalide
+        status: 422
+        detail: L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, ni un numéro de téléphone, ni un IBAN, ni un SIREN, ni un SIRET.
+        code: invalid_input
