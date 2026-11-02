@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.0](https://github.com/arnakoff/api/compare/v0.36.0...v0.37.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** serve get /v1/sources with the state of each source ([#190](https://github.com/arnakoff/api/issues/190)) ([3395b9b](https://github.com/arnakoff/api/commit/3395b9b664b84be16ad9e938c18b690f8ff904d5)), closes [#54](https://github.com/arnakoff/api/issues/54)
+
 ## [0.36.0](https://github.com/arnakoff/api/compare/v0.35.0...v0.36.0) (2026-11-02)
 
 
