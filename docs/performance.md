@@ -58,7 +58,7 @@ Lecture :
 
 ## Budget de latence
 
-Proposition, **à valider par le propriétaire** ; seuils mesurés côté client sur `GET /v1/check`, à un débit soutenu de 100 requêtes par seconde :
+Budget **validé par le propriétaire le 02/11/2026** ; seuils mesurés côté client sur `GET /v1/check`, à un débit soutenu de 100 requêtes par seconde :
 
 | Mesure | p50 | p99 |
 |---|---|---|
