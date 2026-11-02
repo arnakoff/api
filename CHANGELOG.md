@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0](https://github.com/arnakoff/api/compare/v0.30.0...v0.31.0) (2026-11-02)
+
+
+### Features
+
+* **httpapi:** serve the api with bounded timeouts, probes and safe defaults ([#177](https://github.com/arnakoff/api/issues/177)) ([58dbf52](https://github.com/arnakoff/api/commit/58dbf52cf23a82080aa000ecc59717da4f12fd07)), closes [#50](https://github.com/arnakoff/api/issues/50)
+
 ## [0.30.0](https://github.com/arnakoff/api/compare/v0.29.1...v0.30.0) (2026-11-02)
 
 
