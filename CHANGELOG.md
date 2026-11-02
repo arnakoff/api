@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/arnakoff/api/compare/v0.28.0...v0.29.0) (2026-11-02)
+
+
+### Features
+
+* **signal:** flag domains that imitate official sites ([#164](https://github.com/arnakoff/api/issues/164)) ([e5477c8](https://github.com/arnakoff/api/commit/e5477c8c64b90fe1b0d49ecfe3b22f12f38af619)), closes [#47](https://github.com/arnakoff/api/issues/47)
+
 ## [0.28.0](https://github.com/arnakoff/api/compare/v0.27.0...v0.28.0) (2026-11-02)
 
 
