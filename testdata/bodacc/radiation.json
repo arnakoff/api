@@ -13,7 +13,8 @@
       "publicationavis": "B",
       "parution": "20260209",
       "numeroannonce": 47,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:B2026020947"
     },
     {
       "id": "A201700991916",
@@ -27,7 +28,8 @@
       "publicationavis": "A",
       "parution": "20170099",
       "numeroannonce": 1916,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A201700991916"
     },
     {
       "id": "A201700471420",
@@ -41,7 +43,8 @@
       "publicationavis": "A",
       "parution": "20170047",
       "numeroannonce": 1420,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A201700471420"
     },
     {
       "id": "A201601051406",
@@ -55,7 +58,8 @@
       "publicationavis": "A",
       "parution": "20160105",
       "numeroannonce": 1406,
-      "parutionavisprecedent": null
+      "parutionavisprecedent": null,
+      "url_complete": "https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:A201601051406"
     }
   ]
 }

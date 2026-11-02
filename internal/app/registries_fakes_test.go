@@ -53,20 +53,34 @@ func (f *fakeDomains) Lookup(ctx context.Context, d domain.Domain) (domain.Regis
 	return f.reg, nil
 }
 
-type fakeCompanies struct{ asked }
+// fakeCompanies answers company to every lookup that does not fail.
+type fakeCompanies struct {
+	asked
+	company domain.Company
+}
 
 func (*fakeCompanies) Source() domain.Source { return "SIRENE" }
 
 func (f *fakeCompanies) Lookup(ctx context.Context, n domain.SIREN) (domain.Company, error) {
-	return domain.Company{}, f.record(ctx, n.String())
+	if err := f.record(ctx, n.String()); err != nil {
+		return domain.Company{}, err
+	}
+	return f.company, nil
 }
 
-type fakeNotices struct{ asked }
+// fakeNotices answers notices to every lookup that does not fail.
+type fakeNotices struct {
+	asked
+	notices []domain.Notice
+}
 
 func (*fakeNotices) Source() domain.Source { return "BODACC" }
 
 func (f *fakeNotices) Notices(ctx context.Context, n domain.SIREN) ([]domain.Notice, error) {
-	return nil, f.record(ctx, n.String())
+	if err := f.record(ctx, n.String()); err != nil {
+		return nil, err
+	}
+	return f.notices, nil
 }
 
 // registries holds one fake of each registry.

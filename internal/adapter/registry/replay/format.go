@@ -21,6 +21,7 @@ type company struct {
 	Created            time.Time `json:"created,omitzero"`
 	HeadOfficeClosed   bool      `json:"head_office_closed,omitempty"`
 	HeadOfficeClosedOn time.Time `json:"head_office_closed_on,omitzero"`
+	URL                string    `json:"url,omitempty"`
 }
 
 // notice is the recorded form of a domain.Notice.
@@ -28,6 +29,7 @@ type notice struct {
 	ID        string            `json:"id"`
 	Kind      domain.NoticeKind `json:"kind"`
 	Published time.Time         `json:"published"`
+	URL       string            `json:"url,omitempty"`
 }
 
 func fromNotices(ns []domain.Notice) []notice {

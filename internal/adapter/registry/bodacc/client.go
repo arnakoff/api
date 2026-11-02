@@ -36,6 +36,7 @@ const maxNotices = 100
 var selectedFields = []string{
 	"id", "registre", "dateparution", "familleavis", "typeavis",
 	"publicationavis", "parution", "numeroannonce", "parutionavisprecedent",
+	"url_complete",
 }
 
 // Hosts returns the hosts the client reaches, for its allowlist.

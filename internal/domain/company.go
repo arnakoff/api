@@ -17,4 +17,7 @@ type Company struct {
 	HeadOfficeClosed bool
 	// HeadOfficeClosedOn is when the head office closed.
 	HeadOfficeClosedOn time.Time
+	// URL is the public address the register published the record at,
+	// where anyone can check it.
+	URL string
 }
