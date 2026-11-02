@@ -31,41 +31,68 @@ const (
 	invalidChallenge = bearerChallenge + `, error="invalid_token"`
 )
 
-// requireKey answers next only for a request carrying a valid API key in
-// an Authorization field of the Bearer scheme (RFC 6750, section 2.1) and
-// within the quota q of its key, known by its identifier. A
-// key that cannot be checked fails closed with a 503: no request passes
-// unchecked. The key is never logged.
-func requireKey(auth Authenticator, logger *slog.Logger, ps problems, q *quota, next http.Handler) http.Handler {
+// keyGate admits to the check routes the requests carrying a valid API key
+// in an Authorization field of the Bearer scheme (RFC 6750, section 2.1),
+// within the quota of their key, known by its identifier. A key that
+// cannot be checked fails closed with a 503: no request passes unchecked.
+// The key is never logged.
+//
+// Each client address, known by clientOf, also has a budget of refused
+// keys, spent before its key is checked and given back unless the key is
+// refused: a flood of well-formed but unknown keys, which anyone can make,
+// reaches the key store at a bounded pace per address. Its RateLimit
+// fields are only set on its 429. A budget too full to track one more
+// address lets that address be checked: a flood from many addresses must
+// not lock every new client out.
+type keyGate struct {
+	auth     Authenticator
+	logger   *slog.Logger
+	ps       problems
+	perKey   *quota
+	refusals *quota
+	clientOf func(*http.Request) string
+}
+
+// require answers next only for a request g admits.
+func (g *keyGate) require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header)
 		if !ok {
 			w.Header().Set("WWW-Authenticate", bearerChallenge)
-			ps.write(w, r, missingAPIKey)
+			g.ps.write(w, r, missingAPIKey)
 			return
 		}
-		var (
-			rec domain.KeyRecord
-			err error
-		)
-		if token == "" {
-			err = domain.ErrInvalidAPIKey
-		} else {
-			rec, err = auth.Authenticate(r.Context(), token)
+		client := g.clientOf(r)
+		if d := g.refusals.limiter.Allow(client); !d.Allowed && !d.Full {
+			g.refusals.deny(w, r, d)
+			return
+		}
+		rec, err := g.authenticate(r.Context(), token)
+		if !refused(err) {
+			g.refusals.limiter.Refund(client)
 		}
 		switch {
 		case err == nil:
-			if q.admit(w, r, strconv.FormatInt(rec.ID, 10)) {
+			if g.perKey.admit(w, r, strconv.FormatInt(rec.ID, 10)) {
 				next.ServeHTTP(w, r)
 			}
 		case refused(err):
 			w.Header().Set("WWW-Authenticate", invalidChallenge)
-			ps.write(w, r, invalidAPIKey)
+			g.ps.write(w, r, invalidAPIKey)
 		default:
-			logger.ErrorContext(r.Context(), "API key not checked", "error", err.Error())
-			ps.write(w, r, authenticationUnavailable)
+			g.logger.ErrorContext(r.Context(), "API key not checked", "error", err.Error())
+			g.ps.write(w, r, authenticationUnavailable)
 		}
 	})
+}
+
+// authenticate returns the record of the key token; an empty token, sent
+// as several Authorization fields, is invalid.
+func (g *keyGate) authenticate(ctx context.Context, token string) (domain.KeyRecord, error) {
+	if token == "" {
+		return domain.KeyRecord{}, domain.ErrInvalidAPIKey
+	}
+	return g.auth.Authenticate(ctx, token)
 }
 
 // bearerToken returns the token of the Authorization field of h, and false

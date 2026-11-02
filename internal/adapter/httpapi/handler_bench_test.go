@@ -29,7 +29,7 @@ func BenchmarkCheckRoute(b *testing.B) {
 		Ready: readiness(true), Check: emptyCheck{}, Auth: keyring{},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), NewID: func() string { return "BENCH" },
 		ProblemBase: problemBase, BatchMaxItems: 50,
-		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30),
+		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30), AuthLimit: frozenLimiter(1 << 30),
 	})
 	req := httptest.NewRequestWithContext(b.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil)
 	req.Header.Set("Authorization", "Bearer "+testKey)

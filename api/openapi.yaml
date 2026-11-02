@@ -235,7 +235,11 @@ components:
         permises par fenêtre ; `w`, fenêtre en secondes. Le quota entier peut être dépensé d'un
         coup, puis il revient au même rythme sur la fenêtre. Politique `key` sur les routes de
         vérification, par clé API (un lot compte pour une requête) ; politique `ip` sur les routes
-        sans clé, par adresse du client (préfixe /64 en IPv6). Valeurs de l'exemple données à
+        sans clé, par adresse du client (préfixe /64 en IPv6) ; politique `auth` sur les routes de
+        vérification, par adresse du client, qui compte les clés refusées (mal formées, inconnues
+        ou révoquées) : une fois ce quota dépensé, les clés envoyées depuis cette adresse ne sont
+        plus vérifiées et la réponse est `429`, même pour une clé valide. La politique `auth`
+        n'apparaît que sur ses réponses `429`. Valeurs de l'exemple données à
         titre d'illustration : les quotas dépendent de l'offre.
       schema:
         type: string
@@ -340,7 +344,9 @@ components:
             unavailable:
               $ref: '#/components/examples/ProblemAuthenticationUnavailable'
     TooManyRequests:
-      description: Quota dépassé.
+      description: |
+        Quota dépassé : celui de la clé (`key`), de l'adresse (`ip`) ou des clés refusées depuis
+        l'adresse (`auth`), nommé dans `RateLimit-Policy`.
       headers:
         RateLimit:
           $ref: '#/components/headers/RateLimit'

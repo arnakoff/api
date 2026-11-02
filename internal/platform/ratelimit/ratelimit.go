@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Package ratelimit limits the requests of each client with a token bucket
-// per key (golang.org/x/time/rate), in memory and bounded: an idle bucket
-// is forgotten, and the number of buckets is capped.
+// per key, in memory and bounded: an idle bucket is forgotten, and the
+// number of buckets is capped. A spent request can be given back, which
+// golang.org/x/time/rate cannot do once time has passed
+// (Reservation.CancelAt restores nothing after the time to act).
 package ratelimit
 
 import (
 	"math"
 	"sync"
 	"time"
-
-	"golang.org/x/time/rate"
 )
 
 // DefaultMaxKeys is a cap on the keys a Limiter tracks at once: 17 MB of
@@ -42,6 +42,9 @@ type Decision struct {
 	// the second: within it, the client may send no more than Remaining.
 	// It is zero when the whole quota is available.
 	Reset time.Duration
+	// Full reports a key refused only because the Limiter already keeps
+	// as many keys as it may: the key itself spent nothing.
+	Full bool
 }
 
 // Limiter applies a Policy to each key on its own. It is safe for
@@ -56,9 +59,10 @@ type Limiter struct {
 	lastSweep time.Time
 }
 
-// bucket is the token bucket of a key and when it was last used.
+// bucket is the token bucket of a key: the requests it held when it was
+// last used, at seen.
 type bucket struct {
-	tokens *rate.Limiter
+	tokens float64
 	seen   time.Time
 }
 
@@ -98,15 +102,42 @@ func (l *Limiter) Allow(key string) Decision {
 			l.sweep(now)
 		}
 		if len(l.buckets) >= l.maxKeys {
-			return Decision{Reset: l.policy.Window}
+			return Decision{Reset: l.policy.Window, Full: true}
 		}
-		b = &bucket{tokens: rate.NewLimiter(l.rate(), l.policy.Quota)}
+		b = &bucket{tokens: float64(l.policy.Quota), seen: now}
 		l.buckets[key] = b
 	}
+	l.refill(b, now)
+	allowed := b.tokens >= 1
+	if allowed {
+		b.tokens--
+	}
+	return Decision{Allowed: allowed, Remaining: int(b.tokens), Reset: l.untilNext(b.tokens)}
+}
+
+// Refund gives back one request of key, spent by Allow, up to the quota. A
+// key l does not know has its whole quota: Refund keeps nothing for it. A
+// refunded bucket is kept until the sweep, so that a client whose requests
+// are all refunded does not allocate one on each.
+func (l *Limiter) Refund(key string) {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b, ok := l.buckets[key]
+	if !ok {
+		return
+	}
+	l.refill(b, now)
+	b.tokens = min(b.tokens+1, float64(l.policy.Quota))
+}
+
+// refill restores the requests b earned since it was last used, up to the
+// quota, and dates it now. A clock going back restores nothing.
+func (l *Limiter) refill(b *bucket, now time.Time) {
+	if elapsed := now.Sub(b.seen); elapsed > 0 {
+		b.tokens = min(b.tokens+elapsed.Seconds()*l.rate(), float64(l.policy.Quota))
+	}
 	b.seen = now
-	allowed := b.tokens.AllowN(now, 1)
-	left := b.tokens.TokensAt(now)
-	return Decision{Allowed: allowed, Remaining: int(left), Reset: l.untilNext(left)}
 }
 
 // sweep forgets the buckets idle for a window. A bucket idle for a window
@@ -120,9 +151,9 @@ func (l *Limiter) sweep(now time.Time) {
 	l.lastSweep = now
 }
 
-// rate is the pace at which the policy restores requests.
-func (l *Limiter) rate() rate.Limit {
-	return rate.Limit(float64(l.policy.Quota) / l.policy.Window.Seconds())
+// rate is the pace at which the policy restores requests, per second.
+func (l *Limiter) rate() float64 {
+	return float64(l.policy.Quota) / l.policy.Window.Seconds()
 }
 
 // untilNext returns how long a bucket holding tokens takes to restore one
@@ -132,5 +163,5 @@ func (l *Limiter) untilNext(tokens float64) time.Duration {
 		return 0
 	}
 	missing := math.Floor(tokens) + 1 - tokens
-	return time.Duration(math.Ceil(missing/float64(l.rate()))) * time.Second
+	return time.Duration(math.Ceil(missing/l.rate())) * time.Second
 }

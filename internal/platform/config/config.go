@@ -38,6 +38,7 @@ const (
 
 	EnvRateLimitKey   = "ARNAKOFF_RATE_LIMIT_KEY"
 	EnvRateLimitIP    = "ARNAKOFF_RATE_LIMIT_IP"
+	EnvRateLimitAuth  = "ARNAKOFF_RATE_LIMIT_AUTH"
 	EnvTrustedProxies = "ARNAKOFF_TRUSTED_PROXIES"
 )
 
@@ -128,6 +129,11 @@ type Config struct {
 	// on the routes needing no key, from 1 to MaxRateLimit.
 	RateLimitIP int
 
+	// RateLimitAuth is the number of refused API keys per minute of a
+	// client address on the check routes, from 1 to MaxRateLimit: over it,
+	// its keys are no longer looked up.
+	RateLimitAuth int
+
 	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
 	// client's address: nil when unset, empty when set to "none".
 	// RequireTrustedProxies tells whether it is set.
@@ -160,6 +166,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvAPIKeyEnv, DefaultAPIKeyEnv, &cfg.APIKeyEnv, parseAPIKeyEnv),
 		parse(lookup, EnvRateLimitKey, strconv.Itoa(DefaultRateLimitKey), &cfg.RateLimitKey, parseRateLimit),
 		parse(lookup, EnvRateLimitIP, strconv.Itoa(DefaultRateLimitIP), &cfg.RateLimitIP, parseRateLimit),
+		parse(lookup, EnvRateLimitAuth, strconv.Itoa(DefaultRateLimitAuth), &cfg.RateLimitAuth, parseRateLimit),
 		parseTrustedProxies(lookup, &cfg.TrustedProxies),
 	}
 	if err := errors.Join(errs...); err != nil {

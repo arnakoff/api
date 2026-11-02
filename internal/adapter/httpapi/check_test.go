@@ -234,6 +234,7 @@ func BenchmarkCheck(b *testing.B) {
 	h := httpapi.NewHandler(httpapi.Options{
 		Ready: readiness(true), Check: &benchChecker{report: blacklisted()}, Auth: keyring{},
 		Logger: slog.New(slog.DiscardHandler), ProblemBase: problemBase,
+		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30), AuthLimit: frozenLimiter(1 << 30),
 	})
 	req := authorize(httptest.NewRequestWithContext(b.Context(), http.MethodGet, "/v1/check?q=armen.ltd", nil))
 	b.ReportAllocs()

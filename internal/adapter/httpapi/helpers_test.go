@@ -82,7 +82,12 @@ func (k keyring) Authenticate(context.Context, string) (domain.KeyRecord, error)
 
 // authorize sets the Authorization field of req to testKey.
 func authorize(req *http.Request) *http.Request {
-	req.Header.Set("Authorization", "Bearer "+testKey)
+	return withKey(req, testKey)
+}
+
+// withKey sets the Authorization field of req to the API key raw.
+func withKey(req *http.Request, raw string) *http.Request {
+	req.Header.Set("Authorization", "Bearer "+raw)
 	return req
 }
 
@@ -92,7 +97,7 @@ func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 	return httpapi.Options{
 		Ready: readiness(ready), Check: &checker{}, Auth: keyring{}, Logger: logger, NewID: func() string { return "GENERATED" },
 		ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
-		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30),
+		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30), AuthLimit: frozenLimiter(1 << 30),
 	}, buf
 }
 

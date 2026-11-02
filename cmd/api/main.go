@@ -74,7 +74,10 @@ func run(ctx context.Context, cfg config.Config) error {
 	}
 	return serve(ctx, cfg, s, httpapi.Options{
 		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
-		BatchMaxItems: cfg.BatchMaxItems, KeyLimit: ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now), IPLimit: ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
+		BatchMaxItems:  cfg.BatchMaxItems,
+		KeyLimit:       ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now),
+		IPLimit:        ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
+		AuthLimit:      ratelimit.PerMinute(cfg.RateLimitAuth, clock.System{}.Now),
 		TrustedProxies: cfg.TrustedProxies,
 	})
 }
