@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.1](https://github.com/arnakoff/api/compare/v0.29.0...v0.29.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **signal:** keep white-list pages on shared platforms from covering them ([#170](https://github.com/arnakoff/api/issues/170)) ([55570cb](https://github.com/arnakoff/api/commit/55570cbf61797e6ae29903b4268c824193125fe0)), closes [#156](https://github.com/arnakoff/api/issues/156)
+
 ## [0.29.0](https://github.com/arnakoff/api/compare/v0.28.0...v0.29.0) (2026-11-02)
 
 
