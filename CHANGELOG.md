@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.33.0](https://github.com/arnakoff/api/compare/v0.32.0...v0.33.0) (2026-11-02)
+
+
+### Features
+
+* **signal:** add medium, beacons and url shorteners to the shared platforms ([#181](https://github.com/arnakoff/api/issues/181)) ([f51650f](https://github.com/arnakoff/api/commit/f51650f62c63b4db2d6923894e3d9025542ddc95)), closes [#172](https://github.com/arnakoff/api/issues/172)
+
 ## [0.32.0](https://github.com/arnakoff/api/compare/v0.31.0...v0.32.0) (2026-11-02)
 
 
