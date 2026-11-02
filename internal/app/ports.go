@@ -107,3 +107,11 @@ type WhitelistReader interface {
 	// read-only.
 	Whitelist() (*domain.Whitelist, time.Time, error)
 }
+
+// NumberingReader reads the numbering plan held in memory.
+type NumberingReader interface {
+	// Numbering returns the plan in service and when it was fetched, or
+	// ErrNoSnapshot when none is. The plan is shared: treat it as
+	// read-only.
+	Numbering() (*domain.NumberingPlan, time.Time, error)
+}

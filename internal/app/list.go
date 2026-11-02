@@ -4,7 +4,8 @@ package app
 
 import "github.com/arnakoff/api/internal/domain"
 
-// list is a published list held in memory: a Blacklist or a Whitelist.
+// list is a published list held in memory: a Blacklist, a Whitelist or
+// the Numbering plan.
 type list interface {
 	source() domain.Source
 	// read returns the status of the list about in, and its signal if in
