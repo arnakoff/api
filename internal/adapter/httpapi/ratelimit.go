@@ -82,12 +82,19 @@ func (q *quota) describe(h http.Header, d ratelimit.Decision) {
 }
 
 // limit answers next only for a request q admits, the client known by
-// keyOf.
+// keyOf. A limiter too full to track one more client lets that client be
+// served, with no request left in its RateLimit field: a flood from many
+// addresses must not lock every new client out of routes that only read
+// memory.
 func limit(q *quota, keyOf func(*http.Request) string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if q.admit(w, r, keyOf(r)) {
-			next.ServeHTTP(w, r)
+		d := q.limiter.Allow(keyOf(r))
+		if !d.Allowed && !d.Full {
+			q.deny(w, r, d)
+			return
 		}
+		q.describe(w.Header(), d)
+		next.ServeHTTP(w, r)
 	})
 }
 
