@@ -1,0 +1,167 @@
+# Deploys a published version to Scaleway, fr-par (ADR 0005, #71).
+#
+# - Runs after the Image workflow published a version tag, or by hand for any
+#   version (rollback: run it with the previous version). The environment
+#   `production` requires the owner's approval and accepts main only.
+# - Verifies the cosign signature of the image published on GHCR, then copies
+#   its linux/amd64 image, by digest, to Scaleway Container Registry: Scaleway
+#   containers accept linux/amd64 only and discourage external registries.
+# - Writes every secret of the environment into the container and into the
+#   Secret Manager versions of the sync job (ADR 0005, Secrets), then deploys
+#   the digest. OpenTofu (deploy/tofu) owns everything else.
+# - The scw CLI is a pinned release binary checked against its SHA256SUMS.
+#
+# Actions are pinned by full commit SHA (docs/standards.md).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Image]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to deploy, such as 0.51.0
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Deploy
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      # Read ghcr.io/arnakoff/api.
+      packages: read
+    env:
+      IMAGE: ghcr.io/arnakoff/api
+      TARGET: rg.fr-par.scw.cloud/arnakoff/api
+      SCW_CLI_VERSION: 2.65.2
+      SCW_CLI_SHA256: 184e697e6ab8a8e825be1c5cf61d104341abe3598bb0e20b7a54618cb05231b3
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_ORGANIZATION_ID: ${{ vars.SCW_DEFAULT_ORGANIZATION_ID }}
+      SCW_DEFAULT_PROJECT_ID: ${{ vars.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_REGION: ${{ vars.SCW_DEFAULT_REGION }}
+    steps:
+      - name: Resolve the version
+        id: version
+        env:
+          INPUT: ${{ inputs.version }}
+          # For a tag push, head_branch is the tag (vX.Y.Z); checked by the
+          # version pattern below.
+          TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          v="${INPUT:-${TAG#v}}"
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::not a version: $v"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The signature names the Image workflow at the version's tag (README).
+      - name: Verify the signature and find the linux/amd64 digest
+        id: image
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          index="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest)"
+          identity="https://github.com/arnakoff/api/.github/workflows/image.yml@refs/tags/v${VERSION}"
+          issuer=https://token.actions.githubusercontent.com
+          cosign verify "${IMAGE}@${index}" --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
+          amd64="$(docker buildx imagetools inspect "${IMAGE}@${index}" --raw \
+            | jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest')"
+          if [ -z "$amd64" ]; then
+            echo "::error::no linux/amd64 image in ${IMAGE}@${index}"
+            exit 1
+          fi
+          # --recursive signing covers each platform's image too.
+          cosign verify "${IMAGE}@${amd64}" --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
+          echo "amd64=$amd64" >> "$GITHUB_OUTPUT"
+      - name: Copy the image to Scaleway Container Registry
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+        run: |
+          docker login rg.fr-par.scw.cloud/arnakoff -u nologin --password-stdin <<< "$SCW_SECRET_KEY"
+          docker buildx imagetools create --tag "${TARGET}:${VERSION}" "${IMAGE}@${AMD64}"
+          copied="$(docker buildx imagetools inspect "${TARGET}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest)"
+          if [ "$copied" != "$AMD64" ]; then
+            echo "::error::copied digest $copied differs from $AMD64"
+            exit 1
+          fi
+      - name: Install the scw CLI
+        run: |
+          curl -fsSL -o scw "https://github.com/scaleway/scaleway-cli/releases/download/v${SCW_CLI_VERSION}/scaleway-cli_${SCW_CLI_VERSION}_linux_amd64"
+          echo "${SCW_CLI_SHA256}  scw" | sha256sum --check --strict
+          install -m 0755 scw /usr/local/bin/scw
+          rm scw
+      - name: Write the secrets of the sync job
+        env:
+          SECRET_IDS: ${{ vars.SCW_SYNC_SECRET_IDS }}
+          ARNAKOFF_LOG_KEY: ${{ secrets.ARNAKOFF_LOG_KEY }}
+          ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY: ${{ secrets.SYNC_SNAPSHOT_BUCKET_ACCESS_KEY }}
+          ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY: ${{ secrets.SYNC_SNAPSHOT_BUCKET_SECRET_KEY }}
+        run: |
+          umask 077
+          for name in $(jq -r 'keys[]' <<< "$SECRET_IDS"); do
+            id="$(jq -r --arg n "$name" '.[$n]' <<< "$SECRET_IDS")"
+            printf '%s' "${!name}" > "$RUNNER_TEMP/secret"
+            scw secret version create secret-id="$id" data=@"$RUNNER_TEMP/secret" disable-previous=true -o json > /dev/null
+          done
+          rm -f "$RUNNER_TEMP/secret"
+      - name: Deploy the sync job
+        env:
+          JOB_ID: ${{ vars.SCW_JOB_DEFINITION_ID }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+        run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
+      - name: Deploy the api container
+        env:
+          CONTAINER_ID: ${{ vars.SCW_CONTAINER_ID }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+          ARNAKOFF_LOG_KEY: ${{ secrets.ARNAKOFF_LOG_KEY }}
+          ARNAKOFF_API_KEY_SECRET: ${{ secrets.ARNAKOFF_API_KEY_SECRET }}
+          ARNAKOFF_DATABASE_URL: ${{ secrets.ARNAKOFF_DATABASE_URL }}
+          ARNAKOFF_TURNSTILE_SECRET: ${{ secrets.ARNAKOFF_TURNSTILE_SECRET }}
+          ARNAKOFF_SMTP_PASSWORD: ${{ secrets.ARNAKOFF_SMTP_PASSWORD }}
+          ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY: ${{ secrets.API_SNAPSHOT_BUCKET_ACCESS_KEY }}
+          ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY: ${{ secrets.API_SNAPSHOT_BUCKET_SECRET_KEY }}
+        run: |
+          args=()
+          for name in ARNAKOFF_LOG_KEY ARNAKOFF_API_KEY_SECRET ARNAKOFF_DATABASE_URL ARNAKOFF_TURNSTILE_SECRET \
+            ARNAKOFF_SMTP_PASSWORD ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY; do
+            if [ -n "${!name}" ]; then
+              args+=("secret-environment-variables.${name}=${!name}")
+            fi
+          done
+          scw container container update "$CONTAINER_ID" image="${TARGET}@${AMD64}" "${args[@]}" --wait -o json > /dev/null
+      # SCW_CONTAINER_ENDPOINT is the container_endpoint output of deploy/tofu.
+      - name: Check the deployed API
+        env:
+          ENDPOINT: ${{ vars.SCW_CONTAINER_ENDPOINT }}
+          VERSION: ${{ steps.version.outputs.version }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+        run: |
+          curl -fsS --max-time 10 --retry 5 --retry-all-errors "${ENDPOINT}/readyz" > /dev/null
+          {
+            echo '## Deployed'
+            echo
+            echo "Version ${VERSION}, ${TARGET}@${AMD64}, ${ENDPOINT}"
+          } >> "$GITHUB_STEP_SUMMARY"
