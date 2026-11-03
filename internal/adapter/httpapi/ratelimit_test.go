@@ -55,7 +55,7 @@ func limitHeaders(t *testing.T, res *httptest.ResponseRecorder, policy, limit, r
 
 func TestCheckRoutesAreLimitedPerKey(t *testing.T) {
 	t.Parallel()
-	for _, route := range []string{"GET /v1/check?q=armen.ltd", "POST /v1/check/batch"} {
+	for _, route := range []string{"GET /v1/check?q=armen.ltd", "POST /v1/check/batch", "POST /mcp"} {
 		t.Run(route, func(t *testing.T) {
 			t.Parallel()
 			h := httpapi.NewHandler(limitedOptions(t))
@@ -75,6 +75,17 @@ func TestCheckRoutesAreLimitedPerKey(t *testing.T) {
 				t.Errorf("code = %v, want too_many_requests", code)
 			}
 		})
+	}
+}
+
+func TestMCPSharesTheQuotaOfTheKey(t *testing.T) {
+	t.Parallel()
+	h := httpapi.NewHandler(limitedOptions(t))
+	if res := do(h, authorize(fromAddr(t, http.MethodGet, "/v1/check?q=armen.ltd", "203.0.113.7:1"))); res.Code != http.StatusOK {
+		t.Fatalf("GET /v1/check: status %d, want 200", res.Code)
+	}
+	if res := do(h, authorize(fromAddr(t, http.MethodPost, "/mcp", "203.0.113.7:1"))); res.Code != http.StatusTooManyRequests {
+		t.Errorf("POST /mcp once the key spent its quota: status %d, want 429", res.Code)
 	}
 }
 

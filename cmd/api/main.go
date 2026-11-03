@@ -14,6 +14,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/alert"
 	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/httpapi"
+	"github.com/arnakoff/api/internal/adapter/mcp"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
@@ -63,6 +64,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	opts, err := withAccess(cfg, httpapi.Options{
 		Ready: svc.Sync, Check: svc.Check, Auth: auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems: cfg.BatchMaxItems, TrustedProxies: cfg.TrustedProxies,
+		MCP: mcp.HTTP(mcp.NewServer(mcp.Options{Check: svc.Check, Sources: svc.Sources})),
 	})
 	if err != nil {
 		return err

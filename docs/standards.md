@@ -12,7 +12,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | gofumpt | v0.12.0 | GitHub releases |
 | gosec | v2.30.0 (via golangci-lint) | GitHub releases |
 | govulncheck (`golang.org/x/vuln`) | v1.9.0 | `proxy.golang.org` |
-| SDK MCP Go (`modelcontextprotocol/go-sdk`, MIT en transition vers Apache-2.0 d'après son `LICENSE`, les deux compatibles ; paquets liés à `cmd/mcp` : `google/jsonschema-go` et `segmentio/asm`, `segmentio/encoding` (MIT), `yosida95/uritemplate/v3` (BSD-3-Clause), `golang.org/x/oauth2` (BSD-3-Clause) ; `golang-jwt/jwt` n'est pas lié) | v1.8.0 (publiée le 04/09/2026), revérifiée le 03/11/2026 | `proxy.golang.org` |
+| SDK MCP Go (`modelcontextprotocol/go-sdk`, MIT en transition vers Apache-2.0 d'après son `LICENSE`, les deux compatibles ; paquets liés à `cmd/api` et `cmd/mcp` : `google/jsonschema-go` et `segmentio/asm`, `segmentio/encoding` (MIT), `yosida95/uritemplate/v3` (BSD-3-Clause), `golang.org/x/oauth2` (BSD-3-Clause) ; `golang-jwt/jwt` n'est pas lié) | v1.8.0 (publiée le 04/09/2026), revérifiée le 03/11/2026 | `proxy.golang.org` |
 | JSON Schema des outils MCP (`google/jsonschema-go`, MIT) : le type de schéma du SDK MCP, importé pour décrire l'entrée de l'outil `check` ; même version que celle requise par le SDK | v0.4.3 (publiée le 17/04/2026, dernier commit le 22/05/2026), vérifiée le 03/11/2026 | `proxy.golang.org`, GitHub |
 | oapi-codegen | v2.8.1 | `proxy.golang.org` |
 | benchstat (`golang.org/x/perf`, sans tag : pseudo-version) | v0.0.0-20261009192801-be2c69fb417e | `proxy.golang.org` |
