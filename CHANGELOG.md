@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.0](https://github.com/arnakoff/api/compare/v0.44.1...v0.45.0) (2026-11-03)
+
+
+### Features
+
+* **mcp:** serve check and list_sources over stdio ([#217](https://github.com/arnakoff/api/issues/217)) ([5066d6e](https://github.com/arnakoff/api/commit/5066d6eac17bccd0051a36b834d6b685d5e0e619)), closes [#63](https://github.com/arnakoff/api/issues/63)
+
 ## [0.44.1](https://github.com/arnakoff/api/compare/v0.44.0...v0.44.1) (2026-11-03)
 
 
