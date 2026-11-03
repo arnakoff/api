@@ -103,13 +103,13 @@ func run(ctx context.Context, opts options, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	auth, closeKeys, err := postgres.OpenAuthenticator(ctx, cfg)
+	keys, err := postgres.OpenKeyServices(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	defer closeKeys()
+	defer keys.Close()
 	return serve(ctx, cfg, opts.pprof, httpapi.Options{
-		Ready: svc.Sync, Check: svc.Check, Auth: auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		Ready: svc.Sync, Check: svc.Check, Auth: keys.Auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems:  cfg.BatchMaxItems,
 		KeyLimit:       ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now),
 		IPLimit:        ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),

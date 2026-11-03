@@ -71,23 +71,23 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	auth, closeKeys, err := postgres.OpenAuthenticator(ctx, cfg)
+	keys, err := postgres.OpenKeyServices(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	defer closeKeys()
+	defer keys.Close()
 	if err := svc.Sync.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
 	opts, err := withAccess(cfg, httpapi.Options{
-		Ready: svc.Sync, Check: svc.Check, Auth: auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		Ready: svc.Sync, Check: svc.Check, Auth: keys.Auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems: cfg.BatchMaxItems, TrustedProxies: cfg.TrustedProxies,
 		MCP: mcp.HTTP(mcp.NewServer(mcp.Options{Check: svc.Check, Sources: svc.Sources})),
 	})
 	if err != nil {
 		return err
 	}
-	return serve(ctx, cfg, svc.Sync, opts)
+	return serve(ctx, cfg, svc.Sync, keys.Purge, opts)
 }
 
 // withAccess returns opts with the access rules of cfg: its rate limits
@@ -104,9 +104,9 @@ func withAccess(cfg config.Config, opts httpapi.Options) (httpapi.Options, error
 	return opts, nil
 }
 
-// serve answers the API of opts on cfg.Addr and reloads the snapshots of s
-// until ctx is done.
-func serve(ctx context.Context, cfg config.Config, s *app.Sync, opts httpapi.Options) error {
+// serve answers the API of opts on cfg.Addr, reloads the snapshots of s
+// and purges the revoked keys with purge until ctx is done.
+func serve(ctx context.Context, cfg config.Config, s *app.Sync, purge *app.KeyPurge, opts httpapi.Options) error {
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Addr)
 	if err != nil {
 		return err
@@ -119,8 +119,24 @@ func serve(ctx context.Context, cfg config.Config, s *app.Sync, opts httpapi.Opt
 		app.NewReloader(s, clock.System{}, alert.LogOnly(opts.Logger), reloadEvery).Run(ctx)
 		return nil
 	})
+	g.Go(func() error {
+		purge.Run(ctx, logPurge(opts.Logger))
+		return nil
+	})
 	g.Go(func() error { return httpapi.Serve(ctx, srv, ln) })
 	return g.Wait()
+}
+
+// logPurge returns the report of the key purge: a line on logger for each
+// purge.
+func logPurge(logger *slog.Logger) app.PurgeReport {
+	return func(ctx context.Context, deleted int64, err error) {
+		if err != nil {
+			logger.ErrorContext(ctx, "revoked API keys not purged", "error", err.Error())
+			return
+		}
+		logger.InfoContext(ctx, "revoked API keys purged", "deleted", deleted)
+	}
 }
 
 // newDemo returns the demo access cfg configures: without a verifier when

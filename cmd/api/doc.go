@@ -23,7 +23,10 @@
 // ARNAKOFF_API_KEY_ENV ("live" by default) are accepted. Both variables are
 // required to start. The database is not reached at start: while it is
 // unreachable, the check routes answer 503, never unchecked. Keys are issued
-// and the schema migrated by the admin command.
+// and the schema migrated by the admin command. At start, then once a day,
+// the records of the keys revoked more than a year ago are deleted
+// (ADR 0006), which the database role of the API must be allowed to do; a
+// failed purge is logged and tried again the next day.
 //
 // Each API key may send ARNAKOFF_RATE_LIMIT_KEY requests a minute to the
 // check routes (60 by default), and each client address
