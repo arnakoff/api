@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.1](https://github.com/arnakoff/api/compare/v0.44.0...v0.44.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **httpapi:** spend the refused-key budget only on refusals ([#215](https://github.com/arnakoff/api/issues/215)) ([c824b4e](https://github.com/arnakoff/api/commit/c824b4ebe58650d1528e7a1f9c010310eee8db85)), closes [#209](https://github.com/arnakoff/api/issues/209)
+
 ## [0.44.0](https://github.com/arnakoff/api/compare/v0.43.0...v0.44.0) (2026-11-03)
 
 
