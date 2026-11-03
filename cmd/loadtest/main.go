@@ -18,17 +18,15 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/corpus"
 	"github.com/arnakoff/api/internal/adapter/httpapi"
-	"github.com/arnakoff/api/internal/adapter/reference/hosting"
-	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain"
-	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/ratelimit"
@@ -101,11 +99,7 @@ func run(ctx context.Context, opts options, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	s, check, err := newCheck(ctx, cfg, tape.Replayed(opts.latency))
-	if err != nil {
-		return err
-	}
-	srcs, err := app.NewSourceList(s, catalog.New(catalog.Offline{}, lists(cfg)).Infos(), append(live.Infos(), signal.IBANInfo())...)
+	svc, err := newService(ctx, cfg, tape.Replayed(opts.latency))
 	if err != nil {
 		return err
 	}
@@ -115,7 +109,7 @@ func run(ctx context.Context, opts options, cfg config.Config) error {
 	}
 	defer closeKeys()
 	return serve(ctx, cfg, opts.pprof, httpapi.Options{
-		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		Ready: svc.Sync, Check: svc.Check, Auth: auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems:  cfg.BatchMaxItems,
 		KeyLimit:       ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now),
 		IPLimit:        ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
@@ -124,30 +118,21 @@ func run(ctx context.Context, opts options, cfg config.Config) error {
 	})
 }
 
-// lists are the lists cfg turns on.
-func lists(cfg config.Config) catalog.Options { return catalog.Options{ACPR: cfg.SourceACPR} }
-
-// newCheck restores the stored snapshots and returns them with the check
-// of their lists and of regs, each check bounded by checkTimeout.
-func newCheck(ctx context.Context, cfg config.Config, regs app.Registries) (*app.Sync, *app.Check, error) {
+// newService returns the service of the lists cfg turns on and of regs,
+// each check bounded by checkTimeout, with the stored snapshots restored.
+func newService(ctx context.Context, cfg config.Config, regs app.Registries) (assembly.Service, error) {
 	disk, err := store.NewDisk(cfg.SnapshotDir())
 	if err != nil {
-		return nil, nil, err
+		return assembly.Service{}, err
 	}
-	s, err := app.NewSync(disk, clock.System{}, catalog.New(catalog.Offline{}, lists(cfg)).Fetchers()...)
+	svc, err := assembly.New(catalog.Options{ACPR: cfg.SourceACPR}, disk, regs, app.WithTimeout(checkTimeout))
 	if err != nil {
-		return nil, nil, err
+		return assembly.Service{}, err
 	}
-	if err := s.Restore(ctx); err != nil {
-		return nil, nil, err
+	if err := svc.Sync.Restore(ctx); err != nil {
+		return assembly.Service{}, err
 	}
-	platforms, err := hosting.Load()
-	if err != nil {
-		return nil, nil, err
-	}
-	l := catalog.Lists(lists(cfg), s, platforms)
-	regs.Blacklists, regs.Whitelists, regs.Numbering = l.Blacklists, l.Whitelists, l.Numbering
-	return s, app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
+	return svc, nil
 }
 
 // serve answers the API of opts on cfg.Addr, and the profiles on

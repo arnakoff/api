@@ -12,16 +12,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/arnakoff/api/internal/adapter/alert"
+	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/httpapi"
-	"github.com/arnakoff/api/internal/adapter/reference/hosting"
-	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
-	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/adapter/turnstile"
 	"github.com/arnakoff/api/internal/app"
-	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/ratelimit"
@@ -51,17 +48,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	lists := catalog.Options{ACPR: cfg.SourceACPR}
-	cat := catalog.New(catalog.Offline{}, lists)
-	s, err := app.NewSync(disk, clock.System{}, cat.Fetchers()...)
-	if err != nil {
-		return err
-	}
-	check, err := newCheck(lists, s)
-	if err != nil {
-		return err
-	}
-	srcs, err := app.NewSourceList(s, cat.Infos(), append(live.Infos(), signal.IBANInfo())...)
+	svc, err := assembly.Live(catalog.Options{ACPR: cfg.SourceACPR}, disk, app.WithTimeout(checkTimeout))
 	if err != nil {
 		return err
 	}
@@ -70,17 +57,17 @@ func run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer closeKeys()
-	if err := s.Restore(ctx); err != nil {
+	if err := svc.Sync.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
 	opts, err := withAccess(cfg, httpapi.Options{
-		Ready: s, Check: check, Auth: auth, Sources: srcs, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
+		Ready: svc.Sync, Check: svc.Check, Auth: auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems: cfg.BatchMaxItems, TrustedProxies: cfg.TrustedProxies,
 	})
 	if err != nil {
 		return err
 	}
-	return serve(ctx, cfg, s, opts)
+	return serve(ctx, cfg, svc.Sync, opts)
 }
 
 // withAccess returns opts with the access rules of cfg: its rate limits
@@ -113,22 +100,6 @@ func serve(ctx context.Context, cfg config.Config, s *app.Sync, opts httpapi.Opt
 	})
 	g.Go(func() error { return httpapi.Serve(ctx, srv, ln) })
 	return g.Wait()
-}
-
-// newCheck returns the check of the lists opts turns on, in service in
-// snaps, and of the live registries, each check bounded by checkTimeout.
-func newCheck(opts catalog.Options, snaps listing.Snapshots) (*app.Check, error) {
-	platforms, err := hosting.Load()
-	if err != nil {
-		return nil, err
-	}
-	regs, err := live.Registries()
-	if err != nil {
-		return nil, err
-	}
-	lists := catalog.Lists(opts, snaps, platforms)
-	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
-	return app.NewCheck(regs, clock.System{}, app.WithTimeout(checkTimeout)), nil
 }
 
 // newDemo returns the demo access cfg configures: without a verifier when
