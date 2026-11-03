@@ -33,6 +33,8 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | `golangci/golangci-lint-action` | v9.3.0, épinglée par SHA | GitHub releases |
 | `github/codeql-action` | v4.39.1, épinglée par SHA | GitHub tags |
 | `docker/build-push-action` | v7.4.0, épinglée par SHA | GitHub releases |
+| `docker/setup-buildx-action` / `docker/login-action` / `docker/metadata-action` | v4.4.1 / v4.7.0 / v6.2.0, épinglées par SHA, vérifiées le 03/11/2026 | GitHub releases |
+| `sigstore/cosign-installer` | v4.1.2, épinglée par SHA, vérifiée le 03/11/2026 ; installe cosign v3.1.4 (`cosign-release`) après vérification par sa version d'amorçage | GitHub releases |
 | `googleapis/release-please-action` | v5.0.0 (embarque release-please 17.6.0, d’après son `package-lock.json` et le journal du workflow), épinglée par SHA | GitHub releases |
 | `actions/create-github-app-token` | v3.3.0, épinglée par SHA | GitHub releases |
 | `ossf/scorecard-action` | v2.5.0, épinglée par SHA | GitHub releases |
@@ -73,4 +75,4 @@ Outils de développement épinglés avec la directive `tool` de `go.mod` (`go to
 - Actions GitHub épinglées par SHA complet (commentaire avec la version), `permissions: {}` au niveau du workflow puis le minimum par job, aucun `pull_request_target` sur du code de fork.
 - Dependabot pour `gomod`, `github-actions` et `docker`, hebdomadaire, regroupé, avec un délai de carence (`cooldown`) de 7 jours par défaut et de 30 jours pour les versions majeures des modules Go (#90). Le délai ne s'applique qu'aux mises à jour de version, jamais aux mises à jour de sécurité ([référence des options Dependabot](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference), consultée le 29/10/2026).
 - CodeQL (Go), [OpenSSF Scorecard](https://github.com/ossf/scorecard), analyse des secrets et protection au push activées.
-- Image : build multi-étapes, exécution sur `gcr.io/distroless/static-debian13:nonroot` (Debian 13, tag vérifié le 29/10/2026) épinglée par digest, utilisateur non root, système de fichiers en lecture seule. SBOM (syft), signature sans clé (cosign), attestation de provenance [SLSA](https://slsa.dev/) niveau 3 visé.
+- Image : build multi-étapes, exécution sur `gcr.io/distroless/static-debian13:nonroot` (Debian 13, tag vérifié le 29/10/2026) épinglée par digest, utilisateur non root, système de fichiers en lecture seule. Publiée sur `ghcr.io/arnakoff/api` à chaque tag de version par `.github/workflows/image.yml` (#69) : `linux/amd64` et `linux/arm64`, SBOM (scanner Syft de BuildKit) et provenance `mode=max` attachés par `docker/build-push-action`, signature sans clé (cosign, jeton OIDC du job) de l'index par son digest, sans cache de build. Attestation de provenance [SLSA](https://slsa.dev/) niveau 3 visé.
