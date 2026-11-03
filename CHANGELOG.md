@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.0](https://github.com/arnakoff/api/compare/v0.48.0...v0.49.0) (2026-11-03)
+
+
+### Features
+
+* **ci:** publish signed images to ghcr with sbom and provenance ([#231](https://github.com/arnakoff/api/issues/231)) ([faf4880](https://github.com/arnakoff/api/commit/faf4880212d56daad73877be582b7e85de8741cf)), closes [#69](https://github.com/arnakoff/api/issues/69)
+
 ## [0.48.0](https://github.com/arnakoff/api/compare/v0.47.1...v0.48.0) (2026-11-03)
 
 
