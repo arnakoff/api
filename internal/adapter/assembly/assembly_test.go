@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/arnakoff/api/internal/adapter/assembly"
+	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
@@ -137,4 +138,27 @@ func TestListsKeepsTheRegistriesOfRegs(t *testing.T) {
 	if len(regs.Blacklists) == 0 || len(regs.Whitelists) == 0 || len(regs.Numbering) == 0 {
 		t.Errorf("Lists() = %+v, want the blacklists, the white lists and the numbering plan", regs)
 	}
+}
+
+func TestNewReadsTheOfficialDomains(t *testing.T) {
+	t.Parallel()
+	svc, err := assembly.New(catalog.Options{}, emptyStore(t), app.Registries{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, err := domain.ParseInput("ameli-remboursement.com", domain.KindDomain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(svc.Check.Check(t.Context(), in).Signals(), "domain_lookalike") {
+		t.Error("check of ameli-remboursement.com gives no domain_lookalike, want one")
+	}
+	if sources := listed(svc.Sources); !slices.Contains(sources, official.Source) {
+		t.Errorf("listed sources = %v, want %s among them", sources, official.Source)
+	}
+}
+
+// hasCode tells whether signals hold one of code.
+func hasCode(signals []domain.Signal, code string) bool {
+	return slices.ContainsFunc(signals, func(s domain.Signal) bool { return string(s.Code) == code })
 }

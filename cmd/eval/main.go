@@ -12,7 +12,6 @@ import (
 
 	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/corpus"
-	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
@@ -95,9 +94,6 @@ func registries(opts options, tape *replay.Tape, snaps listing.Snapshots) (app.R
 	}
 	regs, err := assembly.Lists(measured(), snaps, tape.Registries(online))
 	if err != nil {
-		return app.Registries{}, err
-	}
-	if regs.Officials, err = official.Load(); err != nil {
 		return app.Registries{}, err
 	}
 	return regs.Without(opts.leftOut), nil
