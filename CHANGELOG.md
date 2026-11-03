@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.46.0](https://github.com/arnakoff/api/compare/v0.45.0...v0.46.0) (2026-11-03)
+
+
+### Features
+
+* **httpapi:** declare the public host in the contract ([#223](https://github.com/arnakoff/api/issues/223)) ([51702b0](https://github.com/arnakoff/api/commit/51702b05cce18ca0d330b6d766b2ee719e73313e)), closes [#187](https://github.com/arnakoff/api/issues/187)
+* **httpapi:** load the official domains in every check ([#221](https://github.com/arnakoff/api/issues/221)) ([ad7dfba](https://github.com/arnakoff/api/commit/ad7dfba455c25c23af19cd17477bdebca3311305)), closes [#167](https://github.com/arnakoff/api/issues/167)
+
 ## [0.45.0](https://github.com/arnakoff/api/compare/v0.44.1...v0.45.0) (2026-11-03)
 
 
