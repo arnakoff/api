@@ -88,7 +88,9 @@ func (l *Limiter) Policy() Policy {
 
 // Allow spends one request of key. A key l does not know yet while it
 // already keeps maxKeys buckets is refused for a whole window: memory stays
-// bounded, and the keys already known keep their quota.
+// bounded, and the keys already known keep their quota. Allow looks its
+// bucket up itself rather than through bucketOf, which does not inline: a
+// call on every request costs it 10 % (BenchmarkAllow).
 func (l *Limiter) Allow(key string) Decision {
 	now := l.now()
 	l.mu.Lock()
@@ -98,21 +100,81 @@ func (l *Limiter) Allow(key string) Decision {
 	}
 	b, ok := l.buckets[key]
 	if !ok {
-		if len(l.buckets) >= l.maxKeys && now.Sub(l.lastSweep) >= minSweepGap {
-			l.sweep(now)
-		}
-		if len(l.buckets) >= l.maxKeys {
+		if b, ok = l.add(key, now); !ok {
 			return Decision{Reset: l.policy.Window, Full: true}
 		}
-		b = &bucket{tokens: float64(l.policy.Quota), seen: now}
-		l.buckets[key] = b
 	}
 	l.refill(b, now)
 	allowed := b.tokens >= 1
 	if allowed {
 		b.tokens--
 	}
-	return Decision{Allowed: allowed, Remaining: int(b.tokens), Reset: l.untilNext(b.tokens)}
+	return l.decision(b.tokens, allowed)
+}
+
+// Peek returns whether key has a request left, spending none. A key l
+// does not know has its whole quota: Peek keeps nothing for it.
+func (l *Limiter) Peek(key string) Decision {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b, ok := l.buckets[key]
+	if !ok {
+		return Decision{Allowed: true, Remaining: l.policy.Quota}
+	}
+	l.refill(b, now)
+	return l.decision(b.tokens, b.tokens >= 1)
+}
+
+// Charge spends one request of key, even one it does not have: its bucket
+// then owes it, and Allow and Peek refuse key until the debt is repaid at
+// the pace of the policy. Requests served before they are charged, many
+// at once, are so all counted. A key l does not know yet while it already
+// keeps maxKeys buckets is charged nothing.
+func (l *Limiter) Charge(key string) {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b, ok := l.bucketOf(key, now)
+	if !ok {
+		return
+	}
+	l.refill(b, now)
+	b.tokens--
+}
+
+// bucketOf returns the bucket of key, made by add when l does not know
+// key, and false when l keeps too many buckets to make one. It sweeps l
+// once a window.
+func (l *Limiter) bucketOf(key string, now time.Time) (*bucket, bool) {
+	if now.Sub(l.lastSweep) >= l.policy.Window {
+		l.sweep(now)
+	}
+	if b, ok := l.buckets[key]; ok {
+		return b, true
+	}
+	return l.add(key, now)
+}
+
+// add makes the bucket of key with the whole quota, and returns false when
+// l keeps too many buckets to make one, once it swept for room at most
+// once a minSweepGap.
+func (l *Limiter) add(key string, now time.Time) (*bucket, bool) {
+	if len(l.buckets) >= l.maxKeys && now.Sub(l.lastSweep) >= minSweepGap {
+		l.sweep(now)
+	}
+	if len(l.buckets) >= l.maxKeys {
+		return nil, false
+	}
+	b := &bucket{tokens: float64(l.policy.Quota), seen: now}
+	l.buckets[key] = b
+	return b, true
+}
+
+// decision is the Decision of a bucket holding tokens, owing requests
+// when they are negative.
+func (l *Limiter) decision(tokens float64, allowed bool) Decision {
+	return Decision{Allowed: allowed, Remaining: max(int(tokens), 0), Reset: l.untilNext(tokens)}
 }
 
 // Refund gives back one request of key, spent by Allow, up to the quota. A
@@ -140,11 +202,13 @@ func (l *Limiter) refill(b *bucket, now time.Time) {
 	b.seen = now
 }
 
-// sweep forgets the buckets idle for a window. A bucket idle for a window
-// is full again: forgetting it changes no decision.
+// sweep forgets the buckets idle for a window and full again, as is any
+// such bucket owing no request: forgetting them changes no decision. A
+// bucket in debt is kept until repaid.
 func (l *Limiter) sweep(now time.Time) {
 	for key, b := range l.buckets {
-		if now.Sub(b.seen) >= l.policy.Window {
+		idle := now.Sub(b.seen)
+		if idle >= l.policy.Window && b.tokens+idle.Seconds()*l.rate() >= float64(l.policy.Quota) {
 			delete(l.buckets, key)
 		}
 	}
@@ -157,11 +221,12 @@ func (l *Limiter) rate() float64 {
 }
 
 // untilNext returns how long a bucket holding tokens takes to restore one
-// more whole request, rounded up to the second; zero when it is full.
+// more whole request, or when in debt to repay it and restore one, rounded
+// up to the second; zero when it is full.
 func (l *Limiter) untilNext(tokens float64) time.Duration {
 	if tokens >= float64(l.policy.Quota) {
 		return 0
 	}
-	missing := math.Floor(tokens) + 1 - tokens
+	missing := max(math.Floor(tokens)+1, 1) - tokens
 	return time.Duration(math.Ceil(missing/l.rate())) * time.Second
 }

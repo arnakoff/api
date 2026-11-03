@@ -58,9 +58,9 @@ type Options struct {
 	// needing no key; nil applies config.DefaultRateLimitIP a minute.
 	IPLimit Limiter
 	// AuthLimit limits the refused API keys of each client address on the
-	// check routes, before the key is looked up; nil applies
-	// config.DefaultRateLimitAuth a minute.
-	AuthLimit Limiter
+	// check routes: an address it refuses is answered 429 before its key is
+	// looked up. nil applies config.DefaultRateLimitAuth a minute.
+	AuthLimit RefusalLimiter
 	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
 	// client's address: config.Config.TrustedProxies.
 	TrustedProxies []netip.Prefix
@@ -83,7 +83,7 @@ func NewHandler(opts Options) http.Handler {
 	gate := &keyGate{
 		auth: auth, logger: opts.Logger, ps: ps, clientOf: byAddr,
 		perKey:   newQuota(limiterOr(opts.KeyLimit, config.DefaultRateLimitKey), keyPolicy, ps),
-		refusals: newQuota(limiterOr(opts.AuthLimit, config.DefaultRateLimitAuth), authPolicy, ps),
+		refusals: newRefusalBudget(refusalLimiterOr(opts.AuthLimit, config.DefaultRateLimitAuth), ps),
 	}
 	perAddr := newQuota(limiterOr(opts.IPLimit, config.DefaultRateLimitIP), ipPolicy, ps)
 	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }

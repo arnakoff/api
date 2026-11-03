@@ -231,3 +231,92 @@ func TestAllowTellsAFullLimiterApart(t *testing.T) {
 		t.Errorf("Allow(b) on a full limiter = %+v, want refused and Full", d)
 	}
 }
+
+func TestPeekSpendsNothing(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, newClock().Now)
+	l.Allow("k")
+	want := ratelimit.Decision{Allowed: true, Remaining: 1, Reset: 30 * time.Second}
+	for i := range 3 {
+		if d := l.Peek("k"); d != want {
+			t.Fatalf("Peek() #%d = %+v, want %+v", i+1, d, want)
+		}
+	}
+	l.Allow("k")
+	if d := l.Peek("k"); d.Allowed || d.Remaining != 0 {
+		t.Errorf("Peek() of a spent key = %+v, want refused with nothing left", d)
+	}
+}
+
+func TestPeekOfAnUnknownKeyKeepsNothing(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(perMinute, 10, newClock().Now)
+	want := ratelimit.Decision{Allowed: true, Remaining: perMinute.Quota}
+	if d := l.Peek("never-seen"); d != want {
+		t.Errorf("Peek() of an unknown key = %+v, want %+v", d, want)
+	}
+	if n := ratelimit.Len(l); n != 0 {
+		t.Errorf("Len() after Peek of an unknown key = %d, want 0", n)
+	}
+}
+
+func TestChargeSpendsARequest(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, newClock().Now)
+	l.Charge("k")
+	want := ratelimit.Decision{Allowed: true, Remaining: 1, Reset: 30 * time.Second}
+	if d := l.Peek("k"); d != want {
+		t.Errorf("Peek() after Charge = %+v, want %+v", d, want)
+	}
+}
+
+func TestChargeBeyondTheQuotaIsRepaidOverTime(t *testing.T) {
+	t.Parallel()
+	clk := newClock()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, clk.Now)
+	for range 4 {
+		l.Charge("k")
+	}
+	want := ratelimit.Decision{Allowed: false, Remaining: 0, Reset: 90 * time.Second}
+	if d := l.Peek("k"); d != want {
+		t.Fatalf("Peek() owing two requests = %+v, want %+v: three to restore before one is left", d, want)
+	}
+	if d := l.Allow("k"); d != want {
+		t.Errorf("Allow() owing two requests = %+v, want %+v", d, want)
+	}
+	clk.advance(time.Minute)
+	if d := l.Peek("k"); d.Allowed {
+		t.Errorf("Peek() a window later = %+v, want refused: the debt is not repaid yet", d)
+	}
+	clk.advance(30 * time.Second)
+	if d := l.Allow("k"); !d.Allowed || d.Remaining != 0 {
+		t.Errorf("Allow() once the debt is repaid = %+v, want allowed with nothing left", d)
+	}
+}
+
+func TestSweepKeepsABucketInDebt(t *testing.T) {
+	t.Parallel()
+	clk := newClock()
+	l := ratelimit.New(ratelimit.Policy{Quota: 2, Window: time.Minute}, 10, clk.Now)
+	for range 4 {
+		l.Charge("k")
+	}
+	clk.advance(time.Minute)
+	l.Allow("other")
+	if d := l.Peek("k"); d.Allowed {
+		t.Errorf("Peek() after a sweep = %+v, want refused: a bucket in debt is not forgotten", d)
+	}
+}
+
+func TestChargeOnAFullLimiterKeepsNothing(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(ratelimit.Policy{Quota: 1, Window: time.Minute}, 1, newClock().Now)
+	l.Allow("a")
+	l.Charge("b")
+	if n := ratelimit.Len(l); n != 1 {
+		t.Errorf("Len() after Charge on a full limiter = %d, want 1", n)
+	}
+	if d := l.Peek("b"); !d.Allowed {
+		t.Errorf("Peek(b) after Charge on a full limiter = %+v, want allowed: nothing was charged", d)
+	}
+}

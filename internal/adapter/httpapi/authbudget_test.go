@@ -199,3 +199,84 @@ func TestAFullRefusalBudgetStillChecksNewClients(t *testing.T) {
 		t.Errorf("new client with an unknown key on a full budget: status %d, want 401", res.Code)
 	}
 }
+
+// heldStore is a fake authenticator whose lookups all wait for release:
+// it tells on arrived each lookup that started, then answers as auth.
+type heldStore struct {
+	auth    httpapi.Authenticator
+	arrived chan struct{}
+	release chan struct{}
+}
+
+func newHeldStore(auth httpapi.Authenticator) *heldStore {
+	return &heldStore{auth: auth, arrived: make(chan struct{}), release: make(chan struct{})}
+}
+
+func (s *heldStore) Authenticate(ctx context.Context, raw string) (domain.KeyRecord, error) {
+	s.arrived <- struct{}{}
+	<-s.release
+	return s.auth.Authenticate(ctx, raw)
+}
+
+// holdLookups sends n requests made by newReq to h at once, each held in
+// the lookup of its key until all n are, then returns their statuses. A
+// request answered before its lookup started fails t.
+func holdLookups(t *testing.T, h http.Handler, store *heldStore, n int, newReq func() *http.Request) []int {
+	t.Helper()
+	statuses := make(chan int, n)
+	for i := range n {
+		go func() { statuses <- do(h, newReq()).Code }()
+		select {
+		case <-store.arrived:
+		case code := <-statuses:
+			close(store.release)
+			t.Fatalf("request #%d: status %d before its key was looked up, want a lookup", i+1, code)
+		}
+	}
+	close(store.release)
+	got := make([]int, n)
+	for i := range got {
+		got[i] = <-statuses
+	}
+	return got
+}
+
+func TestValidKeysLookedUpAtOnceSpendNoBudget(t *testing.T) {
+	t.Parallel()
+	const budget = 2
+	store := newHeldStore(keyring{})
+	opts, _ := options(t, true)
+	opts.Auth, opts.AuthLimit = store, frozenLimiter(budget)
+	h := httpapi.NewHandler(opts)
+	newReq := func() *http.Request {
+		return authorize(fromAddr(t, http.MethodGet, "/v1/check?q=armen.ltd", "203.0.113.7:1"))
+	}
+	for i, code := range holdLookups(t, h, store, 3*budget, newReq) {
+		if code != http.StatusOK {
+			t.Errorf("valid key #%d: status %d, want 200", i+1, code)
+		}
+	}
+}
+
+func TestUnknownKeysLookedUpAtOnceAreAllCounted(t *testing.T) {
+	t.Parallel()
+	const budget = 2
+	store := newHeldStore(keyring{err: app.ErrKeyNotFound})
+	opts, _ := options(t, true)
+	opts.Auth = store
+	opts.AuthLimit = frozenLimiter(budget)
+	h := httpapi.NewHandler(opts)
+	newReq := func() *http.Request {
+		return withKey(fromAddr(t, http.MethodGet, "/v1/check?q=armen.ltd", "203.0.113.7:1"), unknownKey)
+	}
+	for i, code := range holdLookups(t, h, store, 2*budget, newReq) {
+		if code != http.StatusUnauthorized {
+			t.Errorf("unknown key #%d: status %d, want 401", i+1, code)
+		}
+	}
+	res := do(h, newReq())
+	if res.Code != http.StatusTooManyRequests {
+		t.Fatalf("after %d refusals: status %d, want 429", 2*budget, res.Code)
+	}
+	limitHeaders(t, res, `"auth";q=2;w=60`, `"auth";r=0;t=90`, "90")
+}

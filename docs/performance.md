@@ -58,7 +58,7 @@ Lecture :
 
 ## Flot de clés inconnues (#197)
 
-Une clé bien formée se fabrique sans rien demander : sa somme de contrôle CRC-32 est publique. Avant #197, chaque clé bien formée mais jamais émise coûtait une recherche dans PostgreSQL. Depuis, chaque adresse cliente (préfixe /64 en IPv6) a un budget de clés refusées, `ARNAKOFF_RATE_LIMIT_AUTH` par minute (30 par défaut). Il est dépensé avant la recherche et rendu quand la clé est valide ou que la base ne répond pas. Une fois le budget épuisé, les requêtes de cette adresse reçoivent `429` sans recherche.
+Une clé bien formée se fabrique sans rien demander : sa somme de contrôle CRC-32 est publique. Avant #197, chaque clé bien formée mais jamais émise coûtait une recherche dans PostgreSQL. Depuis, chaque adresse cliente (préfixe /64 en IPv6) a un budget de clés refusées, `ARNAKOFF_RATE_LIMIT_AUTH` par minute (30 par défaut). Seule une clé refusée le dépense, une fois refusée (#209) : une clé valide ou une base qui ne répond pas n'y touchent pas, et des clés valides peuvent être recherchées en même temps sans limite de nombre. Des refus arrivés en même temps sont tous comptés : le budget peut devenir négatif, et l'adresse attend alors qu'il soit remboursé au rythme du budget. Le rythme moyen reste donc borné, mais une rafale de clés inconnues envoyées en même temps depuis une adresse au budget non épuisé atteint la base d'un seul coup, avant d'être comptée : le pool de connexions la fait attendre, et l'adresse attend ensuite d'avoir remboursé toute la rafale. Une fois le budget épuisé, les requêtes de cette adresse reçoivent `429` sans recherche.
 
 Mesure du 02/11/2026, même machine et même banc que ci-dessus, registres rejoués sans latence. `ARNAKOFF_TRUSTED_PROXIES=127.0.0.1/32` : chaque cible porte un `X-Forwarded-For`, ce qui donne deux adresses clientes depuis un seul hôte. Pendant 30 s, en même temps : 1 000 requêtes par seconde avec les 100 clés valides depuis `198.51.100.1`, et un flot de 20 000 clés bien formées jamais émises depuis `203.0.113.9`. Réponses aux clés valides :
 
@@ -96,7 +96,7 @@ Lecture :
 
 - Le p50 est divisé par 7 à 10, le p99 par 5 à 10. À 16 000 requêtes par seconde, le palier où le banc décrochait le 02/11 (avec un pool PostgreSQL saturé), le service suit désormais sans erreur.
 - Profil CPU à 8 000 requêtes par seconde, 20 s : 19,3 s de processeur avant, 7,0 s après. La recherche de clé (`Keys.FindKey`) prenait 4,5 s ; elle tombe sous le seuil d'échantillonnage.
-- Les échecs de `main` sont tous des `429` du budget de clés refusées (`RateLimit-Policy: "auth";q=30;w=60`), pas du quota des clés : ce budget est dépensé avant la recherche et rendu après, donc plus de 30 recherches en cours depuis une même adresse font refuser des clés valides. Le cache rend ces recherches assez brèves pour que le banc ne le déclenche plus, mais une rafale de clés absentes du cache y reste exposée : suivi dans #209.
+- Les échecs de `main` sont tous des `429` du budget de clés refusées (`RateLimit-Policy: "auth";q=30;w=60`), pas du quota des clés : ce budget est dépensé avant la recherche et rendu après, donc plus de 30 recherches en cours depuis une même adresse font refuser des clés valides. Le cache rend ces recherches assez brèves pour que le banc ne le déclenche plus, mais une rafale de clés absentes du cache y restait exposée : corrigé par #209, le budget n'étant plus dépensé que par les refus.
 
 ## Budget de latence
 

@@ -20,6 +20,17 @@ type Limiter interface {
 	Refund(key string)
 }
 
+// RefusalLimiter limits the refusals of each client, known by a key,
+// counted once they happen.
+type RefusalLimiter interface {
+	// Peek returns whether key may be refused once more, spending nothing.
+	Peek(key string) ratelimit.Decision
+	// Charge spends one refusal of key, even one it does not have.
+	Charge(key string)
+	// Policy returns the policy applied to each key.
+	Policy() ratelimit.Policy
+}
+
 // Names of the quota policies in the RateLimit fields.
 const (
 	keyPolicy = "key"
@@ -39,17 +50,26 @@ const (
 // quota applies a Limiter under a policy name.
 type quota struct {
 	limiter Limiter
-	name    string
+	fields
+}
+
+// newQuota returns the quota of l under name.
+func newQuota(l Limiter, name string, ps problems) *quota {
+	return &quota{limiter: l, fields: newFields(l.Policy(), name, ps)}
+}
+
+// fields writes the RateLimit fields, and the 429, of a policy name.
+type fields struct {
+	name string
 	// policy is the RateLimit-Policy field, the same on every answer.
 	policy string
 	ps     problems
 }
 
-// newQuota returns the quota of l under name.
-func newQuota(l Limiter, name string, ps problems) *quota {
-	p := l.Policy()
+// newFields returns the fields of p under name.
+func newFields(p ratelimit.Policy, name string, ps problems) fields {
 	policy := `"` + name + `";q=` + strconv.Itoa(p.Quota) + ";w=" + seconds(p.Window)
-	return &quota{limiter: l, name: name, policy: policy, ps: ps}
+	return fields{name: name, policy: policy, ps: ps}
 }
 
 // admit spends one request of key and reports whether it may be served;
@@ -66,19 +86,19 @@ func (q *quota) admit(w http.ResponseWriter, r *http.Request, key string) bool {
 	return true
 }
 
-// deny answers the 429 of d, a request q refused, with Retry-After and the
+// deny answers the 429 of d, a request f refused, with Retry-After and the
 // RateLimit fields.
-func (q *quota) deny(w http.ResponseWriter, r *http.Request, d ratelimit.Decision) {
+func (f fields) deny(w http.ResponseWriter, r *http.Request, d ratelimit.Decision) {
 	h := w.Header()
-	q.describe(h, d)
+	f.describe(h, d)
 	h.Set("Retry-After", seconds(d.Reset))
-	q.ps.write(w, r, tooManyRequests)
+	f.ps.write(w, r, tooManyRequests)
 }
 
 // describe sets the RateLimit-Policy and RateLimit fields of d in h.
-func (q *quota) describe(h http.Header, d ratelimit.Decision) {
-	h[rateLimitPolicyField] = []string{q.policy}
-	h[rateLimitField] = []string{`"` + q.name + `";r=` + strconv.Itoa(d.Remaining) + ";t=" + seconds(d.Reset)}
+func (f fields) describe(h http.Header, d ratelimit.Decision) {
+	h[rateLimitPolicyField] = []string{f.policy}
+	h[rateLimitField] = []string{`"` + f.name + `";r=` + strconv.Itoa(d.Remaining) + ";t=" + seconds(d.Reset)}
 }
 
 // limit answers next only for a request q admits, the client known by
@@ -101,6 +121,15 @@ func limit(q *quota, keyOf func(*http.Request) string, next http.Handler) http.H
 // limiterOr returns l, or when it is nil a limiter of n requests a minute
 // per client: the API always limits.
 func limiterOr(l Limiter, n int) Limiter {
+	if l != nil {
+		return l
+	}
+	return ratelimit.PerMinute(n, time.Now)
+}
+
+// refusalLimiterOr returns l, or when it is nil a limiter of n refusals a
+// minute per client.
+func refusalLimiterOr(l RefusalLimiter, n int) RefusalLimiter {
 	if l != nil {
 		return l
 	}
