@@ -10,12 +10,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/corpus"
-	"github.com/arnakoff/api/internal/adapter/reference/hosting"
 	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/registry/replay"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/platform/clock"
@@ -29,6 +30,10 @@ const exitUsage = 2
 // tapeDirPerm is the mode of a replay directory created by a first
 // recording: test data, read by anyone who clones the repository.
 const tapeDirPerm = 0o755
+
+// measured returns the sources the corpus measures: the ACPR blacklist is
+// read whatever the configuration (testdata/corpus/README.md).
+func measured() catalog.Options { return catalog.Options{ACPR: true} }
 
 func main() {
 	opts, err := parseFlags(os.Args[1:], os.Stderr)
@@ -59,11 +64,11 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 	if err != nil {
 		return err
 	}
-	lists, err := storedLists(ctx, snapshotDir)
+	snaps, err := storedSnapshots(ctx, snapshotDir)
 	if err != nil {
 		return err
 	}
-	regs, err := registries(opts, tape, lists)
+	regs, err := registries(opts, tape, snaps)
 	if err != nil {
 		return err
 	}
@@ -77,9 +82,10 @@ func run(ctx context.Context, opts options, snapshotDir string, out io.Writer) e
 	return corpus.WriteReport(out, score, opts.without)
 }
 
-// registries returns the lists and the live registries recorded on the
-// tape, or the tape's alone offline, less those the run leaves out.
-func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Registries, error) {
+// registries returns the lists stored in snaps, as the API serves them,
+// the shipped list of official domains and the live registries recorded
+// on the tape, or the tape's alone offline, less those the run leaves out.
+func registries(opts options, tape *replay.Tape, snaps listing.Snapshots) (app.Registries, error) {
 	var online app.Registries
 	if !opts.offline {
 		var err error
@@ -87,39 +93,29 @@ func registries(opts options, tape *replay.Tape, lists app.Registries) (app.Regi
 			return app.Registries{}, err
 		}
 	}
-	regs := tape.Registries(online)
-	regs.Blacklists, regs.Whitelists, regs.Numbering, regs.Officials = lists.Blacklists, lists.Whitelists, lists.Numbering, lists.Officials
+	regs, err := assembly.Lists(measured(), snaps, tape.Registries(online))
+	if err != nil {
+		return app.Registries{}, err
+	}
+	if regs.Officials, err = official.Load(); err != nil {
+		return app.Registries{}, err
+	}
 	return regs.Without(opts.leftOut), nil
 }
 
-// storedLists returns the AMF and ACPR blacklists, the AMF white lists and
-// the ARCEP numbering plan of the snapshots stored in dir, as the API
-// serves them, and the shipped list of official domains. The ACPR
-// blacklist is read whatever the configuration: the corpus measures it
-// (testdata/corpus/README.md). A list without a stored snapshot is
-// reported unavailable.
-func storedLists(ctx context.Context, dir string) (app.Registries, error) {
+// storedSnapshots returns the snapshots of the measured sources stored in
+// dir. A list without a stored snapshot is reported unavailable.
+func storedSnapshots(ctx context.Context, dir string) (*app.Sync, error) {
 	disk, err := store.NewDisk(dir)
 	if err != nil {
-		return app.Registries{}, err
+		return nil, err
 	}
-	opts := catalog.Options{ACPR: true}
-	s, err := app.NewSync(disk, clock.System{}, catalog.New(catalog.Offline{}, opts).Fetchers()...)
+	s, err := assembly.Sync(measured(), disk)
 	if err != nil {
-		return app.Registries{}, err
+		return nil, err
 	}
 	if err := s.Restore(ctx); err != nil {
-		return app.Registries{}, err
+		return nil, err
 	}
-	officials, err := official.Load()
-	if err != nil {
-		return app.Registries{}, err
-	}
-	platforms, err := hosting.Load()
-	if err != nil {
-		return app.Registries{}, err
-	}
-	lists := catalog.Lists(opts, s, platforms)
-	lists.Officials = officials
-	return lists, nil
+	return s, nil
 }

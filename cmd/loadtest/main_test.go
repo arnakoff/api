@@ -62,7 +62,7 @@ func TestRunRequiresTrustedProxiesWithLiveKeys(t *testing.T) {
 	}
 }
 
-func TestNewCheckReplaysTheTape(t *testing.T) {
+func TestNewServiceReplaysTheTape(t *testing.T) {
 	t.Parallel()
 
 	tapeDir := t.TempDir()
@@ -72,16 +72,16 @@ func TestNewCheckReplaysTheTape(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Config{DataDir: t.TempDir()}
-	_, check, err := newCheck(t.Context(), cfg, tape.Replayed(0))
+	svc, err := newService(t.Context(), cfg, tape.Replayed(0))
 	if err != nil {
-		t.Fatalf("newCheck: %v", err)
+		t.Fatalf("newService: %v", err)
 	}
 	in, err := domain.ParseInput("armen.ltd", domain.KindDomain)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	states := check.Check(t.Context(), in).Sources()
+	states := svc.Check.Check(t.Context(), in).Sources()
 	i := slices.IndexFunc(states, func(s domain.SourceState) bool { return s.Source == "RDAP" })
 	if i < 0 || states[i].Status != domain.SourceOK {
 		t.Errorf("sources = %+v, want RDAP answered from the tape", states)
