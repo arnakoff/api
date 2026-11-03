@@ -38,7 +38,11 @@
 // in memory, per instance.
 // Behind a proxy, ARNAKOFF_TRUSTED_PROXIES lists its CIDR prefixes, whose
 // X-Forwarded-For field then tells the client's address; "none" says no
-// proxy stands in front. It is required to start with live keys.
+// proxy stands in front. Behind a platform that overwrites a field with the
+// client's address, such as X-Real-IP on Scaleway Serverless Containers,
+// ARNAKOFF_CLIENT_IP_HEADER names that field instead: one valid address in
+// it is the client's, otherwise the peer's. One of the two is required to
+// start with live keys.
 //
 // POST /v1/demo/check is the demo access of the site's checker: one check
 // without a key, its input in the body. It is on when ARNAKOFF_DEMO_ORIGIN

@@ -44,7 +44,42 @@ func TestClientKey(t *testing.T) {
 			for _, f := range tt.forward {
 				req.Header.Add("X-Forwarded-For", f)
 			}
-			if got := httpapi.ClientKey(req, tt.trusted); got != tt.want {
+			if got := httpapi.ClientKey(req, httpapi.ClientSource{Trusted: tt.trusted}); got != tt.want {
+				t.Errorf("ClientKey() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClientKeyFromAPlatformHeader(t *testing.T) {
+	t.Parallel()
+
+	src := httpapi.ClientSource{Header: "X-Real-Ip"}
+	tests := []struct {
+		name   string
+		values []string // the X-Real-IP field lines
+		want   string
+	}{
+		{name: "client the platform wrote", values: []string{"198.51.100.1"}, want: "198.51.100.1"},
+		{name: "spaces around it", values: []string{" 198.51.100.1 "}, want: "198.51.100.1"},
+		{name: "IPv6 grouped by /64", values: []string{"2001:db8:1:2:aaaa::1"}, want: "2001:db8:1:2::/64"},
+		{name: "IPv4-mapped IPv6 as IPv4", values: []string{"::ffff:198.51.100.1"}, want: "198.51.100.1"},
+		{name: "absent: the peer", want: "10.1.2.3"},
+		{name: "empty: the peer", values: []string{""}, want: "10.1.2.3"},
+		{name: "malformed: the peer", values: []string{"not-an-ip"}, want: "10.1.2.3"},
+		{name: "a list: the peer", values: []string{"192.0.2.66, 198.51.100.1"}, want: "10.1.2.3"},
+		{name: "two lines: the peer", values: []string{"192.0.2.66", "198.51.100.1"}, want: "10.1.2.3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/v1/signals", nil)
+			req.RemoteAddr = "10.1.2.3:443"
+			req.Header.Add("X-Forwarded-For", "192.0.2.99")
+			for _, v := range tt.values {
+				req.Header.Add("X-Real-IP", v)
+			}
+			if got := httpapi.ClientKey(req, src); got != tt.want {
 				t.Errorf("ClientKey() = %q, want %q", got, tt.want)
 			}
 		})

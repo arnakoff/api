@@ -114,7 +114,7 @@ func run(ctx context.Context, opts options, cfg config.Config) error {
 		KeyLimit:       ratelimit.PerMinute(cfg.RateLimitKey, clock.System{}.Now),
 		IPLimit:        ratelimit.PerMinute(cfg.RateLimitIP, clock.System{}.Now),
 		AuthLimit:      ratelimit.PerMinute(cfg.RateLimitAuth, clock.System{}.Now),
-		TrustedProxies: cfg.TrustedProxies,
+		TrustedProxies: cfg.TrustedProxies, ClientIPHeader: cfg.ClientIPHeader,
 	})
 }
 
