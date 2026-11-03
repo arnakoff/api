@@ -17,7 +17,6 @@ import (
 	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/adapter/mcp"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
-	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/adapter/turnstile"
 	"github.com/arnakoff/api/internal/app"
@@ -64,11 +63,11 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err := cfg.RequireTrustedProxies(); err != nil {
 		return err
 	}
-	disk, err := store.NewDisk(cfg.SnapshotDir())
+	snaps, err := assembly.SnapshotStore(cfg)
 	if err != nil {
 		return err
 	}
-	svc, err := assembly.Live(catalog.Options{ACPR: cfg.SourceACPR}, disk, app.WithTimeout(checkTimeout))
+	svc, err := assembly.Live(catalog.Options{ACPR: cfg.SourceACPR}, snaps, app.WithTimeout(checkTimeout))
 	if err != nil {
 		return err
 	}

@@ -28,6 +28,7 @@ const drainBytes = 4 << 10
 // for concurrent use.
 type Client struct {
 	http      *http.Client
+	raw       *http.Client // Do's: bounded by the timeout, body included.
 	hosts     allowlist
 	userAgent string
 	timeout   time.Duration
@@ -56,7 +57,9 @@ func New(cfg Config) (*Client, error) {
 		wait:      clock.System{}.Sleep,
 		now:       clock.System{}.Now,
 	}
-	c.http = &http.Client{Transport: newTransport(cfg), CheckRedirect: c.checkRedirect}
+	transport := newTransport(cfg)
+	c.http = &http.Client{Transport: transport, CheckRedirect: c.checkRedirect}
+	c.raw = &http.Client{Transport: transport, CheckRedirect: c.checkRedirect, Timeout: cfg.Timeout}
 	return c, nil
 }
 

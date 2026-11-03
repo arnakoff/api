@@ -44,11 +44,11 @@ func (d *Disk) Save(ctx context.Context, s domain.Snapshot) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	name, err := fileName(s.Source)
+	name, err := FileName(s.Source)
 	if err != nil {
 		return err
 	}
-	b, err := encode(s)
+	b, err := Encode(s)
 	if err != nil {
 		return fmt.Errorf("save %s: %w", s.Source, err)
 	}
@@ -64,7 +64,7 @@ func (d *Disk) Load(ctx context.Context, source domain.Source) (domain.Snapshot,
 	if err := ctx.Err(); err != nil {
 		return domain.Snapshot{}, err
 	}
-	name, err := fileName(source)
+	name, err := FileName(source)
 	if err != nil {
 		return domain.Snapshot{}, err
 	}
@@ -76,7 +76,7 @@ func (d *Disk) Load(ctx context.Context, source domain.Source) (domain.Snapshot,
 	if err != nil {
 		return domain.Snapshot{}, fmt.Errorf("load %s: %w", source, err)
 	}
-	s, err := decode(b, source)
+	s, err := Decode(b, source)
 	if err != nil {
 		return domain.Snapshot{}, fmt.Errorf("load %s from %s: %w", source, name, err)
 	}

@@ -141,10 +141,14 @@ type Config struct {
 
 	// Demo configures the demo access of the site's checker.
 	Demo Demo
+
+	// SnapshotBucket is the bucket the snapshots are stored in instead of
+	// SnapshotDir, when it is enabled.
+	SnapshotBucket SnapshotBucket
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
-// inside DataDir.
+// inside DataDir, unless SnapshotBucket is enabled.
 func (c Config) SnapshotDir() string {
 	return filepath.Join(c.DataDir, "snapshots")
 }
@@ -172,6 +176,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvRateLimitAuth, strconv.Itoa(DefaultRateLimitAuth), &cfg.RateLimitAuth, parseRateLimit),
 		parseTrustedProxies(lookup, &cfg.TrustedProxies),
 		parseDemo(lookup, &cfg.Demo),
+		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err

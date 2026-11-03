@@ -12,11 +12,11 @@ import (
 // fileExt ends the name of every snapshot file.
 const fileExt = ".snapshot"
 
-// fileName returns the name of the file of source (see the package doc), or
-// ErrSourceName when source has no letter or digit. The name never holds a
-// path separator or a dot before its extension, so it stays in the store's
-// directory.
-func fileName(source domain.Source) (string, error) {
+// FileName returns the name of the file of source (see the package doc),
+// also the key of its object in a bucket, or ErrSourceName when source has
+// no letter or digit. The name never holds a path separator or a dot before
+// its extension, so it stays in the store's directory.
+func FileName(source domain.Source) (string, error) {
 	var b strings.Builder
 	dash := false
 	for _, r := range strings.ToLower(string(source)) {
