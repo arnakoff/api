@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnakoff/api/internal/adapter/contracttest"
 	"github.com/arnakoff/api/internal/adapter/httpapi"
-	"github.com/arnakoff/api/internal/adapter/httpapi/contracttest"
 	"github.com/arnakoff/api/internal/domain"
 )
 

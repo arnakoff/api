@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package contracttest checks HTTP exchanges against the public contract,
-// api/openapi.yaml. Handler tests use it to prove that what the API really
-// answers is what the contract says.
+// Package contracttest checks answers against the public contract,
+// api/openapi.yaml. The HTTP handler and MCP server tests use it to prove
+// that what they really answer is what the contract says.
 package contracttest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -131,6 +132,37 @@ func validateResponse(ctx context.Context, in *openapi3filter.RequestValidationI
 	if err := openapi3filter.ValidateResponse(ctx, out); err != nil {
 		req := in.Request
 		return fmt.Errorf("response %d to %s %s: %w", res.StatusCode, req.Method, req.URL, err)
+	}
+	return nil
+}
+
+// ErrUnknownSchema means the contract has no component schema of the
+// name CheckSchema is given.
+var ErrUnknownSchema = errors.New("schema not in the contract")
+
+// CheckSchema returns an error unless v, once written in JSON, follows the
+// contract's component schema name, closed as a response's is. Answers
+// that are not HTTP responses, such as the MCP server's, are held to the
+// contract with it.
+func (c *Contract) CheckSchema(name string, v any) error {
+	ref, ok := c.doc.Components.Schemas[name]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrUnknownSchema, name)
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("write the value as JSON: %w", err)
+	}
+	var value any
+	if err := json.Unmarshal(b, &value); err != nil {
+		return fmt.Errorf("read the value back: %w", err)
+	}
+	var opts []openapi3.SchemaValidationOption
+	if c.doc.IsOpenAPI31OrLater() {
+		opts = append(opts, openapi3.EnableJSONSchema2020())
+	}
+	if err := ref.Value.VisitJSON(value, opts...); err != nil {
+		return fmt.Errorf("value against schema %s: %w", name, err)
 	}
 	return nil
 }

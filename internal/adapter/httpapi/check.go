@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/arnakoff/api/internal/adapter/wire"
 	"github.com/arnakoff/api/internal/domain"
 )
 
@@ -19,7 +20,7 @@ func check(c Checker, ps problems) http.Handler {
 			ps.write(w, r, p)
 			return
 		}
-		writeJSON(w, "application/json", http.StatusOK, reportOf(in.Kind(), c.Check(r.Context(), in)))
+		writeJSON(w, "application/json", http.StatusOK, wire.ReportOf(in.Kind(), c.Check(r.Context(), in)))
 	})
 }
 

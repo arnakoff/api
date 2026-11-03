@@ -6,6 +6,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/arnakoff/api/internal/adapter/wire"
 	"github.com/arnakoff/api/internal/domain"
 )
 
@@ -32,7 +33,7 @@ type batchItem struct {
 // batchResult is a result as the contract's BatchResult schema describes
 // it: a report or an error, never both.
 type batchResult struct {
-	Report *reportBody  `json:"report,omitempty"`
+	Report *wire.Report `json:"report,omitempty"`
 	Error  *problemBody `json:"error,omitempty"`
 }
 
@@ -86,7 +87,7 @@ func checkItems(ctx context.Context, c Checker, ps problems, items []batchItem) 
 		ins, at = append(ins, in), append(at, i)
 	}
 	for j, report := range c.CheckAll(ctx, ins) {
-		results[at[j]].Report = new(reportOf(ins[j].Kind(), report))
+		results[at[j]].Report = new(wire.ReportOf(ins[j].Kind(), report))
 	}
 	return results
 }

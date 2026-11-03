@@ -12,11 +12,12 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | gofumpt | v0.12.0 | GitHub releases |
 | gosec | v2.30.0 (via golangci-lint) | GitHub releases |
 | govulncheck (`golang.org/x/vuln`) | v1.9.0 | `proxy.golang.org` |
-| SDK MCP Go | v1.8.0 | `proxy.golang.org` |
+| SDK MCP Go (`modelcontextprotocol/go-sdk`, MIT en transition vers Apache-2.0 d'après son `LICENSE`, les deux compatibles ; paquets liés à `cmd/mcp` : `google/jsonschema-go` et `segmentio/asm`, `segmentio/encoding` (MIT), `yosida95/uritemplate/v3` (BSD-3-Clause), `golang.org/x/oauth2` (BSD-3-Clause) ; `golang-jwt/jwt` n'est pas lié) | v1.8.0 (publiée le 04/09/2026), revérifiée le 03/11/2026 | `proxy.golang.org` |
+| JSON Schema des outils MCP (`google/jsonschema-go`, MIT) : le type de schéma du SDK MCP, importé pour décrire l'entrée de l'outil `check` ; même version que celle requise par le SDK | v0.4.3 (publiée le 17/04/2026, dernier commit le 22/05/2026), vérifiée le 03/11/2026 | `proxy.golang.org`, GitHub |
 | oapi-codegen | v2.8.1 | `proxy.golang.org` |
 | benchstat (`golang.org/x/perf`, sans tag : pseudo-version) | v0.0.0-20261009192801-be2c69fb417e | `proxy.golang.org` |
 | vegeta (`tsenart/vegeta/v12`, tests de charge, licence MIT) | v12.13.0, vérifiée le 02/11/2026 | GitHub releases, `proxy.golang.org` |
-| `getkin/kin-openapi` (dépendance d'oapi-codegen, et validation du contrat dans les tests : `api` et `internal/adapter/httpapi/contracttest`) ; oapi-codegen v2.8.1 sert aussi de bibliothèque dans le test de génération de `api` | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
+| `getkin/kin-openapi` (dépendance d'oapi-codegen, et validation du contrat dans les tests : `api` et `internal/adapter/contracttest`) ; oapi-codegen v2.8.1 sert aussi de bibliothèque dans le test de génération de `api` | v0.152.0, relevée au-dessus de la v0.142.0 tirée par oapi-codegen (GO-2026-6095, GO-2026-6112, corrigées en v0.144.0) | `proxy.golang.org` |
 | Numéros de téléphone (`nyaruka/phonenumbers`) | v1.8.1 | `proxy.golang.org` |
 | IBAN (`jacoelho/banking`) | v1.13.0 | `proxy.golang.org` |
 | JSON Schema (`santhosh-tekuri/jsonschema/v6`) | v6.0.3 | `proxy.golang.org` |
@@ -54,7 +55,7 @@ Outils de développement épinglés avec la directive `tool` de `go.mod` (`go to
 - [RFC 9745](https://www.rfc-editor.org/rfc/rfc9745) (`Deprecation`) et [RFC 8594](https://www.rfc-editor.org/rfc/rfc8594) (`Sunset`) pour retirer une version ou un champ du contrat public, avec un préavis de six mois minimum entre la date de `Deprecation` et celle de `Sunset`.
 - En-têtes de quota : `RateLimit-Policy` et `RateLimit` selon [draft-ietf-httpapi-ratelimit-headers-11](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) (brouillon, pas encore une RFC : suivre ses révisions), `Retry-After` sur `429`.
 - Contrat OpenAPI dans `api/openapi.yaml`, versionné par chemin (`/v1`). Champs JSON en `snake_case`, dates en [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339).
-- Le contrat est validé par `go test` (kin-openapi, exemples compris), donc en CI ; les tests des handlers vérifient leurs réponses réelles avec `internal/adapter/httpapi/contracttest`, qui y refuse tout champ non documenté. Un client, lui, ignore les champs qu'il ne connaît pas.
+- Le contrat est validé par `go test` (kin-openapi, exemples compris), donc en CI ; les tests des handlers vérifient leurs réponses réelles avec `internal/adapter/contracttest`, qui y refuse tout champ non documenté. Un client, lui, ignore les champs qu'il ne connaît pas.
 - [OWASP API Security Top 10 (2023)](https://owasp.org/API-Security/editions/2023/en/0x00-header/) comme grille de revue.
 
 ## Git et GitHub
