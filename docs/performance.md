@@ -10,7 +10,7 @@ Déroulé, depuis la racine du dépôt ; une fois les modules et l’image Postg
 
 ```sh
 docker run -d --rm --name arnakoff-pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=arnakoff_test \
-  -p 127.0.0.1:55432:5432 postgres:18.6
+  -p 127.0.0.1:55432:5432 postgres:17.11
 export ARNAKOFF_LOG_KEY=$(openssl rand -hex 32) ARNAKOFF_API_KEY_SECRET=$(openssl rand -hex 32)
 export ARNAKOFF_DATABASE_URL='postgres://postgres:test@127.0.0.1:55432/arnakoff_test?sslmode=disable'
 export ARNAKOFF_TRUSTED_PROXIES=none ARNAKOFF_RATE_LIMIT_KEY=10000 ARNAKOFF_ADDR=127.0.0.1:8100 ARNAKOFF_LOG_LEVEL=warn
