@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.0](https://github.com/arnakoff/api/compare/v0.47.1...v0.48.0) (2026-11-03)
+
+
+### Features
+
+* build a distroless non-root container image ([#229](https://github.com/arnakoff/api/issues/229)) ([71b2d04](https://github.com/arnakoff/api/commit/71b2d04f46230daa729a78a3795dc7486c9b6c4b)), closes [#68](https://github.com/arnakoff/api/issues/68)
+
 ## [0.47.1](https://github.com/arnakoff/api/compare/v0.47.0...v0.47.1) (2026-11-03)
 
 
