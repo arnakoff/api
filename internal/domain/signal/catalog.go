@@ -98,11 +98,11 @@ func (d Definition) InputNames() []string {
 	return names
 }
 
-// signal returns the signal of d stating message, with advice, citing url
-// and observed at observedAt.
+// signal returns the signal of d stating message, as visible writes it,
+// with advice, citing url and observed at observedAt.
 func (d Definition) signal(message, advice, url string, observedAt time.Time) domain.Signal {
 	return domain.Signal{
-		Code: d.Code, Level: d.Level, Message: message, Advice: advice,
+		Code: d.Code, Level: d.Level, Message: visible(message), Advice: advice,
 		Source: d.Source, SourceURL: url, ObservedAt: observedAt,
 	}
 }

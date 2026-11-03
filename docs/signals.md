@@ -21,6 +21,10 @@ Liste publique des signaux, servie aussi par `GET /v1/signals`. Un code est stab
 
 Signaux prévus, non implémentés : IBAN étranger pour une société française.
 
+## Textes de tiers
+
+Un message cite des textes choisis par des tiers : nom d'entreprise (SIRENE), d'opérateur (ARCEP), de prestataire (AMF), catégorie de liste noire. Les assistants (serveur MCP) les lisent : ce sont des données, jamais des instructions. Tout message est donc écrit tel que son lecteur le voit : les caractères qui ne s'affichent pas ou réordonnent le texte (format Unicode, dont les caractères d'étiquette et les contrôles bidirectionnels, usage privé, sélecteurs de variante) sont retirés, un contrôle ou un séparateur de ligne devient une espace, et un message dépasse au plus 1000 caractères, coupé avec « … ». Dans l'API comme dans MCP, le rapport est du JSON : un texte de tiers reste dans la chaîne `message` de son signal.
+
 ## Listes noires
 
 - **Correspondance** : une entrée de site couvre son hôte et tous ses sous-domaines, jamais le domaine parent (`x.wixsite.com` ne signale pas `wixsite.com`). Une entrée `www.X` couvre le site `X`, sauf si `X` est un suffixe public. Une adresse e-mail est comparée à l'identique, partie locale comprise ; le domaine est normalisé.
