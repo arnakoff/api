@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.1](https://github.com/arnakoff/api/compare/v0.47.0...v0.47.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **domain:** quote third-party text without hidden characters ([#227](https://github.com/arnakoff/api/issues/227)) ([01eacd0](https://github.com/arnakoff/api/commit/01eacd0926f7f75f951fcb9362b1d9e76b707ac3)), closes [#65](https://github.com/arnakoff/api/issues/65)
+
 ## [0.47.0](https://github.com/arnakoff/api/compare/v0.46.0...v0.47.0) (2026-11-03)
 
 
