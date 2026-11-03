@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.0](https://github.com/arnakoff/api/compare/v0.46.0...v0.47.0) (2026-11-03)
+
+
+### Features
+
+* **mcp:** serve the MCP tools over HTTP behind the API key ([#225](https://github.com/arnakoff/api/issues/225)) ([1b8b6a9](https://github.com/arnakoff/api/commit/1b8b6a92ac91df4726af185f25abf26187411032)), closes [#64](https://github.com/arnakoff/api/issues/64)
+
 ## [0.46.0](https://github.com/arnakoff/api/compare/v0.45.0...v0.46.0) (2026-11-03)
 
 
