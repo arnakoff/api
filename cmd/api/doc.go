@@ -46,6 +46,11 @@
 // client together ARNAKOFF_RATE_LIMIT_DEMO_GLOBAL (300 by default). Off,
 // the route answers 503.
 //
+// POST /mcp is the remote MCP endpoint, over the Streamable HTTP transport
+// without session: the check and list_sources tools of the mcp command,
+// behind the same API key and the same quota as the check routes, each
+// request spending one.
+//
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
 package main

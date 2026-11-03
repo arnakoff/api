@@ -66,6 +66,9 @@ type Options struct {
 	TrustedProxies []netip.Prefix
 	// Demo configures POST /v1/demo/check.
 	Demo DemoOptions
+	// MCP serves the remote MCP endpoint, POST /mcp, behind the API key
+	// and the quota of the check routes; nil leaves the route out.
+	MCP http.Handler
 }
 
 // NewHandler returns the handler of the API: its routes behind the request
@@ -89,6 +92,9 @@ func NewHandler(opts Options) http.Handler {
 	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }
 	mux.Handle("GET /v1/check", gate.require(check(opts.Check, ps)))
 	mux.Handle("POST /v1/check/batch", gate.require(batch(opts.Check, ps, opts.BatchMaxItems)))
+	if opts.MCP != nil {
+		mux.Handle("POST /mcp", gate.require(opts.MCP))
+	}
 	demo := newDemoGate(opts, ps, byAddr)
 	mux.Handle("POST /v1/demo/check", allowOrigin(opts.Demo.Origin, demo.check(opts.Check)))
 	mux.Handle("OPTIONS /v1/demo/check", preflight(opts.Demo.Origin))

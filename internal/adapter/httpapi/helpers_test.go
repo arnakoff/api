@@ -98,8 +98,14 @@ func options(t *testing.T, ready bool) (httpapi.Options, *loggingtest.Buffer) {
 		Ready: readiness(ready), Check: &checker{}, Auth: keyring{}, Logger: logger, NewID: func() string { return "GENERATED" },
 		ProblemBase: problemBase, BatchMaxItems: config.DefaultBatchMaxItems,
 		KeyLimit: frozenLimiter(1 << 30), IPLimit: frozenLimiter(1 << 30), AuthLimit: frozenLimiter(1 << 30),
+		MCP: mcpServer{},
 	}, buf
 }
+
+// mcpServer is a fake MCP endpoint: it answers 200 to any request.
+type mcpServer struct{}
+
+func (mcpServer) ServeHTTP(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
 
 // frozenLimiter returns a limiter allowing each client quota requests a
 // minute, on a clock that does not move. options sets one no test or

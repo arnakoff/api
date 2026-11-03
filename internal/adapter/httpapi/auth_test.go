@@ -47,7 +47,7 @@ func TestCheckRoutesRequireAKey(t *testing.T) {
 		{name: "no authenticator", header: []string{"Bearer " + testKey}, unsetAuth: true, status: http.StatusServiceUnavailable, code: "authentication_unavailable"},
 	}
 	for _, tt := range tests {
-		for _, route := range []string{"GET /v1/check?q=armen.ltd", "POST /v1/check/batch"} {
+		for _, route := range []string{"GET /v1/check?q=armen.ltd", "POST /v1/check/batch", "POST /mcp"} {
 			t.Run(tt.name+" "+route, func(t *testing.T) {
 				t.Parallel()
 				tt.assert(t, route)
@@ -154,5 +154,15 @@ func TestAStoreFailureIsLoggedWithoutTheKey(t *testing.T) {
 	}
 	if strings.Contains(logs.String(), testKey) {
 		t.Errorf("log %s quotes the API key", logs.String())
+	}
+}
+
+func TestMCPIsNotServedWhenUnset(t *testing.T) {
+	t.Parallel()
+	opts, _ := options(t, true)
+	opts.MCP = nil
+	res := do(httpapi.NewHandler(opts), authorize(httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", nil)))
+	if res.Code != http.StatusNotFound {
+		t.Errorf("POST /mcp without an MCP endpoint: status %d, want 404", res.Code)
 	}
 }
