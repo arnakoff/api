@@ -33,15 +33,17 @@ Le propriétaire choisit **Scaleway, région fr-par, en mode serverless** : aucu
 - **Clés d'accès** : une clé IAM pour `sync`, en lecture et écriture sur ce seul bucket, et une pour `api`, en lecture seule, restreintes par une politique de bucket.
 - **PostgreSQL** : Managed Database fr-par, plus petit nœud (DB-DEV-S : 2 vCPU, 2 Go de RAM), sauvegarde automatique quotidienne conservée 7 jours, plus la copie hors de Scaleway prévue par #75. `api` y accède par un Private Network, en TLS.
 - **Image** : la CI vérifie la signature cosign de l'image publiée sur GHCR, copie son manifeste `linux/amd64` dans Scaleway Container Registry, puis déploie ce digest. Scaleway déconseille les registres externes à cause de leurs limites de débit, et ses conteneurs n'acceptent que `linux/amd64`.
-- **Secrets** : variables d'environnement secrètes de Serverless Containers et Jobs ; jeton d'API Scaleway de la CI dans les secrets des environnements GitHub `staging` et `production` (#71).
+- **Secrets** : Scaleway ne propose ni fédération OIDC pour GitHub Actions ni identité attachée à un conteneur ou à un job ; une clé d'API existe donc toujours quelque part. Toute clé expire (plafond de durée fixé pour l'organisation). La clé de `api` est une variable d'environnement secrète du conteneur, seule voie possible : les Serverless Containers ne sont pas reliés à Secret Manager. La clé de `sync` est une référence Secret Manager montée en fichier dans le job. Les secrets restent dans les environnements GitHub et la CI les recopie chez Scaleway au déploiement (#71).
+- **Clé de la CI** : application IAM `ci-deploy`, droits `ContainersFullAccess`, `ServerlessJobsFullAccess` et `ContainerRegistryFullAccess` limités au projet `arnakoff-production` ; clé de 30 jours dans les secrets `SCW_ACCESS_KEY` et `SCW_SECRET_KEY` de l'environnement GitHub `production`, qui exige la revue du propriétaire et n'accepte que `main`. Pas de fédération OIDC : la rotation est manuelle (#238). Les droits Secret Manager s'ajoutent quand #71 en a besoin.
 
-## Points à vérifier à l'ouverture du compte
+## Constats à l'ouverture du compte (03/11/2026)
 
-- Déploiement par digest (`@sha256:`) depuis Scaleway Container Registry : non documenté, à vérifier.
-- PostgreSQL 18, la version de la CI : absent de la liste des moteurs fr-par relevée en septembre 2026, qui s'arrête à la 17. Sinon, la CI passe à la dernière version majeure proposée par Scaleway.
-- Migrations (`admin`) : les Serverless Jobs ne se rattachent pas à un Private Network. Il faut choisir entre un point d'accès public de la base, limité par ACL aux plages d'adresses de Scaleway, en TLS et avec le seul rôle de migration, et une autre façon de lancer `admin` depuis le réseau privé.
-- Couple vCPU et mémoire minimal avec 512 Mo, et partage ou non de l'offre gratuite mensuelle entre conteneurs et jobs.
-- Période de facturation d'Object Storage et de Container Registry.
+Relevés avec la CLI Scaleway 2.65.2 sur le compte ouvert, et dans les sources de la documentation Scaleway (`github.com/scaleway/docs-content`).
+
+- **PostgreSQL** : les moteurs proposés en fr-par s'arrêtent à PostgreSQL 17 (`scw rdb engine list`). La CI passe de la 18 à la 17. DB-DEV-S est toujours en vente, en stock, mais de première génération (`scw rdb node-type list`) ; son prix n'apparaît pas dans la liste, à vérifier.
+- **Migrations (`admin`)** : la documentation le confirme, les Serverless Jobs ne se rattachent pas à un Private Network. Le choix reste ouvert : soit un point d'accès public de la base, limité par ACL, en TLS et avec le seul rôle de migration, soit une autre façon de lancer `admin` depuis le réseau privé. À trancher dans #71.
+- **Conteneurs** : la documentation associe 250 mvCPU à 512 Mo.
+- **Restent à vérifier** : le déploiement par digest (`@sha256:`) depuis Container Registry (non documenté ; à tester au premier déploiement), le partage ou non de l'offre gratuite entre conteneurs et jobs, et la période de facturation d'Object Storage et de Container Registry.
 
 ## Conséquences
 
