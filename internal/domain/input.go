@@ -5,6 +5,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -54,6 +55,12 @@ func ParseKind(s string) (Kind, error) {
 		}
 	}
 	return KindAuto, fmt.Errorf("%w: %q", ErrUnknownKind, s)
+}
+
+// KindNames returns the name of every kind ParseKind accepts, in the
+// order of the kinds; "auto" is not one of them.
+func KindNames() []string {
+	return slices.Clone(kindNames[KindDomain:])
 }
 
 // Input is a parsed input: a Domain, an Email, a Phone, an IBAN, a SIREN or

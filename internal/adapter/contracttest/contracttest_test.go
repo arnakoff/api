@@ -14,7 +14,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/arnakoff/api/api"
-	"github.com/arnakoff/api/internal/adapter/httpapi/contracttest"
+	"github.com/arnakoff/api/internal/adapter/contracttest"
 )
 
 // spec is the contract, parsed once for every test.
@@ -243,5 +243,32 @@ func TestCheckRefusedRejectsAValidRequest(t *testing.T) {
 	e := exchange{target: "/v1/check?q=armen.ltd", body: example(t, "ReportBlacklisted"), refused: true}
 	if err := e.check(t); !errors.Is(err, contracttest.ErrRequestValid) {
 		t.Errorf("CheckRefused = %v, want ErrRequestValid", err)
+	}
+}
+
+func TestCheckSchemaHoldsAValueToAComponentSchema(t *testing.T) {
+	t.Parallel()
+
+	extra := example(t, "ReportBlacklisted")
+	extra["verdict"] = "undocumented"
+	noLevel := example(t, "ReportBlacklisted")
+	delete(firstSignal(noLevel), "level")
+	for _, tt := range []struct {
+		name, schema string
+		value        any
+		wantErr      bool
+	}{
+		{"report example", "Report", example(t, "ReportBlacklisted"), false},
+		{"undocumented property", "Report", extra, true},
+		{"missing required property", "Report", noLevel, true},
+		{"wrong schema", "SourceList", example(t, "ReportBlacklisted"), true},
+		{"unknown schema", "Verdict", map[string]any{}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if err := load(t).CheckSchema(tt.schema, tt.value); (err != nil) != tt.wantErr {
+				t.Errorf("CheckSchema(%s) error = %v, want error %t", tt.schema, err, tt.wantErr)
+			}
+		})
 	}
 }

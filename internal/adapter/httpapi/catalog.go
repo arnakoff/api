@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/arnakoff/api/internal/adapter/wire"
 	"github.com/arnakoff/api/internal/domain"
 )
 
@@ -40,9 +41,7 @@ var (
 		"Type de contenu non pris en charge", "Le corps de la requête doit être en application/json.",
 	}
 	invalidInput = problem{
-		http.StatusUnprocessableEntity, "invalid_input", "Entrée invalide",
-		"L'entrée n'est ni un domaine, ni une URL, ni une adresse e-mail, ni un numéro de téléphone, " +
-			"ni un IBAN, ni un SIREN, ni un SIRET.",
+		http.StatusUnprocessableEntity, "invalid_input", "Entrée invalide", wire.InvalidInput(domain.KindAuto),
 	}
 	invalidBody = problem{
 		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
@@ -91,18 +90,18 @@ var (
 // the input was of no kind: the detail names them all.
 var invalidInputOf = map[domain.Kind]problem{
 	domain.KindAuto:   invalidInput,
-	domain.KindDomain: invalidInputDetail("L'entrée n'est ni un domaine ni une URL valide."),
-	domain.KindEmail:  invalidInputDetail("L'entrée n'est pas une adresse e-mail valide."),
-	domain.KindPhone:  invalidInputDetail("L'entrée n'est pas un numéro de téléphone valide."),
-	domain.KindIBAN:   invalidInputDetail("L'entrée n'est pas un IBAN valide."),
-	domain.KindSIREN:  invalidInputDetail("L'entrée n'est pas un SIREN valide."),
-	domain.KindSIRET:  invalidInputDetail("L'entrée n'est pas un SIRET valide."),
+	domain.KindDomain: invalidInputFor(domain.KindDomain),
+	domain.KindEmail:  invalidInputFor(domain.KindEmail),
+	domain.KindPhone:  invalidInputFor(domain.KindPhone),
+	domain.KindIBAN:   invalidInputFor(domain.KindIBAN),
+	domain.KindSIREN:  invalidInputFor(domain.KindSIREN),
+	domain.KindSIRET:  invalidInputFor(domain.KindSIRET),
 }
 
-// invalidInputDetail returns invalidInput with another detail.
-func invalidInputDetail(detail string) problem {
+// invalidInputFor returns invalidInput with the detail naming k.
+func invalidInputFor(k domain.Kind) problem {
 	p := invalidInput
-	p.detail = detail
+	p.detail = wire.InvalidInput(k)
 	return p
 }
 

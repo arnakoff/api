@@ -4,6 +4,7 @@ package domain_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -157,6 +158,24 @@ func TestKindString(t *testing.T) {
 		if got := tt.kind.String(); got != tt.want {
 			t.Errorf("Kind(%d).String() = %q, want %q", uint8(tt.kind), got, tt.want)
 		}
+	}
+}
+
+func TestKindNamesAreTheKindsParseKindAccepts(t *testing.T) {
+	t.Parallel()
+
+	want := []string{"domain", "email", "phone", "iban", "siren", "siret"}
+	if got := domain.KindNames(); !slices.Equal(got, want) {
+		t.Fatalf("KindNames() = %v, want %v", got, want)
+	}
+	for _, name := range domain.KindNames() {
+		if _, err := domain.ParseKind(name); err != nil {
+			t.Errorf("ParseKind(%q) error = %v", name, err)
+		}
+	}
+	domain.KindNames()[0] = "changed"
+	if got := domain.KindNames()[0]; got != "domain" {
+		t.Errorf("KindNames()[0] = %q after a caller changed its copy, want domain", got)
 	}
 }
 

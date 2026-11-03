@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/arnakoff/api/internal/adapter/wire"
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/config"
 )
@@ -106,7 +107,7 @@ func (g *demoGate) check(c Checker) http.Handler {
 		if !g.admitGlobally(w, r, client) {
 			return
 		}
-		writeJSON(w, "application/json", http.StatusOK, reportOf(in.Kind(), c.Check(r.Context(), in)))
+		writeJSON(w, "application/json", http.StatusOK, wire.ReportOf(in.Kind(), c.Check(r.Context(), in)))
 	})
 }
 
