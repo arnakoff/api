@@ -74,3 +74,16 @@ func (s *keyStore) RevokeKey(_ context.Context, id int64, at time.Time) error {
 	}
 	return nil
 }
+
+func (s *keyStore) PurgeRevokedKeys(_ context.Context, cutoff time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return 0, s.err
+	}
+	before := len(s.recs)
+	s.recs = slices.DeleteFunc(s.recs, func(r domain.KeyRecord) bool {
+		return !r.Active() && r.RevokedAt.Before(cutoff)
+	})
+	return int64(before - len(s.recs)), nil
+}

@@ -22,7 +22,7 @@ const queryTimeout = 3 * time.Second
 const keyColumns = "id, digest, environment, label, hint, created_at, revoked_at"
 
 // Keys keeps the records of API keys in the api_keys table. It implements
-// app.KeyFinder and app.KeyIssuer.
+// app.KeyFinder, app.KeyIssuer and app.KeyPurger.
 type Keys struct {
 	pool *pgxpool.Pool
 }
@@ -105,6 +105,19 @@ func (k *Keys) RevokeKey(ctx context.Context, id int64, at time.Time) error {
 		return app.ErrKeyNotFound
 	}
 	return nil
+}
+
+// PurgeRevokedKeys deletes the keys revoked before cutoff and returns how
+// many it deleted. Several instances may run it at once: each deletes what
+// is left.
+func (k *Keys) PurgeRevokedKeys(ctx context.Context, cutoff time.Time) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+	tag, err := k.pool.Exec(ctx, "DELETE FROM api_keys WHERE revoked_at < $1", cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete revoked API keys: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // scanKey reads a row of keyColumns.

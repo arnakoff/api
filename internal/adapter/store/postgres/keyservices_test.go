@@ -14,16 +14,16 @@ import (
 	"github.com/arnakoff/api/internal/platform/config"
 )
 
-func TestOpenAuthenticatorRequiresTheKeyStore(t *testing.T) {
+func TestOpenKeyServicesRequiresTheKeyStore(t *testing.T) {
 	t.Parallel()
 
-	if _, _, err := postgres.OpenAuthenticator(t.Context(), config.Config{APIKeyEnv: "live"}); !errors.Is(err, config.ErrInvalid) {
-		t.Errorf("OpenAuthenticator() without a database error = %v, want ErrInvalid", err)
+	if _, err := postgres.OpenKeyServices(t.Context(), config.Config{APIKeyEnv: "live"}); !errors.Is(err, config.ErrInvalid) {
+		t.Errorf("OpenKeyServices() without a database error = %v, want ErrInvalid", err)
 	}
 }
 
 // The database is not reached until a key is checked.
-func TestOpenAuthenticatorOpensLazily(t *testing.T) {
+func TestOpenKeyServicesOpensLazily(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.Config{
@@ -31,19 +31,19 @@ func TestOpenAuthenticatorOpensLazily(t *testing.T) {
 		APIKeySecret: config.Secret("a test secret of thirty-two byte"),
 		APIKeyEnv:    "test",
 	}
-	auth, closeKeys, err := postgres.OpenAuthenticator(t.Context(), cfg)
+	svc, err := postgres.OpenKeyServices(t.Context(), cfg)
 	if err != nil {
-		t.Fatalf("OpenAuthenticator() error = %v", err)
+		t.Fatalf("OpenKeyServices() error = %v", err)
 	}
-	defer closeKeys()
-	if auth == nil {
-		t.Error("OpenAuthenticator() = nil")
+	defer svc.Close()
+	if svc.Auth == nil || svc.Purge == nil {
+		t.Errorf("OpenKeyServices() = %+v, want an authenticator and a purge", svc)
 	}
 }
 
 // A valid key is checked against the database once, then kept for
 // app.KeyCacheTTL: its revocation is not seen until then.
-func TestOpenAuthenticatorCachesValidKeys(t *testing.T) {
+func TestOpenKeyServicesCachesValidKeys(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
@@ -66,11 +66,12 @@ func TestOpenAuthenticatorCachesValidKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
-	auth, closeKeys, err := postgres.OpenAuthenticator(ctx, cfg)
+	svc, err := postgres.OpenKeyServices(ctx, cfg)
 	if err != nil {
-		t.Fatalf("OpenAuthenticator() error = %v", err)
+		t.Fatalf("OpenKeyServices() error = %v", err)
 	}
-	defer closeKeys()
+	defer svc.Close()
+	auth := svc.Auth
 	if _, err := auth.Authenticate(ctx, key.String()); err != nil {
 		t.Fatalf("Authenticate() error = %v", err)
 	}

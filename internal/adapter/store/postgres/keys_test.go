@@ -17,6 +17,7 @@ import (
 var (
 	_ app.KeyFinder = (*postgres.Keys)(nil)
 	_ app.KeyIssuer = (*postgres.Keys)(nil)
+	_ app.KeyPurger = (*postgres.Keys)(nil)
 )
 
 // created is the issue time of the records of these tests. PostgreSQL
@@ -153,5 +154,42 @@ func TestOpenAndMigrateRejectInsecure(t *testing.T) {
 	}
 	if err := postgres.Migrate(context.Background(), conn); !errors.Is(err, postgres.ErrInsecure) {
 		t.Errorf("Migrate() error = %v, want ErrInsecure", err)
+	}
+}
+
+func TestKeysPurgeRevokedKeysDeletesOnlyKeysRevokedBeforeTheCutoff(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	keys := openKeys(t)
+	cutoff := created.Add(48 * time.Hour)
+	revocations := map[byte]time.Time{
+		2: cutoff.Add(-time.Microsecond), // before: deleted
+		3: cutoff,                        // at: kept
+		4: cutoff.Add(time.Hour),         // after: kept
+	}
+	for b := byte(1); b <= 4; b++ {
+		rec, err := keys.CreateKey(ctx, record(b, domain.KeyLive))
+		if err != nil {
+			t.Fatalf("CreateKey() error = %v", err)
+		}
+		if at, ok := revocations[b]; ok {
+			if err := keys.RevokeKey(ctx, rec.ID, at); err != nil {
+				t.Fatalf("RevokeKey() error = %v", err)
+			}
+		}
+	}
+
+	n, err := keys.PurgeRevokedKeys(ctx, cutoff)
+	if err != nil || n != 1 {
+		t.Fatalf("PurgeRevokedKeys() = %d, %v; want 1 key deleted", n, err)
+	}
+	if _, err := keys.FindKey(ctx, domain.KeyDigest{2}); !errors.Is(err, app.ErrKeyNotFound) {
+		t.Errorf("FindKey(purged) error = %v, want ErrKeyNotFound", err)
+	}
+	for _, b := range []byte{1, 3, 4} {
+		if _, err := keys.FindKey(ctx, domain.KeyDigest{b}); err != nil {
+			t.Errorf("FindKey(%d) error = %v, want the key kept", b, err)
+		}
 	}
 }

@@ -16,6 +16,10 @@ import (
 // control character.
 var ErrInvalidKeyLabel = errors.New("invalid API key label")
 
+// RevokedKeyRetention is how long the record of a revoked API key is kept
+// after its revocation, then deleted (ADR 0006).
+const RevokedKeyRetention = 365 * 24 * time.Hour
+
 // MaxKeyLabelRunes is the longest label ParseKeyLabel accepts, in runes.
 const MaxKeyLabelRunes = 100
 
