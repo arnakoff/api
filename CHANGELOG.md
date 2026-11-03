@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.0](https://github.com/arnakoff/api/compare/v0.50.0...v0.51.0) (2026-11-03)
+
+
+### Features
+
+* **app:** purge api keys revoked more than a year ago ([#243](https://github.com/arnakoff/api/issues/243)) ([309e73f](https://github.com/arnakoff/api/commit/309e73f85952481c44c5da4969f457947cde468c)), closes [#73](https://github.com/arnakoff/api/issues/73)
+
 ## [0.50.0](https://github.com/arnakoff/api/compare/v0.49.0...v0.50.0) (2026-11-03)
 
 
