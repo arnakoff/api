@@ -38,18 +38,20 @@ const (
 // The key is never logged.
 //
 // Each client address, known by clientOf, also has a budget of refused
-// keys, spent before its key is checked and given back unless the key is
-// refused: a flood of well-formed but unknown keys, which anyone can make,
-// reaches the key store at a bounded pace per address. Its RateLimit
-// fields are only set on its 429. A budget too full to track one more
-// address lets that address be checked: a flood from many addresses must
-// not lock every new client out.
+// keys: an address with none left is answered 429 before its key is
+// looked up, and only a refused key spends it, once refused. A flood of
+// well-formed but unknown keys, which anyone can make, so reaches the key
+// store at a bounded pace per address, the refusals of lookups made at
+// once all counted, while any number of valid keys may be looked up at
+// once. Its RateLimit fields are only set on its 429. A budget too full to
+// track one more address lets that address be checked: a flood from many
+// addresses must not lock every new client out.
 type keyGate struct {
 	auth     Authenticator
 	logger   *slog.Logger
 	ps       problems
 	perKey   *quota
-	refusals *quota
+	refusals refusalBudget
 	clientOf func(*http.Request) string
 }
 
@@ -63,13 +65,13 @@ func (g *keyGate) require(next http.Handler) http.Handler {
 			return
 		}
 		client := g.clientOf(r)
-		if d := g.refusals.limiter.Allow(client); !d.Allowed && !d.Full {
+		if d := g.refusals.limiter.Peek(client); !d.Allowed {
 			g.refusals.deny(w, r, d)
 			return
 		}
 		rec, err := g.authenticate(r.Context(), token)
-		if !refused(err) {
-			g.refusals.limiter.Refund(client)
+		if refused(err) {
+			g.refusals.limiter.Charge(client)
 		}
 		switch {
 		case err == nil:
@@ -84,6 +86,17 @@ func (g *keyGate) require(next http.Handler) http.Handler {
 			g.ps.write(w, r, authenticationUnavailable)
 		}
 	})
+}
+
+// refusalBudget applies a RefusalLimiter under the auth policy.
+type refusalBudget struct {
+	limiter RefusalLimiter
+	fields
+}
+
+// newRefusalBudget returns the refusal budget of l.
+func newRefusalBudget(l RefusalLimiter, ps problems) refusalBudget {
+	return refusalBudget{limiter: l, fields: newFields(l.Policy(), authPolicy, ps)}
 }
 
 // authenticate returns the record of the key token; an empty token, sent
