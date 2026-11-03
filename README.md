@@ -52,6 +52,16 @@ cp .env.example .env   # renseigner ARNAKOFF_LOG_KEY, ARNAKOFF_DATABASE_URL et A
 docker compose up --build
 ```
 
+Chaque version publiée (tag `vX.Y.Z`) produit l'image `ghcr.io/arnakoff/api` pour `linux/amd64` et `linux/arm64`, taguée `X.Y.Z`, `X.Y` et `latest`, avec son SBOM et son attestation de provenance. Elle est signée sans clé par cosign depuis le workflow `image.yml` ; pour vérifier la signature d'une version (ici 0.48.0) :
+
+```sh
+cosign verify ghcr.io/arnakoff/api:0.48.0 \
+  --certificate-identity https://github.com/arnakoff/api/.github/workflows/image.yml@refs/tags/v0.48.0 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Le SBOM et la provenance se lisent avec `docker buildx imagetools inspect ghcr.io/arnakoff/api:0.48.0 --format '{{ json .SBOM.SPDX }}'` (ou `'{{ json .Provenance.SLSA }}'`).
+
 ## Organisation
 
 Architecture propre ([ADR 0002](docs/adr/0002-architecture-propre.md)) : les dépendances vont vers l'intérieur uniquement.
