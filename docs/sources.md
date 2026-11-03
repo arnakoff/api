@@ -17,7 +17,7 @@ Chaque source y est décrite par son éditeur, sa licence et sa page publique, d
 | IBAN | SWIFT (registre IBAN, norme ISO 13616) | Aucune donnée téléchargée | page du registre IBAN de SWIFT |
 | Domaines officiels | Arnakoff | Aucune licence tierce | `domains.csv` sur GitHub |
 
-L'ACPR n'est listée qu'une fois la source activée, donc après l'autorisation de réutilisation (#30). L'IBAN reste listé bien qu'aucune donnée ne soit téléchargée. « Domaines officiels » n'apparaît qu'une fois la liste chargée par `cmd/api` (#167).
+L'ACPR n'est listée qu'une fois la source activée, donc après l'autorisation de réutilisation (#30). L'IBAN reste listé bien qu'aucune donnée ne soit téléchargée.
 
 ## Liste noire AMF
 
@@ -110,7 +110,7 @@ Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier 
 - **Vérification** : pour chaque ligne, `curl -sIL` mène le domaine au site de l'organisme, et la page `proof` (mentions légales, ou pied de page pour `service-public.gouv.fr`) nomme l'éditeur. Un domaine secondaire n'est listé que s'il redirige vers le domaine principal ou si les mentions légales de l'organisme le nomment. Les mentions légales de `caf.fr` et `labanquepostale.fr`, qui refusent `curl` (protection anti-robots), ont été lues avec un outil de récupération de pages web. `bnpparibas.fr` et `bnpparibas.com`, qui refusent `curl` (403), ont été vérifiés dans un navigateur le 02/11/2026 : tous deux redirigent vers `group.bnpparibas`, dont les mentions légales nomment l'éditeur BNP Paribas S.A. (RCS Paris 662 042 449). Le domaine enregistrable `group.bnpparibas` n'est pas listé : son label générique (« group ») deviendrait un label imité. Le sigle `bnp` est un nom cherché, sur décision du propriétaire (02/11/2026).
 - **Écartés** : `cic.com` et `msa.com` appartiennent à d'autres entreprises ; `qonto.com` (éditeur non nommé hors PDF) ; `mabanque.bnpparibas`, dont le label est générique (« ma banque ») ; noms descriptifs (« assurance maladie », « allocations familiales ») et sigles courants (`ants`, `amf`, `msa`, `cic`), qui désignent aussi des sites légitimes.
 - **Licence** : faits relevés par nous (noms de domaine et éditeurs), sans reprise de contenu ; aucune licence tierce.
-- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `official.Load`, donc la commande qui charge la liste (aujourd'hui `cmd/eval`).
+- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `official.Load`, donc le démarrage de `cmd/api`, `cmd/mcp` et `cmd/eval`.
 - **Usage** : signal `attention` `domain_lookalike` (`docs/signals.md`). Ne dit rien de l'exploitant du domaine signalé.
 
 ## Plateformes d'hébergement partagées (liste de référence)
@@ -119,7 +119,7 @@ Une source, « ARCEP » : le fichier des tranches attribuées, joint au fichier 
 - **Vérification** : pour chaque ligne, `curl -sL` avec un agent de navigateur sur la page `proof` répond 200 (`twitter.com/X` redirige vers `x.com/X`, `discord.gg/discord-townhall` vers `discord.com/invite/discord-townhall`). `medium.com` et `beacons.ai` refusent `curl` (403) : leur page `proof` a été ouverte dans un navigateur (page de profil affichée). Pour un raccourcisseur, `proof` est un lien court publié par un tiers et `curl` répond 301 vers sa cible : `bit.ly/33fcgUX`, imprimé dans un communiqué de la préfecture de la région Île-de-France, redirige vers `prefectures-regions.gouv.fr` ; `tinyurl.com/ycy49ksl`, lié depuis les pages de `sosnc.gov`, vers une chaîne `youtube.com`. Le chargement vérifie que `proof` est une page HTTPS du domaine de la ligne.
 - **Écartés** : aucun. Une plateforme en sous-domaine (`sites.google.com`, `*.notion.site`) n'a pas besoin d'y figurer : seul un hôte égal à son domaine enregistrable, avec ou sans `www.`, peut étendre une page à son site.
 - **Licence** : faits relevés par nous (noms de domaine), sans reprise de contenu ; aucune licence tierce.
-- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `hosting.Load`, donc la commande qui charge la liste (aujourd'hui `cmd/eval`).
+- **Mise à jour** : à la main, ligne vérifiée de la même façon, avec la date dans la PR. Une ligne malformée fait échouer `hosting.Load`, donc le démarrage de `cmd/api`, `cmd/mcp` et `cmd/eval`.
 - **Usage** : garde-fou des listes blanches AMF (`docs/signals.md`) : une entrée avec un chemin sur une de ces plateformes ne couvre pas le site. Aucun signal propre.
 
 ## Refusées

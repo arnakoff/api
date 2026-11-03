@@ -8,6 +8,7 @@ package assembly
 
 import (
 	"github.com/arnakoff/api/internal/adapter/reference/hosting"
+	"github.com/arnakoff/api/internal/adapter/reference/official"
 	"github.com/arnakoff/api/internal/adapter/registry/live"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/source/listing"
@@ -47,7 +48,7 @@ func New(opts catalog.Options, st app.SnapshotStore, regs app.Registries, checkO
 	if err != nil {
 		return Service{}, err
 	}
-	srcs, err := app.NewSourceList(s, offline(opts).Infos(), append(live.Infos(), signal.IBANInfo())...)
+	srcs, err := app.NewSourceList(s, offline(opts).Infos(), append(live.Infos(), signal.IBANInfo(), official.Info())...)
 	if err != nil {
 		return Service{}, err
 	}
@@ -62,8 +63,9 @@ func Sync(opts catalog.Options, st app.SnapshotStore) (*app.Sync, error) {
 
 // Lists returns regs with the lists a check reads, each from the snapshot
 // of its source in snaps: the blacklists opts turns on, the white lists,
-// which leave out the shipped hosting platforms, and the numbering plan.
-// The registries of regs are kept.
+// which leave out the shipped hosting platforms, and the numbering plan,
+// and the shipped list of official domains. The registries of regs are
+// kept. A shipped list that does not load is an error.
 func Lists(opts catalog.Options, snaps listing.Snapshots, regs app.Registries) (app.Registries, error) {
 	platforms, err := hosting.Load()
 	if err != nil {
@@ -71,6 +73,9 @@ func Lists(opts catalog.Options, snaps listing.Snapshots, regs app.Registries) (
 	}
 	lists := catalog.Lists(opts, snaps, platforms)
 	regs.Blacklists, regs.Whitelists, regs.Numbering = lists.Blacklists, lists.Whitelists, lists.Numbering
+	if regs.Officials, err = official.Load(); err != nil {
+		return app.Registries{}, err
+	}
 	return regs, nil
 }
 
