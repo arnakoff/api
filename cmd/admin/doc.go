@@ -16,7 +16,9 @@
 // digest and prints the key once on standard output: it is never stored and
 // cannot be shown again. key list prints every key, its hint (the last four
 // characters), its dates and its label, never the key. key revoke revokes a
-// key at once; revoking it again keeps the first date.
+// key in the store at once; revoking it again keeps the first date. A
+// running API keeps a valid key in memory for 30 seconds (app.KeyCacheTTL)
+// and so may accept a revoked key for up to that long.
 //
 // The database is ARNAKOFF_DATABASE_URL, which must use
 // sslmode=verify-full beyond the local machine; keys are digested with

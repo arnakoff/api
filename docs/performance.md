@@ -77,6 +77,27 @@ Lecture :
 - Le budget ne protège que contre un flot venu d'un petit nombre d'adresses. Un flot réparti sur beaucoup d'adresses atteint encore la base, à raison de 30 recherches par minute et par adresse. Seul le cache des clés valides de #198 rend les clés valides indépendantes de la base. Si le budget suit déjà autant d'adresses qu'il le peut (`ratelimit.DefaultMaxKeys`, 100 000), une adresse nouvelle n'est pas suivie et sa clé est vérifiée en base : un flot réparti ne peut pas fermer la porte à tous les nouveaux clients.
 - Coût sur le chemin chaud (`go test -bench`, Apple M4, deux séries de 6 passes contre `main`) : une allocation de plus par requête (`BenchmarkCheck` 40 → 41), la clé de l'adresse cliente. L'écart de temps reste dans le bruit : +4,0 % sur une série, −6,6 % sur l'autre (`BenchmarkCheck` 3,30 µs). `Limiter.Allow` passe de 53,9 à 23,1 ns : son seau à jetons, écrit pour pouvoir rendre une requête, remplace `golang.org/x/time/rate`.
 
+## Cache des clés valides (#198)
+
+Depuis #198, une clé valide trouvée en base est gardée en mémoire 30 s (`app.KeyCacheTTL`, durée validée par le propriétaire le 02/11/2026). Seules les clés actives sont gardées : une clé inconnue ou révoquée, et une base qui ne répond pas, sont vérifiées en base à chaque requête. Contrepartie : une clé révoquée par `admin key revoke` reste acceptée au plus 30 s par une API déjà démarrée.
+
+Mesure du 03/11/2026, même machine et même banc que ci-dessus, registres rejoués sans latence, 100 clés valides depuis une seule adresse, `main` puis cette version, une attaque de 30 s par palier :
+
+| Débit demandé | Version | p50 | p90 | p99 | max | Succès |
+|---|---|---|---|---|---|---|
+| 8 000/s | avant (`main`) | 0,42 ms | 0,58 ms | 0,98 ms | 5,0 ms | 100,00 % |
+| 8 000/s | après | 0,057 ms | 0,066 ms | 0,18 ms | 1,6 ms | 100 % |
+| 12 000/s | avant (`main`) | 0,48 ms | 0,63 ms | 1,28 ms | 20,8 ms | 99,92 % |
+| 12 000/s | après | 0,058 ms | 0,068 ms | 0,20 ms | 9,3 ms | 100 % |
+| 16 000/s | avant (`main`) | 0,60 ms | 1,44 ms | 2,57 ms | 37,3 ms | 98,96 % |
+| 16 000/s | après | 0,059 ms | 0,083 ms | 0,26 ms | 7,6 ms | 100 % |
+
+Lecture :
+
+- Le p50 est divisé par 7 à 10, le p99 par 5 à 10. À 16 000 requêtes par seconde, le palier où le banc décrochait le 02/11 (avec un pool PostgreSQL saturé), le service suit désormais sans erreur.
+- Profil CPU à 8 000 requêtes par seconde, 20 s : 19,3 s de processeur avant, 7,0 s après. La recherche de clé (`Keys.FindKey`) prenait 4,5 s ; elle tombe sous le seuil d'échantillonnage.
+- Les échecs de `main` sont tous des `429` du budget de clés refusées (`RateLimit-Policy: "auth";q=30;w=60`), pas du quota des clés : ce budget est dépensé avant la recherche et rendu après, donc plus de 30 recherches en cours depuis une même adresse font refuser des clés valides. Le cache rend ces recherches assez brèves pour que le banc ne le déclenche plus, mais une rafale de clés absentes du cache y reste exposée : suivi dans #209.
+
 ## Budget de latence
 
 Budget **validé par le propriétaire le 02/11/2026** ; seuils mesurés côté client sur `GET /v1/check`, à un débit soutenu de 100 requêtes par seconde :
