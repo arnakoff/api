@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0](https://github.com/arnakoff/api/compare/v0.43.0...v0.44.0) (2026-11-03)
+
+
+### Features
+
+* **httpapi:** serve new clients when the address limiter is full ([#212](https://github.com/arnakoff/api/issues/212)) ([62040bf](https://github.com/arnakoff/api/commit/62040bfa80ec91ca68b8f301b0fb16939c381528)), closes [#205](https://github.com/arnakoff/api/issues/205)
+
 ## [0.43.0](https://github.com/arnakoff/api/compare/v0.42.0...v0.43.0) (2026-11-03)
 
 
