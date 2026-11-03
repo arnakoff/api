@@ -100,7 +100,7 @@ func (g *demoGate) check(c Checker) http.Handler {
 			g.ps.write(w, r, p)
 			return
 		}
-		if p, ok := g.verify(r.Context(), token); !ok {
+		if p, ok := verifyChallenge(r.Context(), g.verifier, g.logger, token); !ok {
 			g.ps.write(w, r, p)
 			return
 		}
@@ -123,13 +123,14 @@ func (g *demoGate) admitGlobally(w http.ResponseWriter, r *http.Request, client 
 	return d.Allowed
 }
 
-// verify returns the problem refusing token, and false, unless the
-// verifier accepts it. A token that cannot be checked fails closed.
-func (g *demoGate) verify(ctx context.Context, token string) (problem, bool) {
-	ok, err := g.verifier.Verify(ctx, token)
+// verifyChallenge returns the problem refusing token, and false, unless v
+// accepts it. A token that cannot be checked fails closed, logged on
+// logger.
+func verifyChallenge(ctx context.Context, v ChallengeVerifier, logger *slog.Logger, token string) (problem, bool) {
+	ok, err := v.Verify(ctx, token)
 	switch {
 	case err != nil:
-		g.logger.ErrorContext(ctx, "challenge not checked", "error", err.Error())
+		logger.ErrorContext(ctx, "challenge not checked", "error", err.Error())
 		return challengeUnavailable, false
 	case !ok:
 		return challengeFailed, false

@@ -80,6 +80,7 @@ func TestParseEmailRejects(t *testing.T) {
 		{"IPv4 domain", "contact@192.0.2.10"},
 		{"URL", "https://exemple.fr"},
 		{"trailing newline", "contact@exemple.fr\n"},
+		{"255-octet address", strings.Repeat("a", 60) + "@" + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 63) + ".fr"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -30,9 +30,14 @@ type KeyDigest [sha256.Size]byte
 
 // DigestAPIKey returns the KeyDigest of k under secret.
 func DigestAPIKey(secret []byte, k APIKey) KeyDigest {
+	return hmacSHA256(secret, k.String())
+}
+
+// hmacSHA256 returns the HMAC-SHA256 of s under secret.
+func hmacSHA256(secret []byte, s string) [sha256.Size]byte {
 	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(k.String()))
-	var d KeyDigest
+	mac.Write([]byte(s))
+	var d [sha256.Size]byte
 	copy(d[:], mac.Sum(nil))
 	return d
 }
@@ -50,6 +55,10 @@ type KeyRecord struct {
 	Label string
 	// Hint is APIKey.Hint, to tell keys apart in a listing.
 	Hint string
+	// Email is the address of the account the key was issued to by a
+	// login link; zero for a key issued by the operator. It is personal
+	// data, deleted with the record (ADR 0006).
+	Email Email
 	// CreatedAt is when the key was issued.
 	CreatedAt time.Time
 	// RevokedAt is when the key was revoked; zero while it is active.

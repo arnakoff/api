@@ -24,6 +24,11 @@ info:
     Accès de démonstration : `POST /v1/demo/check` vérifie une entrée sans clé, pour le
     vérificateur du site seulement. Chaque requête porte un jeton Cloudflare Turnstile, valable une
     fois, et le quota est faible. CORS n'autorise que l'origine du site.
+
+    Clé gratuite : `POST /v1/keys/request` envoie à une adresse e-mail un lien de connexion à usage
+    unique, valable 15 minutes ; la page du site qu'il ouvre échange son jeton contre une clé avec
+    `POST /v1/keys/redeem`. Une adresse a une seule clé active : en obtenir une nouvelle révoque
+    l'ancienne.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -35,6 +40,8 @@ tags:
     description: Vérifier une ou plusieurs entrées.
   - name: référence
     description: Sources consultées et signaux possibles.
+  - name: clés
+    description: Obtenir une clé API gratuite par lien de connexion.
 paths:
   /v1/check:
     get:
@@ -191,6 +198,107 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ChallengeUnavailable'
+  /v1/keys/request:
+    post:
+      operationId: requestKey
+      tags: [clés]
+      summary: Recevoir un lien de connexion pour obtenir une clé
+      description: |
+        Envoie à l'adresse donnée un e-mail avec un lien de connexion à usage unique, valable
+        15 minutes, vers la page du site qui donne la clé. La réponse est la même que l'adresse ait
+        déjà une clé ou non, et qu'un lien lui ait été envoyé récemment ou non : au-delà de quelques
+        liens par heure pour une même adresse, la demande est acceptée sans nouvel envoi.
+
+        Chaque requête porte un jeton Cloudflare Turnstile obtenu sur le site, valable une fois ; le
+        quota est par adresse du client (politique `key_request`). CORS : seule l'origine du site
+        est autorisée. L'adresse est gardée avec la demande jusqu'à 24 heures après la fin du lien,
+        puis avec la clé qu'elle obtient.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyRequest'
+            examples:
+              request:
+                $ref: '#/components/examples/KeyRequest'
+      responses:
+        '202':
+          description: Demande acceptée. Un lien est envoyé si l'adresse peut en recevoir un.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
+        '400':
+          $ref: '#/components/responses/KeyRequestBadRequest'
+        '403':
+          $ref: '#/components/responses/ChallengeFailed'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/InvalidEmail'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/KeyRequestUnavailable'
+  /v1/keys/redeem:
+    post:
+      operationId: redeemKey
+      tags: [clés]
+      summary: Échanger un lien de connexion contre une clé
+      description: |
+        Échange le jeton d'un lien de connexion contre une nouvelle clé API, affichée une seule
+        fois : le serveur n'en garde qu'une empreinte. Le jeton ne sert qu'une fois. La clé que
+        l'adresse avait déjà est révoquée.
+
+        La page du site lit le jeton dans le fragment du lien (`#…`), qui n'est jamais envoyé à un
+        serveur, puis l'envoie dans le corps de cette requête. Quota par adresse du client
+        (politique `key_request`). CORS : seule l'origine du site est autorisée.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyRedeemRequest'
+            examples:
+              redeem:
+                $ref: '#/components/examples/KeyRedeemRequest'
+      responses:
+        '201':
+          description: La clé, à copier maintenant.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimitPolicy'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedKey'
+              examples:
+                issued:
+                  $ref: '#/components/examples/IssuedKey'
+        '400':
+          $ref: '#/components/responses/KeyRedeemBadRequest'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/InvalidLoginLink'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/KeyRequestUnavailable'
   /v1/sources:
     get:
       operationId: listSources
@@ -306,8 +414,9 @@ components:
         plus vérifiées et la réponse est `429`, même pour une clé valide. La politique `auth`
         n'apparaît que sur ses réponses `429`. Sur `POST /v1/demo/check`, politique `demo` par
         adresse du client et politique `demo_global` pour tous les clients ensemble, qui
-        n'apparaît que sur ses réponses `429`. Valeurs de l'exemple données à
-        titre d'illustration : les quotas dépendent de l'offre.
+        n'apparaît que sur ses réponses `429`. Sur `POST /v1/keys/request` et
+        `POST /v1/keys/redeem`, politique `key_request` par adresse du client. Valeurs de l'exemple
+        données à titre d'illustration : les quotas dépendent de l'offre.
       schema:
         type: string
       example: '"key";q=60;w=60'
@@ -410,6 +519,55 @@ components:
           examples:
             unavailable:
               $ref: '#/components/examples/ProblemChallengeUnavailable'
+    KeyRequestBadRequest:
+      description: Corps de requête qui n'est pas un objet JSON avec `email` et `turnstile_token`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidBody:
+              $ref: '#/components/examples/ProblemInvalidKeyRequestBody'
+    KeyRedeemBadRequest:
+      description: Corps de requête qui n'est pas un objet JSON avec `token`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidBody:
+              $ref: '#/components/examples/ProblemInvalidKeyRedeemBody'
+    InvalidEmail:
+      description: Adresse e-mail invalide.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidEmail:
+              $ref: '#/components/examples/ProblemInvalidEmail'
+    InvalidLoginLink:
+      description: Lien de connexion mal formé, inconnu, expiré ou déjà utilisé.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid:
+              $ref: '#/components/examples/ProblemInvalidLoginLink'
+    KeyRequestUnavailable:
+      description: |
+        La demande ne peut pas être traitée pour le moment : envoi d'e-mails ou base des clés
+        indisponible, ou jeton anti-abus impossible à vérifier.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unavailable:
+              $ref: '#/components/examples/ProblemKeyRequestUnavailable'
+            challenge:
+              $ref: '#/components/examples/ProblemChallengeUnavailable'
     UnsupportedMediaType:
       description: Corps de requête qui n'est pas en `application/json`.
       content:
@@ -445,8 +603,8 @@ components:
     TooManyRequests:
       description: |
         Quota dépassé : celui de la clé (`key`), de l'adresse (`ip`), des clés refusées depuis
-        l'adresse (`auth`) ou de l'accès de démonstration (`demo`, `demo_global`), nommé dans
-        `RateLimit-Policy`.
+        l'adresse (`auth`), de l'accès de démonstration (`demo`, `demo_global`) ou des demandes de
+        clé (`key_request`), nommé dans `RateLimit-Policy`.
       headers:
         RateLimit:
           $ref: '#/components/headers/RateLimit'
@@ -640,6 +798,55 @@ components:
           minLength: 1
           maxLength: 2048
           example: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
+    KeyRequest:
+      type: object
+      description: L'adresse qui recevra le lien et le jeton anti-abus du site.
+      required: [email, turnstile_token]
+      properties:
+        email:
+          type: string
+          description: L'adresse e-mail du compte, qui recevra le lien de connexion.
+          minLength: 1
+          maxLength: 320
+          example: dev@exemple.fr
+        turnstile_token:
+          type: string
+          description: Le jeton donné par le widget Cloudflare Turnstile du site, valable une fois.
+          minLength: 1
+          maxLength: 2048
+          example: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
+    KeyRedeemRequest:
+      type: object
+      description: Le jeton du lien de connexion.
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Le jeton lu dans le fragment du lien, 43 caractères en base62.
+          minLength: 1
+          maxLength: 256
+          example: 4fQ8hZp2LmW9xR7cT1vB6nK3sD0aY5uE8iO2jG4wH7q
+    IssuedKey:
+      type: object
+      description: Une clé API qui vient d'être créée.
+      required: [api_key, hint, created_at]
+      properties:
+        api_key:
+          type: string
+          description: La clé, affichée cette seule fois. À garder secrète.
+          pattern: '^ark_(live|test)_[0-9A-Za-z]{36}$'
+          example: ark_live_7XkP2mQ9vR4tL8wN3bH6jF1sD5gA0c3VkXte
+        hint:
+          type: string
+          description: Les quatre derniers caractères de la clé, pour la reconnaître ensuite.
+          minLength: 4
+          maxLength: 4
+          example: kXte
+        created_at:
+          type: string
+          format: date-time
+          description: Heure de création de la clé.
+          example: '2026-11-03T14:05:00Z'
     BatchResponse:
       type: object
       description: Un résultat par élément du lot, dans l'ordre des éléments.
@@ -861,6 +1068,21 @@ components:
       value:
         q: armen.ltd
         turnstile_token: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
+    KeyRequest:
+      summary: Une adresse, avec le jeton du widget
+      value:
+        email: dev@exemple.fr
+        turnstile_token: 0.zrSnRHO7h0HwSjSCU8oyzbjEtD8p.d62306d4ee00c77dda697f959ebbd7bd97
+    KeyRedeemRequest:
+      summary: Le jeton du lien
+      value:
+        token: 4fQ8hZp2LmW9xR7cT1vB6nK3sD0aY5uE8iO2jG4wH7q
+    IssuedKey:
+      summary: Une clé de production
+      value:
+        api_key: ark_live_7XkP2mQ9vR4tL8wN3bH6jF1sD5gA0c3VkXte
+        hint: kXte
+        created_at: '2026-11-03T14:05:00Z'
     BatchResponseMixed:
       summary: Un rapport et une erreur
       value:
@@ -1027,6 +1249,42 @@ components:
         detail: Le corps de la requête doit être un objet JSON contenant q et turnstile_token.
         instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
         code: invalid_body
+    ProblemInvalidKeyRequestBody:
+      summary: Corps de demande de clé mal formé
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_body
+        title: Corps de requête invalide
+        status: 400
+        detail: Le corps de la requête doit être un objet JSON contenant email et turnstile_token.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_body
+    ProblemInvalidKeyRedeemBody:
+      summary: Corps d'échange de lien mal formé
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_body
+        title: Corps de requête invalide
+        status: 400
+        detail: Le corps de la requête doit être un objet JSON contenant token.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_body
+    ProblemInvalidLoginLink:
+      summary: Lien de connexion inutilisable
+      value:
+        type: https://arnakoff.com/docs/erreurs/invalid_login_link
+        title: Lien de connexion invalide
+        status: 422
+        detail: Le lien de connexion est invalide, expiré ou déjà utilisé. Demande un nouveau lien.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: invalid_login_link
+    ProblemKeyRequestUnavailable:
+      summary: Demande de clé indisponible
+      value:
+        type: https://arnakoff.com/docs/erreurs/key_request_unavailable
+        title: Demande de clé indisponible
+        status: 503
+        detail: La demande de clé ne peut pas être traitée pour le moment. Réessaie plus tard.
+        instance: tag:arnakoff.com,2026:request:7NQJ4ZWKX3C5RB2D6HVMTPLE9A
+        code: key_request_unavailable
     ProblemChallengeFailed:
       summary: Jeton anti-abus refusé
       value:

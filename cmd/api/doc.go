@@ -49,6 +49,21 @@
 // client together ARNAKOFF_RATE_LIMIT_DEMO_GLOBAL (300 by default). Off,
 // the route answers 503.
 //
+// POST /v1/keys/request mails a login link, valid 15 minutes, to the
+// address of its body, and POST /v1/keys/redeem trades the link's token for
+// a free API key of ARNAKOFF_API_KEY_ENV, revoking the key the address had.
+// They are on when ARNAKOFF_SMTP_ADDR is set, the "host:port" of a server
+// speaking TLS at once (port 465), with ARNAKOFF_SMTP_USERNAME and
+// ARNAKOFF_SMTP_PASSWORD, and the demo access is on: each link request
+// carries a Turnstile token, and CORS allows the demo's origin only. The
+// links are sent from ARNAKOFF_MAIL_FROM (contact@arnakoff.com by default)
+// and open ARNAKOFF_LOGIN_LINK_URL (https://arnakoff.com/cle by default),
+// the token in its fragment. Each client address may send
+// ARNAKOFF_RATE_LIMIT_KEY_REQUEST requests a minute to both routes (5 by
+// default), and each email address receive ARNAKOFF_RATE_LIMIT_KEY_REQUEST_ADDRESS
+// links an hour (3 by default); over it, a request is answered the same and
+// no link is sent. Off, the routes answer 503.
+//
 // POST /mcp is the remote MCP endpoint, over the Streamable HTTP transport
 // without session: the check and list_sources tools of the mcp command,
 // behind the same API key and the same quota as the check routes, each

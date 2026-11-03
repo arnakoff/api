@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,10 +17,12 @@ import (
 	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/adapter/mcp"
+	"github.com/arnakoff/api/internal/adapter/smtpmail"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/adapter/turnstile"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/buildinfo"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
@@ -79,7 +82,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err := svc.Sync.Restore(ctx); err != nil {
 		slog.ErrorContext(ctx, "stored snapshot not restored", "error", err.Error())
 	}
-	opts, err := withAccess(cfg, httpapi.Options{
+	opts, err := withAccess(cfg, keys, httpapi.Options{
 		Ready: svc.Sync, Check: svc.Check, Auth: keys.Auth, Sources: svc.Sources, Logger: slog.Default(), ProblemBase: cfg.ProblemBaseURL,
 		BatchMaxItems: cfg.BatchMaxItems, TrustedProxies: cfg.TrustedProxies,
 		MCP: mcp.HTTP(mcp.NewServer(mcp.Options{Check: svc.Check, Sources: svc.Sources})),
@@ -90,10 +93,14 @@ func run(ctx context.Context, cfg config.Config) error {
 	return serve(ctx, cfg, svc.Sync, keys.Purge, opts)
 }
 
-// withAccess returns opts with the access rules of cfg: its rate limits
-// and its demo access.
-func withAccess(cfg config.Config, opts httpapi.Options) (httpapi.Options, error) {
+// withAccess returns opts with the access rules of cfg: its rate limits,
+// its demo access and its key requests on keys.
+func withAccess(cfg config.Config, keys postgres.KeyServices, opts httpapi.Options) (httpapi.Options, error) {
 	demo, err := newDemo(cfg.Demo)
+	if err != nil {
+		return httpapi.Options{}, err
+	}
+	opts.Keys, err = newKeyRequests(cfg, keys, demo.Verifier)
 	if err != nil {
 		return httpapi.Options{}, err
 	}
@@ -130,12 +137,11 @@ func serve(ctx context.Context, cfg config.Config, s *app.Sync, purge *app.KeyPu
 // logPurge returns the report of the key purge: a line on logger for each
 // purge.
 func logPurge(logger *slog.Logger) app.PurgeReport {
-	return func(ctx context.Context, deleted int64, err error) {
+	return func(ctx context.Context, deleted app.PurgeCount, err error) {
 		if err != nil {
-			logger.ErrorContext(ctx, "revoked API keys not purged", "error", err.Error())
-			return
+			logger.ErrorContext(ctx, "key store not fully purged", "error", err.Error())
 		}
-		logger.InfoContext(ctx, "revoked API keys purged", "deleted", deleted)
+		logger.InfoContext(ctx, "key store purged", "revoked_keys", deleted.Keys, "login_requests", deleted.LoginRequests)
 	}
 }
 
@@ -155,5 +161,35 @@ func newDemo(cfg config.Demo) (httpapi.DemoOptions, error) {
 		return httpapi.DemoOptions{}, err
 	}
 	opts.Verifier = v
+	return opts, nil
+}
+
+// newKeyRequests returns the key requests cfg configures on keys, each
+// link request proven with verifier: without a requester when they are
+// off, so that the routes answer 503.
+func newKeyRequests(cfg config.Config, keys postgres.KeyServices, verifier httpapi.ChallengeVerifier) (httpapi.KeyRequestOptions, error) {
+	k := cfg.KeyRequest
+	opts := httpapi.KeyRequestOptions{
+		Origin: cfg.Demo.Origin, Verifier: verifier,
+		Limit:        ratelimit.PerMinute(k.RateLimit, clock.System{}.Now),
+		AddressLimit: ratelimit.PerHour(k.RateLimitAddress, clock.System{}.Now),
+	}
+	if !k.Enabled() {
+		return opts, nil
+	}
+	from, err := domain.ParseEmail(k.MailFrom)
+	if err != nil {
+		return httpapi.KeyRequestOptions{}, fmt.Errorf("%s: %w", config.EnvMailFrom, err)
+	}
+	mailer, err := smtpmail.New(smtpmail.Config{
+		Addr: k.SMTPAddr, Username: k.SMTPUsername, Password: k.SMTPPassword.Bytes(), From: from,
+	})
+	if err != nil {
+		return httpapi.KeyRequestOptions{}, err
+	}
+	opts.Requests = app.NewKeyRequests(app.KeyRequestDeps{
+		Logins: keys.Store, Keys: keys.Store, Mailer: mailer, Secret: cfg.APIKeySecret.Bytes(),
+		Environment: keys.Environment, Clock: clock.System{}, Random: rand.Reader, LinkBase: k.LinkURL,
+	})
 	return opts, nil
 }

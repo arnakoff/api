@@ -142,6 +142,9 @@ type Config struct {
 	// Demo configures the demo access of the site's checker.
 	Demo Demo
 
+	// KeyRequest configures the free API keys requested by login link.
+	KeyRequest KeyRequest
+
 	// SnapshotBucket is the bucket the snapshots are stored in instead of
 	// SnapshotDir, when it is enabled.
 	SnapshotBucket SnapshotBucket
@@ -176,6 +179,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvRateLimitAuth, strconv.Itoa(DefaultRateLimitAuth), &cfg.RateLimitAuth, parseRateLimit),
 		parseTrustedProxies(lookup, &cfg.TrustedProxies),
 		parseDemo(lookup, &cfg.Demo),
+		parseKeyRequest(lookup, &cfg.KeyRequest, &cfg.Demo),
 		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
 	}
 	if err := errors.Join(errs...); err != nil {
@@ -251,16 +255,27 @@ func parseWebhook(s string) (Secret, error) {
 // credentials, no query and no fragment, whose path ends with a slash: a
 // code appended to it is the URL of the code's page.
 func parseProblemBase(s string) (string, error) {
-	u, err := parseHTTPS(s)
+	u, err := parseHTTPSNoQuery(s)
 	switch {
 	case err != nil:
 		return "", err
-	case u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(s, "#"):
-		return "", errors.New("a query or a fragment is not allowed")
 	case !strings.HasSuffix(u.Path, "/"):
 		return "", errors.New("the path must end with a slash")
 	}
 	return s, nil
+}
+
+// parseHTTPSNoQuery parses an absolute HTTPS URL with a host, no
+// credentials, no query and no fragment, not even an empty one.
+func parseHTTPSNoQuery(s string) (*url.URL, error) {
+	u, err := parseHTTPS(s)
+	switch {
+	case err != nil:
+		return nil, err
+	case u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(s, "#"):
+		return nil, errors.New("a query or a fragment is not allowed")
+	}
+	return u, nil
 }
 
 // parseHTTPS parses an absolute HTTPS URL with a host and no credentials.

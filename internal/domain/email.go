@@ -16,6 +16,10 @@ var ErrInvalidEmail = errors.New("invalid email address")
 // octets.
 const maxLocalLength = 64
 
+// maxAddressLength is the longest address RFC 5321 (4.5.3.1.3) allows in a
+// path of 256 octets, angle brackets excluded.
+const maxAddressLength = 254
+
 // Email is an email address: the local part as written, the domain
 // normalised by ParseDomain's rules. It is personal data: log Redacted, never
 // String. The zero value is not a valid address.
@@ -36,7 +40,7 @@ func ParseEmail(s string) (Email, error) {
 	}
 	at := strings.LastIndexByte(addr.Address, '@')
 	local, host := addr.Address[:at], addr.Address[at+1:]
-	if local == "" || len(local) > maxLocalLength {
+	if local == "" || len(local) > maxLocalLength || len(addr.Address) > maxAddressLength {
 		return Email{}, ErrInvalidEmail
 	}
 	// A bare host name: the domain part may hold characters, such as '#',
@@ -55,6 +59,18 @@ func (e Email) String() string {
 	// quoting the local part as needed.
 	quoted := (&mail.Address{Address: e.local + "@" + e.domain.String()}).String()
 	return strings.TrimSuffix(strings.TrimPrefix(quoted, "<"), ">")
+}
+
+// Account returns the address in lower case: the identity of the account
+// of an API key, the same whatever case it is typed in. The local part may
+// in theory tell cases apart (RFC 5321), but no mail provider does.
+func (e Email) Account() string {
+	return strings.ToLower(e.String())
+}
+
+// IsZero reports whether e is the zero value, no address.
+func (e Email) IsZero() bool {
+	return e == Email{}
 }
 
 // Local returns the local part, unquoted.
