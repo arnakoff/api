@@ -8,9 +8,11 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/platform/ratelimit"
 )
 
 // limitedOptions returns options limiting each key and each client
@@ -111,6 +113,29 @@ func TestReferenceRoutesAreLimitedPerAddress(t *testing.T) {
 			if res := do(h, fromAddr(t, http.MethodGet, target, "198.51.100.1:1")); res.Code != http.StatusOK {
 				t.Errorf("another address: status %d, want 200", res.Code)
 			}
+		})
+	}
+}
+
+func TestAFullAddressLimiterStillServesNewClients(t *testing.T) {
+	t.Parallel()
+	for _, target := range []string{"/v1/sources", "/v1/signals"} {
+		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+			now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+			opts := limitedOptions(t)
+			opts.Sources = sourceLister{}
+			opts.IPLimit = ratelimit.New(ratelimit.Policy{Quota: 1, Window: time.Minute}, 1, func() time.Time { return now })
+			h := httpapi.NewHandler(opts)
+			do(h, fromAddr(t, http.MethodGet, target, "203.0.113.7:1"))
+			if res := do(h, fromAddr(t, http.MethodGet, target, "203.0.113.7:2")); res.Code != http.StatusTooManyRequests {
+				t.Errorf("tracked address over its quota: status %d, want 429", res.Code)
+			}
+			res := do(h, fromAddr(t, http.MethodGet, target, "198.51.100.1:1"))
+			if res.Code != http.StatusOK {
+				t.Fatalf("new address on a full limiter: status %d, want 200", res.Code)
+			}
+			limitHeaders(t, res, `"ip";q=1;w=60`, `"ip";r=0;t=60`, "")
 		})
 	}
 }
