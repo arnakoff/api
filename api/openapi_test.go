@@ -4,6 +4,7 @@ package api_test
 
 import (
 	"bytes"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -85,5 +86,29 @@ func TestSpecListsEverySignalCode(t *testing.T) {
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
 		t.Errorf("Signal.code examples = %v, want the codes of the catalog %v", got, want)
+	}
+}
+
+// TestSpecServesOverHTTPS checks the hosts the contract declares: at least
+// one, each in HTTPS, without the /v1 prefix the paths already carry.
+func TestSpecServesOverHTTPS(t *testing.T) {
+	t.Parallel()
+
+	servers := load(t).Servers
+	if len(servers) == 0 {
+		t.Fatal("servers is empty, want the public host")
+	}
+	for _, s := range servers {
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Errorf("server %q: %v", s.URL, err)
+			continue
+		}
+		if u.Scheme != "https" || u.Host == "" {
+			t.Errorf("server %q, want an HTTPS host", s.URL)
+		}
+		if strings.Trim(u.Path, "/") != "" {
+			t.Errorf("server %q has path %q, want none: the paths carry /v1", s.URL, u.Path)
+		}
 	}
 }

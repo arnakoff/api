@@ -27,6 +27,9 @@ info:
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
+servers:
+  - url: https://api.arnakoff.com
+    description: Production. Les chemins portent la version (`/v1/...`).
 tags:
   - name: vérification
     description: Vérifier une ou plusieurs entrées.
