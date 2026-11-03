@@ -35,8 +35,9 @@ type body struct {
 	Rows      [][]string    `json:"rows"`
 }
 
-// encode returns the file content of s.
-func encode(s domain.Snapshot) ([]byte, error) {
+// Encode returns the content of the file of s, in the format of the package
+// doc: the bytes every snapshot store writes, on disk or in a bucket.
+func Encode(s domain.Snapshot) ([]byte, error) {
 	b, err := json.Marshal(body{
 		Source:    s.Source,
 		FetchedAt: s.FetchedAt.UTC(),
@@ -55,8 +56,9 @@ func encode(s domain.Snapshot) ([]byte, error) {
 	return bytes.Join([][]byte{e, b}, []byte("\n")), nil
 }
 
-// decode returns the snapshot of source held in the file content b.
-func decode(b []byte, source domain.Source) (domain.Snapshot, error) {
+// Decode returns the snapshot of source held in the file content b, or
+// ErrCorrupt or ErrVersion when it does not check out.
+func Decode(b []byte, source domain.Source) (domain.Snapshot, error) {
 	head, rest, ok := bytes.Cut(b, []byte("\n"))
 	if !ok {
 		return domain.Snapshot{}, fmt.Errorf("%w: no envelope line", ErrCorrupt)

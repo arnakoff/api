@@ -10,8 +10,8 @@ import (
 	"os"
 
 	"github.com/arnakoff/api/internal/adapter/alert"
+	"github.com/arnakoff/api/internal/adapter/assembly"
 	"github.com/arnakoff/api/internal/adapter/source/catalog"
-	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/buildinfo"
@@ -77,13 +77,12 @@ func newSync(cfg config.Config, dryRun bool) (*app.Sync, []app.Plan, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	disk, err := store.NewDisk(cfg.SnapshotDir())
+	st, err := assembly.SnapshotStore(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	var st app.SnapshotStore = disk
 	if dryRun {
-		st = app.DryRun(disk)
+		st = app.DryRun(st)
 	}
 	cat := catalog.New(client, sources)
 	s, err := app.NewSync(st, clock.System{}, cat.Fetchers()...)
