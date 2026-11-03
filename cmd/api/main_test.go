@@ -4,6 +4,8 @@ package main
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/arnakoff/api/internal/platform/config"
@@ -42,5 +44,18 @@ func TestNewDemoHasAVerifierOnlyWhenOn(t *testing.T) {
 				t.Errorf("demo = %+v, want the origin and both limits", demo)
 			}
 		})
+	}
+}
+
+func TestProbeAsksTheConfiguredAddress(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	if err := probe(t.Context(), config.Config{Addr: srv.Listener.Addr().String()}); err != nil {
+		t.Errorf("probe() error = %v, want nil", err)
 	}
 }

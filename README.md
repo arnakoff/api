@@ -45,6 +45,13 @@ go tool govulncheck ./... tool
 
 La CI lance les mêmes commandes sur chaque pull request. Les tests n'utilisent jamais le réseau.
 
+Avec Docker, l'image (`Dockerfile`) contient les commandes `api`, `sync` et `admin` sur une base distroless sans shell, exécutées par un utilisateur non root. `compose.yaml` lance l'API et la synchronisation, qui partagent le volume des instantanés :
+
+```sh
+cp .env.example .env   # renseigner ARNAKOFF_LOG_KEY, ARNAKOFF_DATABASE_URL et ARNAKOFF_API_KEY_SECRET
+docker compose up --build
+```
+
 ## Organisation
 
 Architecture propre ([ADR 0002](docs/adr/0002-architecture-propre.md)) : les dépendances vont vers l'intérieur uniquement.

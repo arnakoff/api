@@ -7,7 +7,8 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | Outil | Version | Source |
 |---|---|---|
 | Go | 1.27.3 (`go 1.27.0` et `toolchain go1.27.3` dans `go.mod`) | `go.dev/dl/?mode=json` |
-| Image de build | `golang:1.27.3-alpine3.24`, épinglée par digest | Docker Hub `library/golang` |
+| Image de build | `golang:1.27.3-alpine3.24`, épinglée par le digest de son index multiplateforme (`sha256:d200d2dd…3deb`), vérifiée le 03/11/2026 | Docker Hub `library/golang`, `docker buildx imagetools inspect` |
+| Image d'exécution | `gcr.io/distroless/static-debian13:nonroot`, épinglée par le digest de son index multiplateforme (`sha256:25ac8f0c…8329`), vérifiée le 03/11/2026 | `gcr.io`, `docker buildx imagetools inspect` |
 | golangci-lint | v2.15.0 (configuration au format `version: "2"`) | GitHub releases |
 | gofumpt | v0.12.0 | GitHub releases |
 | gosec | v2.30.0 (via golangci-lint) | GitHub releases |

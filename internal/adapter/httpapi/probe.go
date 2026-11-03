@@ -7,6 +7,9 @@ import (
 	"net/http"
 )
 
+// healthzPath is the route of the liveness probe, which ProbeAlive asks.
+const healthzPath = "/healthz"
+
 // Probe bodies: the probes are outside the public contract.
 const (
 	probeOK          = `{"status":"ok"}`
