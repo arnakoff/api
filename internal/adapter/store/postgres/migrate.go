@@ -26,8 +26,8 @@ var migrations embed.FS
 // It is run by the administration command with a role that may change the
 // schema, never by the API on start (ADR 0004). Cancelling ctx stops it
 // after the migration in progress.
-func Migrate(ctx context.Context, conn string) error {
-	cfg, err := ParseConfig(conn)
+func Migrate(ctx context.Context, conn string, opts ...Option) error {
+	cfg, err := ParseConfig(conn, opts...)
 	if err != nil {
 		return err
 	}

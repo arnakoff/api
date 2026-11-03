@@ -40,12 +40,12 @@ func run(ctx context.Context, cfg config.Config, cmd command) error {
 		if err := cfg.RequireDatabase(); err != nil {
 			return err
 		}
-		return postgres.Migrate(ctx, string(cfg.DatabaseURL.Bytes()))
+		return postgres.Migrate(ctx, string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
 	}
 	if err := cfg.RequireKeyStore(); err != nil {
 		return err
 	}
-	keys, err := postgres.Open(ctx, string(cfg.DatabaseURL.Bytes()))
+	keys, err := postgres.Open(ctx, string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
 	if err != nil {
 		return err
 	}

@@ -27,7 +27,11 @@ const connectTimeout = 5 * time.Second
 // requires verified TLS (sslmode=verify-full) for every host but the local
 // machine: a loopback address, "localhost" or a Unix socket. Its errors
 // never quote the connection string, which may hold a password.
-func ParseConfig(conn string) (*pgxpool.Config, error) {
+func ParseConfig(conn string, opts ...Option) (*pgxpool.Config, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	cfg, err := pgxpool.ParseConfig(conn)
 	if err != nil {
 		// pgx redacts the password on a best-effort basis only.
@@ -39,6 +43,9 @@ func ParseConfig(conn string) (*pgxpool.Config, error) {
 		if !secure(e.Host, e.TLSConfig) {
 			return nil, fmt.Errorf("%w: host %s", ErrInsecure, e.Host)
 		}
+	}
+	if err := applyCA(o.ca, endpoints); err != nil {
+		return nil, err
 	}
 	if cc.ConnectTimeout == 0 {
 		cc.ConnectTimeout = connectTimeout

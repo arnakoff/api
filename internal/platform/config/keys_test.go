@@ -112,3 +112,22 @@ func TestRequireDatabaseIgnoresTheSecret(t *testing.T) {
 		t.Errorf("RequireDatabase() = %v, want ErrInvalid naming the database only", err)
 	}
 }
+
+func TestLoadReadsTheDatabaseCA(t *testing.T) {
+	t.Parallel()
+	ca := "-----BEGIN CERTIFICATE-----\nAQID\n-----END CERTIFICATE-----\n"
+	cfg, err := config.Load(env(map[string]string{"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_DATABASE_CA": ca}))
+	if err != nil || cfg.DatabaseCA != ca {
+		t.Fatalf("Load() = %q, %v; want the PEM as given", cfg.DatabaseCA, err)
+	}
+	for name, value := range map[string]string{
+		"not PEM":     "a certificate",
+		"no CERT":     "-----BEGIN PRIVATE KEY-----\nAQID\n-----END PRIVATE KEY-----\n",
+		"stray bytes": "junk",
+	} {
+		_, err := config.Load(env(map[string]string{"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_DATABASE_CA": value}))
+		if !errors.Is(err, config.ErrInvalid) || !strings.Contains(err.Error(), "ARNAKOFF_DATABASE_CA") {
+			t.Errorf("%s: error = %v, want ErrInvalid naming ARNAKOFF_DATABASE_CA", name, err)
+		}
+	}
+}
