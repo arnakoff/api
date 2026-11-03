@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.43.0](https://github.com/arnakoff/api/compare/v0.42.0...v0.43.0) (2026-11-03)
+
+
+### Features
+
+* **httpapi:** keep valid api keys in memory for 30 seconds ([#210](https://github.com/arnakoff/api/issues/210)) ([83ce315](https://github.com/arnakoff/api/commit/83ce315e184e77585636f7892b7f964a77debc8c)), closes [#198](https://github.com/arnakoff/api/issues/198)
+
 ## [0.42.0](https://github.com/arnakoff/api/compare/v0.41.0...v0.42.0) (2026-11-02)
 
 
