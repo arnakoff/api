@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.0](https://github.com/arnakoff/api/compare/v0.49.0...v0.50.0) (2026-11-03)
+
+
+### Features
+
+* **sync:** store snapshots in scaleway object storage in production ([#241](https://github.com/arnakoff/api/issues/241)) ([b336f81](https://github.com/arnakoff/api/commit/b336f81d86310458e35dd83ee8bb7676107f37ed)), closes [#236](https://github.com/arnakoff/api/issues/236)
+
 ## [0.49.0](https://github.com/arnakoff/api/compare/v0.48.0...v0.49.0) (2026-11-03)
 
 
