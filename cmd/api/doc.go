@@ -53,4 +53,9 @@
 //
 // Its errors are RFC 9457 problems typed under ARNAKOFF_PROBLEM_BASE_URL,
 // the documentation of the errors on the site.
+//
+// "api probe" asks GET /healthz of the API the same configuration serves,
+// on 127.0.0.1 when ARNAKOFF_ADDR listens on every interface, and exits 0
+// when it answers 200 within two seconds, 1 otherwise: the health check of
+// the container image, which has no shell. Any other argument exits 2.
 package main

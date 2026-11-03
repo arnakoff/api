@@ -1,0 +1,53 @@
+# Local run of the container image (#68): the api and the sync command
+# sharing the volume of the snapshots, each on a read-only root file system,
+# without any capability.
+#
+#   cp .env.example .env   # set ARNAKOFF_LOG_KEY, ARNAKOFF_DATABASE_URL and
+#                          # ARNAKOFF_API_KEY_SECRET (cmd/api)
+#   docker compose up --build
+#
+# The api answers on http://127.0.0.1:8100; /readyz turns 200 once the sync
+# has stored a snapshot of every source. The API key store is the
+# PostgreSQL database of ARNAKOFF_DATABASE_URL (ADR 0004), outside this file.
+
+x-hardened: &hardened
+  image: arnakoff/api:local
+  build:
+    context: .
+    args:
+      VERSION: local
+  env_file: .env
+  # Over .env: inside the container the published port must reach every
+  # interface, and the volume is mounted at /data.
+  environment:
+    ARNAKOFF_ADDR: ":8100"
+    ARNAKOFF_DATA_DIR: /data
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *hardened
+    ports:
+      - "127.0.0.1:8100:8100"
+    volumes:
+      # The api only reads the snapshots the sync command stores.
+      - snapshots:/data:ro
+    # The sync container creates the volume from the image's /data first:
+    # two containers creating it at once both copy into it, and one fails.
+    depends_on:
+      - sync
+
+  sync:
+    <<: *hardened
+    entrypoint: ["/usr/local/bin/sync"]
+    # The image's health check probes the api, which this container is not.
+    healthcheck:
+      disable: true
+    volumes:
+      - snapshots:/data
+
+volumes:
+  snapshots:

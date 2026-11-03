@@ -1,0 +1,13 @@
+# Build context of the Dockerfile (#68): an allowlist, so that a local .env,
+# var/ snapshots, .git or any new file never reaches the image or the
+# builder unless it is named here.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!LICENSE
+
+# Not needed to build the commands.
+**/*_test.go
+**/testdata/

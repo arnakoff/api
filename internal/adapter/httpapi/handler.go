@@ -76,7 +76,7 @@ type Options struct {
 func NewHandler(opts Options) http.Handler {
 	ps := problemsOf(opts)
 	mux := http.NewServeMux()
-	mux.Handle("GET /healthz", healthz())
+	mux.Handle("GET "+healthzPath, healthz())
 	mux.Handle("GET /readyz", readyz(opts.Ready))
 	auth := opts.Auth
 	if auth == nil {

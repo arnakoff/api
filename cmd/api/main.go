@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/adapter/turnstile"
 	"github.com/arnakoff/api/internal/app"
+	"github.com/arnakoff/api/internal/platform/buildinfo"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/ratelimit"
@@ -35,8 +37,25 @@ const reloadEvery = time.Minute
 // of cutting the response.
 const checkTimeout = 10 * time.Second
 
+// exitUsage is the exit code of a misuse of the arguments.
+const exitUsage = 2
+
 func main() {
+	cmd, err := parseArgs(os.Args[1:])
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(exitUsage)
+	}
+	if cmd == probeCommand {
+		os.Exit(startup.Run("api probe", os.LookupEnv, os.Stderr, probe))
+	}
 	os.Exit(startup.Run("api", os.LookupEnv, os.Stderr, run))
+}
+
+// probe exits 0 when the API of cfg answers /healthz: the health check of
+// the container image, which has no shell.
+func probe(ctx context.Context, cfg config.Config) error {
+	return httpapi.ProbeAlive(ctx, cfg.Addr)
 }
 
 // run is the work of the command, once its configuration is loaded and the
@@ -94,6 +113,7 @@ func serve(ctx context.Context, cfg config.Config, s *app.Sync, opts httpapi.Opt
 		return err
 	}
 	srv := httpapi.NewServer(httpapi.NewHandler(opts), opts.Logger)
+	opts.Logger.InfoContext(ctx, "api listening", "addr", ln.Addr().String(), "version", buildinfo.Version())
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		// The sync process posts to the webhook; this one only logs.

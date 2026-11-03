@@ -2,9 +2,9 @@
 # Options checked on 29/10/2026 against the GitHub "Dependabot options reference".
 # Commit prefixes follow Conventional Commits: `prefix` plus `include: scope`
 # gives `build(deps): …` and `ci(deps): …`.
-# The `docker` ecosystem joins once the Dockerfile exists (#68): Dependabot
-# requires a manifest in the directory it scans. It takes the same cooldown as
-# `github-actions` (`default-days` only, no SemVer variants).
+# The `docker` ecosystem updates the images of the Dockerfile (#68), tag and
+# digest together. It takes the same cooldown as `github-actions`
+# (`default-days` only, no SemVer variants).
 #
 # Cooldown (#90): a new release is proposed only after it has been public for
 # a while, which leaves time for a compromised or broken version to be found
@@ -45,6 +45,23 @@ updates:
       - area:ci
     groups:
       github-actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      include: scope
+    cooldown:
+      default-days: 7
+    labels:
+      - type:chore
+    groups:
+      docker-minor-patch:
         update-types:
           - minor
           - patch

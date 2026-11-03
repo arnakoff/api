@@ -14,6 +14,7 @@ import (
 	"github.com/arnakoff/api/internal/adapter/store"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain"
+	"github.com/arnakoff/api/internal/platform/buildinfo"
 	"github.com/arnakoff/api/internal/platform/clock"
 	"github.com/arnakoff/api/internal/platform/config"
 	"github.com/arnakoff/api/internal/platform/httpclient"
@@ -55,7 +56,7 @@ func run(ctx context.Context, cfg config.Config, opts options) error {
 		return err
 	}
 	if !opts.once {
-		slog.InfoContext(ctx, "sync scheduled", "sources", len(plans))
+		slog.InfoContext(ctx, "sync scheduled", "sources", len(plans), "version", buildinfo.Version())
 		sc.Run(ctx)
 		return nil
 	}
