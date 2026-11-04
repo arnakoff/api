@@ -86,12 +86,19 @@ func NewCheck(r Registries, clock Clock, opts ...CheckOption) *Check {
 // or a registry that fails or has not answered when the deadline comes, is
 // reported unavailable; the others are still reported.
 func (c *Check) Check(ctx context.Context, in domain.Input) domain.Report {
-	checkedAt := c.clock.Now()
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
 	}
+	return c.check(ctx, in)
+}
+
+// check is Check under the deadline ctx already carries: CheckAll gives one
+// to the whole batch, and a second timer per input could end an input
+// before the batch, letting the next one start as if there were time left.
+func (c *Check) check(ctx context.Context, in domain.Input) domain.Report {
+	checkedAt := c.clock.Now()
 	// One slice holds every state: the hot path allocates it once.
 	lookups := c.lookups(in)
 	r := c.registries
@@ -219,11 +226,15 @@ type answer struct {
 // collect runs the lookups that apply concurrently, appends the state of
 // each to states, in order, and the signals they give to signals, in the
 // same order. It returns once all answered or ctx is done: a lookup still
-// running then is reported unavailable and its answer discarded.
+// running then is reported unavailable and its answer discarded. Once ctx
+// is done it starts none, so a batch past its deadline consults no registry.
 func collect(ctx context.Context, lookups []lookup, signals []domain.Signal, states []domain.SourceState) ([]domain.Signal, []domain.SourceState) {
 	base := len(states)
 	for _, l := range lookups {
 		states = append(states, domain.SourceState{Source: l.source, Status: domain.SourceNotApplicable})
+	}
+	if ctx.Err() != nil {
+		return unavailable(signals, lookups, states, base)
 	}
 	var answers chan answer
 	pending := 0
@@ -254,6 +265,17 @@ func collect(ctx context.Context, lookups []lookup, signals []domain.Signal, sta
 		}
 	}
 	return appendFound(signals, found), states
+}
+
+// unavailable marks every lookup that applies as unavailable, without
+// running it.
+func unavailable(signals []domain.Signal, lookups []lookup, states []domain.SourceState, base int) ([]domain.Signal, []domain.SourceState) {
+	for i, l := range lookups {
+		if l.run != nil {
+			states[base+i].Status = domain.SourceUnavailable
+		}
+	}
+	return signals, states
 }
 
 // appendFound appends the signals of found to signals in lookup order,
