@@ -101,7 +101,7 @@ printf 'postgres://arnakoff_api:%s@%s:%s/arnakoff?sslmode=verify-full' \
   | gh secret set ARNAKOFF_DATABASE_URL --env production
 ```
 
-« À vérifier » : que le certificat de l'instance couvre le nom d'hôte du réseau privé. La documentation de Scaleway ne cite que `rw-<id>.rdb.fr-par.scw.cloud`. Si la connexion échoue sur le nom d'hôte, ouvrir une issue avant d'affaiblir quoi que ce soit.
+Avec l'IPAM, la base n'a pas de nom d'hôte sur le réseau privé : `database_private_host` est son adresse. Le certificat de l'instance la couvre (SAN `IP Address`, relevé le 04/11/2026), `verify-full` tient. Si la connexion échoue sur le certificat, ouvrir une issue avant d'affaiblir quoi que ce soit.
 
 ### 6. Migrations, puis droits
 
