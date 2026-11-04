@@ -6,6 +6,16 @@ variable "state_passphrase" {
   sensitive   = true
 }
 
+variable "owner_user_id" {
+  description = "IAM user ID of the owner, who applies this configuration: the only user the snapshot bucket policy lets manage the bucket. The UserID of `scw iam api-key get <access key>`."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.owner_user_id))
+    error_message = "owner_user_id must be a Scaleway user ID, a lower-case UUID."
+  }
+}
+
 variable "db_admin_password" {
   description = "Password of the database administrator, the migration role (ADR 0004). Write-only: never stored in the state."
   type        = string

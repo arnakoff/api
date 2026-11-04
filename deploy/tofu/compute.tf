@@ -86,6 +86,19 @@ resource "scaleway_secret" "sync" {
   description = "${each.key} of the sync job, written by the deploy workflow"
 }
 
+# The job may only reference a secret that has a version, and the deploy
+# workflow writes the real ones after this configuration is applied: each
+# secret starts with a placeholder version, write-only so that it never
+# reaches the state, which the first deploy disables (disable-previous).
+# Until then, a scheduled run fails on the placeholder configuration.
+resource "scaleway_secret_version" "sync_placeholder" {
+  for_each        = scaleway_secret.sync
+  secret_id       = each.value.id
+  description     = "Placeholder until the first deploy"
+  data_wo         = "unset-until-the-first-deploy"
+  data_wo_version = 1
+}
+
 resource "scaleway_job_definition" "sync" {
   name      = "sync"
   image_uri = var.image
@@ -114,6 +127,8 @@ resource "scaleway_job_definition" "sync" {
       environment = secret_reference.key
     }
   }
+
+  depends_on = [scaleway_secret_version.sync_placeholder]
 
   lifecycle {
     ignore_changes = [image_uri]

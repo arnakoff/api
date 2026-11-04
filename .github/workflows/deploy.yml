@@ -102,9 +102,11 @@ jobs:
         run: |
           docker login rg.fr-par.scw.cloud/arnakoff -u nologin --password-stdin <<< "$SCW_SECRET_KEY"
           docker buildx imagetools create --tag "${TARGET}:${VERSION}" "${IMAGE}@${AMD64}"
-          copied="$(docker buildx imagetools inspect "${TARGET}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest)"
-          if [ "$copied" != "$AMD64" ]; then
-            echo "::error::copied digest $copied differs from $AMD64"
+          # imagetools create wraps the manifest in a new index, so the tag
+          # has another digest; the manifest keeps its own, which is the
+          # reference deployed below.
+          if ! docker buildx imagetools inspect "${TARGET}@${AMD64}" > /dev/null; then
+            echo "::error::${TARGET}@${AMD64} is not in Container Registry"
             exit 1
           fi
       - name: Install the scw CLI
