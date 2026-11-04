@@ -20,7 +20,7 @@ Tu lui donnes une entrée ; elle la confronte à des sources publiques (listes n
 - `source` et `source_url` : l'éditeur de la donnée et où la vérifier ;
 - `observed_at` : la date à laquelle la donnée a été relevée.
 
-Les signaux prévus sont dans [`docs/signals.md`](docs/signals.md), les sources et leurs licences dans [`docs/sources.md`](docs/sources.md). L'API est aussi exposée comme serveur [MCP](https://modelcontextprotocol.io) : à distance sur `POST /mcp`, avec la même clé et le même quota que `/v1/check`, ou en local avec `cmd/mcp` (stdio).
+Les signaux prévus sont dans [`docs/signals.md`](docs/signals.md), les sources et leurs licences dans [`docs/sources.md`](docs/sources.md). L'API est aussi exposée comme serveur [MCP](https://modelcontextprotocol.io) : à distance sur `POST /mcp`, avec la même clé et le même quota que `/v1/check`, ou en local avec `cmd/mcp` (stdio). Il figure dans le [registre MCP officiel](https://registry.modelcontextprotocol.io/v0/servers?search=com.arnakoff/api) sous le nom `com.arnakoff/api`.
 
 ## Principes
 
