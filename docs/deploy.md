@@ -36,6 +36,8 @@ export TF_VAR_alert_email=<adresse e-mail du propriétaire>
 scw object bucket create name=arnakoff-tofu-state enable-versioning=true acl=private region=fr-par
 ```
 
+Le premier `tofu apply` (étape 4) pose sur ce bucket une politique qui le réserve au propriétaire (`scaleway_object_bucket_policy.state`, `deploy/tofu/storage.tf`) : sans elle, les clés des applications `api` et `sync`, qui ont des droits Object Storage sur tout le projet, pourraient y lire ou écrire (#289).
+
 L'état est chiffré sur la machine avant l'écriture (chiffrement d'état d'OpenTofu, `pbkdf2` et `aes_gcm`, imposé) : sans la phrase de passe, il est illisible et OpenTofu refuse de l'écrire en clair. Perdre la phrase de passe, c'est perdre l'état.
 
 ### 2. Secrets générés par le propriétaire (une fois)
