@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.53.0](https://github.com/arnakoff/api/compare/v0.52.0...v0.53.0) (2026-11-04)
+
+
+### Features
+
+* **ci:** apply the migrations from the private network ([#260](https://github.com/arnakoff/api/issues/260)) ([4ea3086](https://github.com/arnakoff/api/commit/4ea30861afb8b4a907286da127d9cfff7f36a961)), closes [#259](https://github.com/arnakoff/api/issues/259)
+* **ci:** deploy signed images to scaleway, infrastructure in opentofu ([#251](https://github.com/arnakoff/api/issues/251)) ([d8489fc](https://github.com/arnakoff/api/commit/d8489fc24d08759e96d9e2778356e03579d4d4bb)), closes [#71](https://github.com/arnakoff/api/issues/71)
+
+
+### Bug Fixes
+
+* **ci:** give scw and the database url outputs they can use ([#258](https://github.com/arnakoff/api/issues/258)) ([0960e83](https://github.com/arnakoff/api/commit/0960e83abdd689312b3af23e65bebbf5b4b14f1a)), closes [#257](https://github.com/arnakoff/api/issues/257)
+* **ci:** let the first production apply and deploy go through ([#256](https://github.com/arnakoff/api/issues/256)) ([a40e823](https://github.com/arnakoff/api/commit/a40e8230289d6fa4447242dea0d257e18e430460)), closes [#255](https://github.com/arnakoff/api/issues/255)
+
 ## [0.52.0](https://github.com/arnakoff/api/compare/v0.51.0...v0.52.0) (2026-11-04)
 
 
