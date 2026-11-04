@@ -16,7 +16,7 @@ import (
 // after hold returns when it is set. Like a real client, it answers the
 // error of its context once that context is over: answering found past
 // the deadline would race the deadline in Check, which then picks either
-// at random (#268).
+// at random (#213).
 type asked struct {
 	mu   sync.Mutex
 	ins  []string
