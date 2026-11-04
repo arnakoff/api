@@ -13,7 +13,10 @@ import (
 )
 
 // asked records what a fake registry was asked about and answers err,
-// after hold returns when it is set.
+// after hold returns when it is set. Like a real client, it answers the
+// error of its context once that context is over: answering found past
+// the deadline would race the deadline in Check, which then picks either
+// at random (#213).
 type asked struct {
 	mu   sync.Mutex
 	ins  []string
@@ -28,6 +31,9 @@ func (a *asked) record(ctx context.Context, in string) error {
 	a.mu.Unlock()
 	if hold != nil {
 		hold(ctx)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 	}
 	return err
 }
