@@ -45,6 +45,17 @@ Relevés avec la CLI Scaleway 2.65.2 sur le compte ouvert, et dans les sources d
 - **Conteneurs** : la documentation associe 250 mvCPU à 512 Mo.
 - **Restent à vérifier** : le déploiement par digest (`@sha256:`) depuis Container Registry (non documenté ; à tester au premier déploiement), le partage ou non de l'offre gratuite entre conteneurs et jobs, et la période de facturation d'Object Storage et de Container Registry.
 
+## Précisions de #71 (03/11/2026)
+
+Décisions du propriétaire à la mise en place du déploiement (`deploy/tofu/`, `.github/workflows/deploy.yml`, `docs/deploy.md`) :
+
+- **Infrastructure en OpenTofu**, appliquée par le propriétaire depuis sa machine, jamais par la CI. État dans un bucket privé et versionné du projet (`arnakoff-tofu-state`), chiffré avant l'écriture par le chiffrement d'état d'OpenTofu, avec une phrase de passe que le propriétaire garde ; verrouillage par écriture conditionnelle S3 (`use_lockfile`), que Scaleway Object Storage prend en charge.
+- **Secrets** : inchangé, ils restent dans l'environnement GitHub `production` et la CI les recopie à chaque déploiement, dans le conteneur et dans Secret Manager pour le job. OpenTofu ignore l'image et les secrets du conteneur une fois créé. Les mots de passe de la base sont en écriture seule (`password_wo`) : ils ne sont pas dans l'état. Les clés du bucket le sont, l'état est chiffré.
+- **Migrations** : à la main, depuis la machine du propriétaire, par un point d'accès public de la base qui n'existe que le temps de la migration, limité par ACL à son adresse (la liste par défaut de Scaleway autorise toute adresse), en TLS vérifié et avec le rôle administrateur ; puis `tofu apply` pour étendre les droits du rôle de l'API aux nouvelles tables.
+- **Pas de préproduction** pour l'instant.
+- **Adresse du client** : derrière Serverless Containers, lue dans `X-Real-IP`, que Scaleway réécrit à chaque requête (#247) ; le point d'accès privé du conteneur reste fermé. **Autorité de la base** passée au conteneur en PEM (#249), faute de fichier monté.
+- La CI obtient le droit `SecretManagerSecretWrite` sur le projet, pour écrire les versions des secrets du job.
+
 ## Conséquences
 
 - Coût estimé : Managed Database ≈ 11,40 € (0,0136 + 0,002 €/h) ; conteneur `api` toujours actif, 0,25 vCPU et 512 Mo, ≈ 6,40 € après l'offre gratuite mensuelle (200 000 vCPU-s et 400 000 Go-s), ≈ 13 € avec 0,5 vCPU ; Job, Object Storage et Container Registry de l'ordre de quelques euros, à vérifier.
