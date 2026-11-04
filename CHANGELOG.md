@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.54.0](https://github.com/arnakoff/api/compare/v0.53.1...v0.54.0) (2026-11-04)
+
+
+### Features
+
+* **ci:** alert on sync failures and probe production from outside ([#271](https://github.com/arnakoff/api/issues/271)) ([9552f53](https://github.com/arnakoff/api/commit/9552f532c7bce9d596119d7c9a00ef4a973406b0)), closes [#72](https://github.com/arnakoff/api/issues/72)
+
+
+### Bug Fixes
+
+* **ci:** keep the api.arnakoff.com domain when an apply omits api_hostname ([#274](https://github.com/arnakoff/api/issues/274)) ([9a37bd8](https://github.com/arnakoff/api/commit/9a37bd889751efa2503b6db76b853bc73dd421b0)), closes [#273](https://github.com/arnakoff/api/issues/273)
+
 ## [0.53.1](https://github.com/arnakoff/api/compare/v0.53.0...v0.53.1) (2026-11-04)
 
 
