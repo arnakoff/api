@@ -153,6 +153,25 @@ Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Co
 - **Sonde externe** (`.github/workflows/probe.yml`) : toutes les 15 minutes, `GET /readyz` doit répondre 200, et chaque source téléchargée de `GET /v1/sources` doit être `ok` avec des données de moins de 24 heures (quatre synchronisations manquées). Un échec est l'alerte : GitHub prévient par e-mail, selon ses réglages de notification Actions, l'utilisateur qui a créé le workflow ou modifié son `cron` en dernier. GitHub peut retarder une exécution planifiée, et désactive la planification d'un dépôt public après 60 jours sans activité : la réactiver dans Actions → Probe. Lancement à la main : Actions → Probe → Run workflow.
 - **Webhook `ARNAKOFF_ALERT_WEBHOOK`** : reste disponible pour un environnement local ou un autre hébergement ; il n'est pas réglé en production.
 
+## Registre MCP
+
+Le serveur est publié dans le registre MCP officiel sous le nom `com.arnakoff/api` (#66), prouvé par l'enregistrement TXT `v=MCPv1; k=ed25519; p=<CLÉ_PUBLIQUE>` à l'apex de `arnakoff.com`, dans la zone Cloudflare. Le workflow `.github/workflows/mcp-registry.yml` publie `server.json` à chaque tag `vX.Y.Z` de release-please (#278) ; release-please y met la version.
+
+Avant le premier tag qui le lance, le propriétaire crée l'environnement (Settings → Environments → New environment) :
+
+- nom `mcp-registry` ; sans lui, GitHub le crée au premier lancement, sans aucune protection ;
+- la règle de tag ne protège que parce que le jeu de règles « version tags » réserve la création, le déplacement et la suppression des tags `v*` à l'application de release : il doit le rester ;
+- « Deployment branches and tags » : « Selected branches and tags », règle de tag `v*` ;
+- secret d'environnement `MCP_PRIVATE_KEY` : la clé privée en hexadécimal (64 caractères), jamais un secret de dépôt :
+
+```sh
+openssl pkey -in ~/.arnakoff/mcp-registry-key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n' | gh secret set MCP_PRIVATE_KEY --env mcp-registry
+```
+
+- relecteur obligatoire (« Required reviewers »), au choix du propriétaire : chaque publication attend alors son accord.
+
+Le registre garde chaque version publiée et refuse de la modifier : le job s'arrête avant la connexion si la version de `server.json` n'est pas celle du tag, et relancer le job d'une version déjà publiée échoue. Publication à la main : `mcp-publisher login dns`, puis `mcp-publisher publish` (#66).
+
 ## Opérations courantes
 
 - **Retour arrière** : Actions → Deploy → Run workflow avec la version précédente. Une migration n'est jamais annulée par un retour arrière : une migration doit rester compatible avec la version précédente du code.
@@ -161,4 +180,5 @@ Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Co
   - clés du bucket : nouvelle `key_expiry`, `tofu apply` (les clés sont recréées), puis l'étape 5 pour les clés et un déploiement ;
   - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL`, déploiement ;
   - clé de la CI `ci-deploy` : 30 jours, manuelle (#238).
+  - clé du registre MCP : nouvelle paire Ed25519, nouveau TXT à l'apex de `arnakoff.com` (Cloudflare) **et suppression de l'ancien**, que le registre essaie en premier, puis nouveau secret `MCP_PRIVATE_KEY`.
 - **Secrets du job `sync`** : réécrits à chaque déploiement dans Secret Manager (`disable-previous=true`).
