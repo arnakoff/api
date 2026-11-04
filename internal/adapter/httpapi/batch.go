@@ -40,18 +40,23 @@ type batchResult struct {
 // batch answers POST /v1/check/batch: a result per item of the body, in
 // its order, each as GET /v1/check would answer it. An invalid item gets
 // its problem as its result; the body itself is refused only as a whole.
-func batch(c Checker, ps problems, maxItems int) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// Each item spends one request of the key's quota: a batch the quota left
+// cannot cover is refused whole, spending nothing.
+func batch(c Checker, ps problems, maxItems int) func(http.ResponseWriter, *http.Request, spend) {
+	return func(w http.ResponseWriter, r *http.Request, spend spend) {
 		items, p, ok := batchItems(w, r, maxItems)
 		if !ok {
 			ps.write(w, r, p)
+			return
+		}
+		if !spend(len(items)) {
 			return
 		}
 		body := struct {
 			Results []batchResult `json:"results"`
 		}{checkItems(r.Context(), c, ps, items)}
 		writeJSON(w, "application/json", http.StatusOK, body)
-	})
+	}
 }
 
 // batchItems returns the items the body of r holds, or the problem

@@ -58,34 +58,59 @@ type keyGate struct {
 // require answers next only for a request g admits.
 func (g *keyGate) require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, ok := bearerToken(r.Header)
-		if !ok {
-			w.Header().Set("WWW-Authenticate", bearerChallenge)
-			g.ps.write(w, r, missingAPIKey)
-			return
-		}
-		client := g.clientOf(r)
-		if d := g.refusals.limiter.Peek(client); !d.Allowed {
-			g.refusals.deny(w, r, d)
-			return
-		}
-		rec, err := g.authenticate(r.Context(), token)
-		if refused(err) {
-			g.refusals.limiter.Charge(client)
-		}
-		switch {
-		case err == nil:
-			if g.perKey.admit(w, r, strconv.FormatInt(rec.ID, 10)) {
-				next.ServeHTTP(w, r)
-			}
-		case refused(err):
-			w.Header().Set("WWW-Authenticate", invalidChallenge)
-			g.ps.write(w, r, invalidAPIKey)
-		default:
-			g.logger.ErrorContext(r.Context(), "API key not checked", "error", err.Error())
-			g.ps.write(w, r, authenticationUnavailable)
+		if _, ok := g.pass(w, r); ok {
+			next.ServeHTTP(w, r)
 		}
 	})
+}
+
+// spend makes the request being served spend n requests of its key's
+// quota, all or none, or answers the 429 and returns false.
+type spend func(n int) bool
+
+// requireItems answers next only for a request g admits, as require, with
+// the spend of its key: a request worth several, a batch of n items, then
+// spends n once it knows n.
+func (g *keyGate) requireItems(next func(w http.ResponseWriter, r *http.Request, spend spend)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key, ok := g.pass(w, r)
+		if !ok {
+			return
+		}
+		next(w, r, func(n int) bool { return g.perKey.admitMore(w, r, key, n) })
+	})
+}
+
+// pass returns the quota key of the API key of r when g admits r, having
+// spent one request of it; otherwise it answers r and returns false.
+func (g *keyGate) pass(w http.ResponseWriter, r *http.Request) (string, bool) {
+	token, ok := bearerToken(r.Header)
+	if !ok {
+		w.Header().Set("WWW-Authenticate", bearerChallenge)
+		g.ps.write(w, r, missingAPIKey)
+		return "", false
+	}
+	client := g.clientOf(r)
+	if d := g.refusals.limiter.Peek(client); !d.Allowed {
+		g.refusals.deny(w, r, d)
+		return "", false
+	}
+	rec, err := g.authenticate(r.Context(), token)
+	if refused(err) {
+		g.refusals.limiter.Charge(client)
+	}
+	switch {
+	case err == nil:
+		key := strconv.FormatInt(rec.ID, 10)
+		return key, g.perKey.admit(w, r, key)
+	case refused(err):
+		w.Header().Set("WWW-Authenticate", invalidChallenge)
+		g.ps.write(w, r, invalidAPIKey)
+	default:
+		g.logger.ErrorContext(r.Context(), "API key not checked", "error", err.Error())
+		g.ps.write(w, r, authenticationUnavailable)
+	}
+	return "", false
 }
 
 // refusalBudget applies a RefusalLimiter under the auth policy.

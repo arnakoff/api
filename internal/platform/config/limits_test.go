@@ -136,3 +136,18 @@ func TestLoadRejectsAnInvalidClientIPHeader(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadRejectsABatchLargerThanTheKeyQuota(t *testing.T) {
+	t.Parallel()
+	_, err := config.Load(env(map[string]string{
+		"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_RATE_LIMIT_KEY": "40", "ARNAKOFF_BATCH_MAX_ITEMS": "41",
+	}))
+	if !errors.Is(err, config.ErrInvalid) || !strings.Contains(err.Error(), "ARNAKOFF_BATCH_MAX_ITEMS") {
+		t.Errorf("Load(batch 41, key quota 40) error = %v, want ErrInvalid naming ARNAKOFF_BATCH_MAX_ITEMS", err)
+	}
+	if _, err := config.Load(env(map[string]string{
+		"ARNAKOFF_LOG_KEY": validKey, "ARNAKOFF_RATE_LIMIT_KEY": "40", "ARNAKOFF_BATCH_MAX_ITEMS": "40",
+	})); err != nil {
+		t.Errorf("Load(batch 40, key quota 40) error = %v, want nil", err)
+	}
+}

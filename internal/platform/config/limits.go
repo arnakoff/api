@@ -24,6 +24,17 @@ const (
 	MaxRateLimit = 10000
 )
 
+// checkBatchFitsKeyQuota returns an error, wrapping ErrInvalid, when a full
+// batch would spend more than the whole quota of a key: each item counts,
+// so it could never pass.
+func (c Config) checkBatchFitsKeyQuota() error {
+	if c.BatchMaxItems > c.RateLimitKey {
+		return fmt.Errorf("%w: %s: %d items is more than the %d requests a minute of %s",
+			ErrInvalid, EnvBatchMaxItems, c.BatchMaxItems, c.RateLimitKey, EnvRateLimitKey)
+	}
+	return nil
+}
+
 // noProxy is the value of ARNAKOFF_TRUSTED_PROXIES of an API that no
 // proxy stands in front of.
 const noProxy = "none"

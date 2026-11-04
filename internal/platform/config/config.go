@@ -200,6 +200,9 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
 	}
+	if err := cfg.checkBatchFitsKeyQuota(); err != nil {
+		return Config{}, err
+	}
 	return cfg, nil
 }
 

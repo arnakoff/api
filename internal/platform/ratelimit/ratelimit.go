@@ -118,6 +118,29 @@ func (l *Limiter) Allow(key string) Decision {
 	return l.decision(b.tokens, allowed)
 }
 
+// AllowN spends n requests of key at once, or none when it has fewer: a
+// batch counts as its items. A refused AllowN leaves the bucket as it was,
+// and its Reset is how long until n requests are back. Like Allow, a key l
+// cannot keep a bucket for is refused for a whole window, marked Full.
+func (l *Limiter) AllowN(key string, n int) Decision {
+	now := l.now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b, ok := l.bucketOf(key, now)
+	if !ok {
+		return Decision{Reset: l.policy.Window, Full: true}
+	}
+	l.refill(b, now)
+	need := float64(n)
+	if b.tokens >= need {
+		b.tokens -= need
+		return l.decision(b.tokens, true)
+	}
+	d := l.decision(b.tokens, false)
+	d.Reset = time.Duration(math.Ceil((need-b.tokens)/l.rate())) * time.Second
+	return d
+}
+
 // Peek returns whether key has a request left, spending none. A key l
 // does not know has its whole quota: Peek keeps nothing for it.
 func (l *Limiter) Peek(key string) Decision {

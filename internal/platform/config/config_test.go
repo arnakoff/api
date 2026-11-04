@@ -69,6 +69,7 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"ARNAKOFF_ALERT_WEBHOOK":    webhook,
 		"ARNAKOFF_PROBLEM_BASE_URL": "https://staging.arnakoff.com/docs/erreurs/",
 		"ARNAKOFF_BATCH_MAX_ITEMS":  "1000",
+		"ARNAKOFF_RATE_LIMIT_KEY":   "1000",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
