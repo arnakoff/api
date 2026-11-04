@@ -64,6 +64,10 @@ type Options struct {
 	// TrustedProxies are the proxies whose X-Forwarded-For field tells the
 	// client's address: config.Config.TrustedProxies.
 	TrustedProxies []netip.Prefix
+	// ClientIPHeader is the field the platform overwrites with the
+	// client's address, replacing TrustedProxies:
+	// config.Config.ClientIPHeader.
+	ClientIPHeader string
 	// Demo configures POST /v1/demo/check.
 	Demo DemoOptions
 	// Keys configures POST /v1/keys/request and POST /v1/keys/redeem.
@@ -84,7 +88,8 @@ func NewHandler(opts Options) http.Handler {
 	if auth == nil {
 		auth = noAuthenticator{}
 	}
-	byAddr := func(r *http.Request) string { return clientKey(r, opts.TrustedProxies) }
+	src := ClientSource{Trusted: opts.TrustedProxies, Header: opts.ClientIPHeader}
+	byAddr := func(r *http.Request) string { return clientKey(r, src) }
 	gate := &keyGate{
 		auth: auth, logger: opts.Logger, ps: ps, clientOf: byAddr,
 		perKey:   newQuota(limiterOr(opts.KeyLimit, config.DefaultRateLimitKey), keyPolicy, ps),

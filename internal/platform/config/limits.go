@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"net/textproto"
 	"strings"
 )
 
@@ -28,14 +29,47 @@ const (
 const noProxy = "none"
 
 // RequireTrustedProxies returns an error, wrapping ErrInvalid, when the
-// API serves live keys without ARNAKOFF_TRUSTED_PROXIES: the operator must
-// say which proxies may tell the client's address, or that none does.
+// API serves live keys without ARNAKOFF_TRUSTED_PROXIES nor
+// ARNAKOFF_CLIENT_IP_HEADER: the operator must say who tells the client's
+// address, or that no proxy does.
 func (c Config) RequireTrustedProxies() error {
-	if c.APIKeyEnv == "live" && c.TrustedProxies == nil {
-		return fmt.Errorf("%w: %s: required with live keys, a list of CIDR prefixes or %q",
-			ErrInvalid, EnvTrustedProxies, noProxy)
+	if c.APIKeyEnv == "live" && c.TrustedProxies == nil && c.ClientIPHeader == "" {
+		return fmt.Errorf("%w: %s or %s: one is required with live keys, a list of CIDR prefixes or %q, or a field name",
+			ErrInvalid, EnvTrustedProxies, EnvClientIPHeader, noProxy)
 	}
 	return nil
+}
+
+// parseClientIPHeader sets *field from ARNAKOFF_CLIENT_IP_HEADER, read
+// with lookup: a field name, kept in canonical form. It refuses one set
+// with ARNAKOFF_TRUSTED_PROXIES, read into *trusted before: the two tell
+// the client's address in different ways.
+func parseClientIPHeader(lookup func(string) (string, bool), field *string, trusted *[]netip.Prefix) error {
+	if err := parse(lookup, EnvClientIPHeader, "", field, parseFieldName); err != nil {
+		return err
+	}
+	if *field != "" && *trusted != nil {
+		return fmt.Errorf("%w: %s: not with %s, set one of them", ErrInvalid, EnvClientIPHeader, EnvTrustedProxies)
+	}
+	return nil
+}
+
+// parseFieldName accepts an empty string, as none, or an HTTP field name
+// of letters, digits and hyphens, and returns it in canonical form.
+func parseFieldName(s string) (string, error) {
+	if s == "" {
+		return "", nil
+	}
+	if strings.IndexFunc(s, isNotFieldChar) >= 0 {
+		return "", fmt.Errorf("%q is not a field name of letters, digits and hyphens", s)
+	}
+	return textproto.CanonicalMIMEHeaderKey(s), nil
+}
+
+// isNotFieldChar reports whether c is neither an ASCII letter, a digit nor
+// a hyphen.
+func isNotFieldChar(c rune) bool {
+	return c != '-' && (c < '0' || c > '9') && (c < 'A' || c > 'Z') && (c < 'a' || c > 'z')
 }
 
 // parseRateLimit accepts a decimal number from 1 to MaxRateLimit.

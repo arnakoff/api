@@ -40,6 +40,7 @@ const (
 	EnvRateLimitIP    = "ARNAKOFF_RATE_LIMIT_IP"
 	EnvRateLimitAuth  = "ARNAKOFF_RATE_LIMIT_AUTH"
 	EnvTrustedProxies = "ARNAKOFF_TRUSTED_PROXIES"
+	EnvClientIPHeader = "ARNAKOFF_CLIENT_IP_HEADER"
 )
 
 // Defaults applied by Load to an unset variable. ARNAKOFF_LOG_KEY has none.
@@ -139,6 +140,12 @@ type Config struct {
 	// RequireTrustedProxies tells whether it is set.
 	TrustedProxies []netip.Prefix
 
+	// ClientIPHeader is the field, in canonical form, that the platform in
+	// front of the API overwrites with the client's address, such as
+	// X-Real-Ip on Scaleway Serverless Containers; empty when unset. It
+	// excludes TrustedProxies.
+	ClientIPHeader string
+
 	// Demo configures the demo access of the site's checker.
 	Demo Demo
 
@@ -178,6 +185,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvRateLimitIP, strconv.Itoa(DefaultRateLimitIP), &cfg.RateLimitIP, parseRateLimit),
 		parse(lookup, EnvRateLimitAuth, strconv.Itoa(DefaultRateLimitAuth), &cfg.RateLimitAuth, parseRateLimit),
 		parseTrustedProxies(lookup, &cfg.TrustedProxies),
+		parseClientIPHeader(lookup, &cfg.ClientIPHeader, &cfg.TrustedProxies),
 		parseDemo(lookup, &cfg.Demo),
 		parseKeyRequest(lookup, &cfg.KeyRequest, &cfg.Demo),
 		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
