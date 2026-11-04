@@ -213,3 +213,29 @@ func BenchmarkCheckBatch(b *testing.B) {
 		}
 	}
 }
+
+func TestBatchSpendsOneUnitOfTheKeyQuotaPerItem(t *testing.T) {
+	t.Parallel()
+
+	opts, _ := options(t, true)
+	opts.Check = &checker{report: blacklisted()}
+	opts.KeyLimit = frozenLimiter(10)
+	h := httpapi.NewHandler(opts)
+	post := func(n int) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, batchCall{body: items(n, `{"q":"armen.ltd"}`)}.request(t))
+		return rec
+	}
+
+	if res := post(4); res.Code != http.StatusOK || res.Header().Get("RateLimit") != `"key";r=6;t=6` {
+		t.Fatalf("batch of 4 = %d, RateLimit %q; want 200 and 6 left", res.Code, res.Header().Get("RateLimit"))
+	}
+	res := post(7)
+	if res.Code != http.StatusTooManyRequests || res.Header().Get("Retry-After") != "6" || res.Header().Get("RateLimit") != `"key";r=6;t=6` {
+		t.Errorf("batch of 7 with 6 left = %d, Retry-After %q, RateLimit %q; want 429, 6 and 6 left",
+			res.Code, res.Header().Get("Retry-After"), res.Header().Get("RateLimit"))
+	}
+	if res := post(6); res.Code != http.StatusOK {
+		t.Errorf("batch of 6 after the refused one = %d, want 200: a refused batch spends nothing", res.Code)
+	}
+}

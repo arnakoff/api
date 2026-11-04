@@ -14,6 +14,8 @@ import (
 type Limiter interface {
 	// Allow spends one request of key.
 	Allow(key string) ratelimit.Decision
+	// AllowN spends n requests of key, or none when it has fewer.
+	AllowN(key string, n int) ratelimit.Decision
 	// Policy returns the policy applied to each key.
 	Policy() ratelimit.Policy
 	// Refund gives back one request of key, spent by Allow.
@@ -78,6 +80,24 @@ func newFields(p ratelimit.Policy, name string, ps problems) fields {
 // (draft-ietf-httpapi-ratelimit-headers-11, sections 3 and 4).
 func (q *quota) admit(w http.ResponseWriter, r *http.Request, key string) bool {
 	d := q.limiter.Allow(key)
+	if !d.Allowed {
+		q.deny(w, r, d)
+		return false
+	}
+	q.describe(w.Header(), d)
+	return true
+}
+
+// admitMore makes the request of key, which admit let in for one request,
+// spend n instead, all or none: the request is then served, with the
+// RateLimit fields of what is left. Otherwise it answers a 429 and spends
+// nothing, the request admit spent given back.
+func (q *quota) admitMore(w http.ResponseWriter, r *http.Request, key string, n int) bool {
+	if n <= 1 {
+		return true
+	}
+	q.limiter.Refund(key)
+	d := q.limiter.AllowN(key, n)
 	if !d.Allowed {
 		q.deny(w, r, d)
 		return false

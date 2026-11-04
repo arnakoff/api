@@ -328,3 +328,31 @@ func TestChargeOnAFullLimiterKeepsNothing(t *testing.T) {
 		t.Errorf("Peek(b) after Charge on a full limiter = %+v, want allowed: nothing was charged", d)
 	}
 }
+
+func TestAllowNSpendsAllOrNothing(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(perMinute, 10, newClock().Now)
+
+	if d := l.AllowN("k", 50); !d.Allowed || d.Remaining != 10 {
+		t.Fatalf("AllowN(50) = %+v, want allowed with 10 left", d)
+	}
+	// 11 asked, 10 left: refused, nothing spent, and Reset is the second
+	// that brings the 11th back.
+	if d := l.AllowN("k", 11); d.Allowed || d.Remaining != 10 || d.Reset != time.Second {
+		t.Errorf("AllowN(11) = %+v, want refused with 10 left and 1 s to wait", d)
+	}
+	if d := l.AllowN("k", 10); !d.Allowed || d.Remaining != 0 {
+		t.Errorf("AllowN(10) = %+v, want allowed with nothing left", d)
+	}
+	if d := l.AllowN("k", 30); d.Allowed || d.Reset != 30*time.Second {
+		t.Errorf("AllowN(30) on an empty bucket = %+v, want refused for 30 s", d)
+	}
+}
+
+func TestAllowNOfMoreThanTheQuotaIsAlwaysRefused(t *testing.T) {
+	t.Parallel()
+	l := ratelimit.New(perMinute, 10, newClock().Now)
+	if d := l.AllowN("k", perMinute.Quota+1); d.Allowed || d.Remaining != perMinute.Quota {
+		t.Errorf("AllowN(quota+1) = %+v, want refused, the whole quota kept", d)
+	}
+}

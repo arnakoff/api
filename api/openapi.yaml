@@ -95,9 +95,11 @@ paths:
       summary: Vérifier plusieurs entrées
       description: |
         Vérifie chaque élément comme `GET /v1/check`. Les résultats suivent l'ordre des éléments ;
-        un élément invalide donne une erreur à sa place sans faire échouer le lot. Chaque élément
-        compte dans le quota. Le nombre maximal d'éléments est fixé par le serveur : au-delà, la
-        requête est refusée en `422`.
+        un élément invalide donne une erreur à sa place sans faire échouer le lot. Chaque élément,
+        valide ou non, compte dans le quota de la clé : un lot de n éléments en dépense n. S'il en
+        reste moins de n, le lot entier est refusé en `429`, ne dépense rien, et `Retry-After` dit
+        quand n requêtes seront revenues. Le nombre maximal d'éléments est fixé par le serveur,
+        jamais au-delà du quota de la clé : au-delà, la requête est refusée en `422`.
       requestBody:
         required: true
         content:

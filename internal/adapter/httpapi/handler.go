@@ -98,7 +98,7 @@ func NewHandler(opts Options) http.Handler {
 	perAddr := newQuota(limiterOr(opts.IPLimit, config.DefaultRateLimitIP), ipPolicy, ps)
 	anonymous := func(h http.Handler) http.Handler { return limit(perAddr, byAddr, h) }
 	mux.Handle("GET /v1/check", gate.require(check(opts.Check, ps)))
-	mux.Handle("POST /v1/check/batch", gate.require(batch(opts.Check, ps, opts.BatchMaxItems)))
+	mux.Handle("POST /v1/check/batch", gate.requireItems(batch(opts.Check, ps, opts.BatchMaxItems)))
 	if opts.MCP != nil {
 		mux.Handle("POST /mcp", gate.require(opts.MCP))
 	}
