@@ -83,7 +83,7 @@ func NewHandler(opts Options) http.Handler {
 	ps := problemsOf(opts)
 	mux := http.NewServeMux()
 	mux.Handle("GET "+healthzPath, healthz())
-	mux.Handle("GET /readyz", readyz(opts.Ready))
+	mux.Handle("GET "+readyzPath, readyz(opts.Ready))
 	auth := opts.Auth
 	if auth == nil {
 		auth = noAuthenticator{}

@@ -32,7 +32,7 @@ func TestRequestIDIsKeptOnlyWhenBounded(t *testing.T) {
 			if tt.sent != "" {
 				header = http.Header{"X-Request-Id": {tt.sent}}
 			}
-			res := serve(t, httpapi.NewHandler(opts), http.MethodGet, "/healthz", header)
+			res := serve(t, httpapi.NewHandler(opts), http.MethodGet, "/v1/signals", header)
 			if got := res.Header().Get("X-Request-ID"); got != tt.want {
 				t.Errorf("X-Request-ID = %q, want %q", got, tt.want)
 			}
