@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.52.0](https://github.com/arnakoff/api/compare/v0.51.0...v0.52.0) (2026-11-04)
+
+
+### Features
+
+* **httpapi:** issue free api keys by email login link ([#246](https://github.com/arnakoff/api/issues/246)) ([b46d0af](https://github.com/arnakoff/api/commit/b46d0af9fe601f1f3ead7d95b33cc1cc2ef0e46b)), closes [#59](https://github.com/arnakoff/api/issues/59)
+* **httpapi:** read the client address from a field the platform overwrites ([#248](https://github.com/arnakoff/api/issues/248)) ([0b83973](https://github.com/arnakoff/api/commit/0b83973ca8f21bc736d5f1c5e41142426683c87c)), closes [#247](https://github.com/arnakoff/api/issues/247)
+* **store:** verify the database against a certificate authority given in pem ([#250](https://github.com/arnakoff/api/issues/250)) ([62602c5](https://github.com/arnakoff/api/commit/62602c54ac80537ec2d9ae3d414a216219da6176)), closes [#249](https://github.com/arnakoff/api/issues/249)
+
 ## [0.51.0](https://github.com/arnakoff/api/compare/v0.50.0...v0.51.0) (2026-11-03)
 
 
