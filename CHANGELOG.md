@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.56.2](https://github.com/arnakoff/api/compare/v0.56.1...v0.56.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ci:** leave the opentofu state bucket to the owner ([#290](https://github.com/arnakoff/api/issues/290)) ([43f84ac](https://github.com/arnakoff/api/commit/43f84acb97c0bc8f3b76af99d571b94d6e27fa0d)), closes [#289](https://github.com/arnakoff/api/issues/289)
+* **httpapi:** spend one unit of the key quota per batch item ([#292](https://github.com/arnakoff/api/issues/292)) ([72eed01](https://github.com/arnakoff/api/commit/72eed0154c791eb0749acc4b93001dc355c3766b)), closes [#291](https://github.com/arnakoff/api/issues/291)
+
 ## [0.56.1](https://github.com/arnakoff/api/compare/v0.56.0...v0.56.1) (2026-11-04)
 
 
