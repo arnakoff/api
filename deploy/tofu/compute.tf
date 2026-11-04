@@ -76,8 +76,9 @@ resource "scaleway_container_domain" "api" {
 }
 
 # Secrets of the sync job, mounted from Secret Manager (ADR 0005). Their
-# versions are written by the deploy workflow. ARNAKOFF_ALERT_WEBHOOK joins
-# them with the alerts of #72: a secret version cannot be empty.
+# versions are written by the deploy workflow. ARNAKOFF_ALERT_WEBHOOK is not
+# one: the sync alerts reach the owner by the Cockpit email of a failed run
+# (observability.tf, #72).
 resource "scaleway_secret" "sync" {
   for_each = toset([
     "ARNAKOFF_LOG_KEY", "ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY", "ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY",
