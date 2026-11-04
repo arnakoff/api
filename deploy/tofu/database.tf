@@ -53,6 +53,18 @@ resource "scaleway_rdb_user" "api" {
   is_admin            = false
 }
 
+# The administrator applies the migrations, so it creates the tables: all
+# on the database. Admin rights do not override the permissions of a
+# logical database, and only the instance's default database gets them
+# automatically (Scaleway documentation, managed-databases how-to
+# manage-users): without this, its connection is refused (#261).
+resource "scaleway_rdb_privilege" "admin" {
+  instance_id   = scaleway_rdb_instance.main.id
+  database_name = scaleway_rdb_database.api.name
+  user_name     = scaleway_rdb_instance.main.user_name
+  permission    = "all"
+}
+
 # readwrite on the tables that exist when it is applied: after a migration
 # that adds a table, `tofu apply` again to extend it (permission drift,
 # scaleway_rdb_privilege documentation; docs/deploy.md).

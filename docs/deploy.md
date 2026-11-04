@@ -120,7 +120,11 @@ Le conteneur reçoit l'URL du rôle `arnakoff_admin` vers l'adresse privée de l
 
 Le second `tofu apply` retire le conteneur et ses secrets, et étend le droit `readwrite` du rôle `arnakoff_api` aux tables que la migration vient de créer : Scaleway n'applique un droit qu'aux objets qui existent à ce moment (documentation de `scaleway_rdb_privilege`, « Permission Drift »). « À vérifier » : que `readwrite` donne bien `SELECT`, `INSERT`, `UPDATE` et `DELETE` (la purge en a besoin, ADR 0006).
 
+Le rôle `arnakoff_admin` a la permission `all` sur la base (`scaleway_rdb_privilege.admin`) : les droits d'administrateur de Scaleway ne valent pas permission sur une base logique, et sans elle la connexion est refusée (`permission denied for database "arnakoff"`, constaté le 04/11/2026, #261). Un échec de migration se lit avec `scw container container logs "$(tofu output -raw migrate_container_id)"` ; Scaleway arrête le conteneur resté non prêt au bout de 5 minutes et le relance.
+
 « À vérifier » au premier usage : qu'un conteneur privé sans point d'accès public (`enable_default_public_endpoint = false`) passe bien ses sondes.
+
+La base n'a pas de point d'accès public. Si elle en avait un (un `load_balancer` créé à la main ou par une ancienne configuration), le retirer de la configuration ne le supprime pas : OpenTofu ne détruit que son ACL, ce qui l'ouvrirait à toute adresse (liste par défaut `0.0.0.0/0`). Le supprimer d'abord avec `scw rdb endpoint delete <id du point d'accès> instance-id=<id de l'instance>` (constaté le 04/11/2026).
 
 ### 7. Premier déploiement
 

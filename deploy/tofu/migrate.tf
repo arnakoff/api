@@ -11,6 +11,7 @@
 
 resource "scaleway_container" "migrate" {
   count        = var.migrate ? 1 : 0
+  depends_on   = [scaleway_rdb_privilege.admin]
   name         = "migrate"
   namespace_id = scaleway_container_namespace.main.id
   image        = var.image
