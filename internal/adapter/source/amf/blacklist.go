@@ -33,7 +33,7 @@ func NewBlacklist(client Getter, datasetURL string) *Fetcher {
 	return &Fetcher{
 		client:     client,
 		datasetURL: datasetURL,
-		spec:       domain.SnapshotSpec{Source: BlacklistSource, Columns: blacklistColumns, MinRows: blacklistMinRows},
+		spec:       domain.SnapshotSpec{Source: BlacklistSource, Columns: blacklistColumns, MinRows: blacklistMinRows, Rows: listing.CheckBlacklist},
 		parse:      ParseBlacklist,
 	}
 }

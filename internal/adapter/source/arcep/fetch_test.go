@@ -3,11 +3,13 @@
 package arcep
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
@@ -98,5 +100,24 @@ func TestHosts(t *testing.T) {
 		if err != nil || u.Scheme != "https" || len(Hosts()) != 1 || u.Host != Hosts()[0] {
 			t.Errorf("%s is not served by Hosts() = %q", raw, Hosts())
 		}
+	}
+}
+
+func TestSpecRefusesOverlappingRanges(t *testing.T) {
+	t.Parallel()
+	spec := NewNumbering(nil, "", "").Spec()
+	if spec.Rows == nil {
+		t.Fatal("Spec().Rows is nil")
+	}
+	snap, err := ParseNumbering(bytes.NewReader(readFixture(t, numberingFixture)), fixtureOperators(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := spec.Rows(snap); err != nil {
+		t.Errorf("Rows(fixture) = %v, want nil", err)
+	}
+	snap.Rows = append(slices.Clone(snap.Rows), snap.Rows[0])
+	if err := spec.Rows(snap); err == nil {
+		t.Error("Rows(overlapping ranges) = nil, want the plan error")
 	}
 }

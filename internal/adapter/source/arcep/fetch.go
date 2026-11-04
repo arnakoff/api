@@ -37,7 +37,15 @@ func NewNumbering(client Getter, numberingURL, operatorsURL string) *Fetcher {
 
 // Spec declares the snapshot columns and the least number of rows.
 func (f *Fetcher) Spec() domain.SnapshotSpec {
-	return domain.SnapshotSpec{Source: NumberingSource, Columns: numberingColumns, MinRows: numberingMinRows}
+	return domain.SnapshotSpec{Source: NumberingSource, Columns: numberingColumns, MinRows: numberingMinRows, Rows: checkPlan}
+}
+
+// checkPlan reports why the ranges of snap would not index as a plan, for
+// domain.SnapshotSpec.Rows: restore then refuses a stored snapshot the
+// numbering reader would fail on.
+func checkPlan(snap domain.Snapshot) error {
+	_, err := Plan(snap)
+	return err
 }
 
 // Fetch downloads and parses the operators file, then the numbering file.

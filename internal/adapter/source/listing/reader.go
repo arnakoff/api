@@ -40,6 +40,14 @@ func (r *Reader) Blacklist() (*domain.Blacklist, time.Time, error) {
 	return r.cache.get()
 }
 
+// CheckBlacklist reports why the rows of snap would not index as a
+// blacklist, for domain.SnapshotSpec.Rows: sync and restore then refuse a
+// snapshot the Reader would fail on.
+func CheckBlacklist(snap domain.Snapshot) error {
+	_, err := blacklistOf(snap)
+	return err
+}
+
 // Positions of the blacklist columns in a row.
 const (
 	posKind = iota

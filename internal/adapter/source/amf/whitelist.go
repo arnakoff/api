@@ -40,6 +40,16 @@ func OffersWhitelist(snap domain.Snapshot, platforms domain.Platforms) (*domain.
 	}, platforms)
 }
 
+// checkWhitelist returns the domain.SnapshotSpec.Rows check of a white list
+// that build indexes. Platforms only decide which pages are left out, never
+// whether a row reads back, so none are needed.
+func checkWhitelist(build func(domain.Snapshot, domain.Platforms) (*domain.Whitelist, error)) func(domain.Snapshot) error {
+	return func(snap domain.Snapshot) error {
+		_, err := build(snap, domain.Platforms{})
+		return err
+	}
+}
+
 // psanAuthorisationOf reads the authorisation of a PSAN snapshot row.
 func psanAuthorisationOf(row []string) (domain.Authorisation, error) {
 	a := domain.Authorisation{Name: row[posName], Number: row[posNumber], Kind: row[posKind]}

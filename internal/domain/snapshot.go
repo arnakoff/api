@@ -39,11 +39,17 @@ var (
 const maxShrinkPercent = 20
 
 // SnapshotSpec is what a connector declares about its source's file: the
-// columns it reads and the least number of rows a sane file holds.
+// columns it reads, the least number of rows a sane file holds and, in
+// Rows, how its rows must read back.
 type SnapshotSpec struct {
 	Source  Source
 	Columns []string
 	MinRows int
+	// Rows, when set, reports why the rows of a snapshot would not read back
+	// as the readers index them, so that sync and restore refuse a snapshot
+	// the API could not serve rather than lose the whole list at its first
+	// read. It is the readers' own indexing, run once more.
+	Rows func(Snapshot) error
 }
 
 // Validate reports why s cannot replace a snapshot of previousRows rows
@@ -72,6 +78,9 @@ func (spec SnapshotSpec) validate(s Snapshot, previousRows int) error {
 	}
 	if len(s.Rows)*100 < previousRows*(100-maxShrinkPercent) {
 		return fmt.Errorf("%w: %d rows, %d before", ErrSnapshotShrunk, len(s.Rows), previousRows)
+	}
+	if spec.Rows != nil {
+		return spec.Rows(s)
 	}
 	return nil
 }

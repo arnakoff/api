@@ -91,3 +91,20 @@ func TestSnapshotSpec_ValidateGivesTheShrinkFigures(t *testing.T) {
 		t.Errorf("Validate() = %v, want the row counts", err)
 	}
 }
+
+func TestSnapshotSpec_ValidateChecksTheRows(t *testing.T) {
+	t.Parallel()
+
+	errRow := errors.New("row 3: unreadable")
+	spec := domain.SnapshotSpec{
+		Source: "AMF", Columns: []string{"nom"}, MinRows: 1,
+		Rows: func(domain.Snapshot) error { return errRow },
+	}
+	if err := spec.Validate(snapshotOf(10), 0); !errors.Is(err, errRow) {
+		t.Errorf("Validate() = %v, want %v", err, errRow)
+	}
+	spec.Rows = func(domain.Snapshot) error { return nil }
+	if err := spec.Validate(snapshotOf(10), 0); err != nil {
+		t.Errorf("Validate() = %v, want nil when every row reads back", err)
+	}
+}

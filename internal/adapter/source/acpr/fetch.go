@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
 )
 
@@ -38,7 +39,7 @@ func NewBlacklist(client Getter, fileURL string) *Fetcher {
 
 // Spec declares the snapshot columns and the least number of rows.
 func (f *Fetcher) Spec() domain.SnapshotSpec {
-	return domain.SnapshotSpec{Source: BlacklistSource, Columns: blacklistColumns, MinRows: blacklistMinRows}
+	return domain.SnapshotSpec{Source: BlacklistSource, Columns: blacklistColumns, MinRows: blacklistMinRows, Rows: listing.CheckBlacklist}
 }
 
 // Fetch downloads the file and parses it.
