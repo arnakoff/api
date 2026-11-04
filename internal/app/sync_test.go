@@ -254,3 +254,39 @@ func TestSyncStopsOnACancelledContext(t *testing.T) {
 		t.Errorf("Run() = %v, want %v", err, context.Canceled)
 	}
 }
+
+func TestSyncWithoutServedSnapshotChecksTheShrinkAgainstTheStoredOne(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		stored  domain.Snapshot
+		loadErr error
+		want    error
+	}{
+		{"stored snapshot not restored", stored(100, t0.Add(-time.Hour)), nil, domain.ErrSnapshotShrunk},
+		{"stored snapshot unreadable", domain.Snapshot{}, errDisk, errDisk},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			st := newStore()
+			if tt.loadErr == nil {
+				st.saved["AMF"] = tt.stored
+			}
+			st.setLoadErr(tt.loadErr)
+			s, _ := newSync(t, st, newFetcher(amfSpec).then(snapshot(50, time.Time{}), nil))
+
+			err := s.RunSource(t.Context(), "AMF")
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("RunSource() = %v, want %v", err, tt.want)
+			}
+			if _, ok := s.Snapshot("AMF"); ok {
+				t.Error("Snapshot() serves the 50-row snapshot")
+			}
+			if saved := st.saved["AMF"]; len(saved.Rows) == 50 {
+				t.Error("stored the 50-row snapshot over the last good one")
+			}
+		})
+	}
+}

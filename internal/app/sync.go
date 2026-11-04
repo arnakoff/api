@@ -115,7 +115,11 @@ func (s *Sync) refresh(ctx context.Context, f *feed, now time.Time) error {
 		return fmt.Errorf("fetch: %w", err)
 	}
 	snap.FetchedAt = now
-	if err := f.spec.Validate(snap, f.rows()); err != nil {
+	previous, err := s.previousRows(ctx, f)
+	if err != nil {
+		return err
+	}
+	if err := f.spec.Validate(snap, previous); err != nil {
 		return err
 	}
 	if err := s.store.Save(ctx, snap); err != nil {
@@ -123,6 +127,24 @@ func (s *Sync) refresh(ctx context.Context, f *feed, now time.Time) error {
 	}
 	f.current.Store(&snap)
 	return nil
+}
+
+// previousRows returns the row count the shrink check compares against: the
+// snapshot in service, else the stored one, even when it was not restored.
+// It is 0 only when the store holds no snapshot. A store that cannot be read
+// is an error, so a shrunk file is never saved for want of a baseline.
+func (s *Sync) previousRows(ctx context.Context, f *feed) (int, error) {
+	if cur := f.current.Load(); cur != nil {
+		return len(cur.Rows), nil
+	}
+	snap, err := s.store.Load(ctx, f.spec.Source)
+	if errors.Is(err, ErrNoSnapshot) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("load the stored snapshot for the shrink check: %w", err)
+	}
+	return len(snap.Rows), nil
 }
 
 // feed returns the feed of source, or nil.

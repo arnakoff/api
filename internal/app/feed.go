@@ -45,14 +45,6 @@ type failure struct {
 	err error
 }
 
-// rows returns the number of rows in service, 0 when none is.
-func (f *feed) rows() int {
-	if snap := f.current.Load(); snap != nil {
-		return len(snap.Rows)
-	}
-	return 0
-}
-
 // sourceSync returns the state of the feed.
 func (f *feed) sourceSync() SourceSync {
 	st := SourceSync{Source: f.spec.Source}
