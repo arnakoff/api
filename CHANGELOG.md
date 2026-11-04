@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.56.0](https://github.com/arnakoff/api/compare/v0.55.0...v0.56.0) (2026-11-04)
+
+
+### Features
+
+* **ci:** publish the mcp server to the official registry on each release ([#279](https://github.com/arnakoff/api/issues/279)) ([cf5b4ee](https://github.com/arnakoff/api/commit/cf5b4ee24ed32608ff6248c186f063967b426447)), closes [#278](https://github.com/arnakoff/api/issues/278)
+
 ## [0.55.0](https://github.com/arnakoff/api/compare/v0.54.0...v0.55.0) (2026-11-04)
 
 
