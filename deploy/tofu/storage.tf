@@ -100,3 +100,29 @@ resource "scaleway_object_bucket_policy" "snapshots" {
     ]
   })
 }
+
+# The OpenTofu state bucket, created by hand before the first apply
+# (docs/deploy.md), holds the encrypted state and its lock. The api and
+# sync keys have Object Storage rights on the whole project: without a
+# policy of its own, the bucket would fall back to them (#289). This policy
+# leaves it to the owner, who applies this configuration with their key.
+resource "scaleway_object_bucket_policy" "state" {
+  bucket = local.state_bucket
+  policy = jsonencode({
+    Version = "2023-04-17"
+    Statement = [
+      {
+        Sid       = "Owner only"
+        Effect    = "Allow"
+        Principal = { SCW = "user_id:${var.owner_user_id}" }
+        Action    = ["*"]
+        Resource  = [local.state_bucket, "${local.state_bucket}/*"]
+      },
+    ]
+  })
+}
+
+locals {
+  # The backend block of versions.tf cannot read a local: keep both equal.
+  state_bucket = "arnakoff-tofu-state"
+}
