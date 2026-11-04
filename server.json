@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.arnakoff/api",
+  "title": "Arnakoff",
+  "description": "Signaux anti-arnaque sourcés sur un site, un e-mail, un numéro, un IBAN ou un SIREN",
+  "version": "0.54.0",
+  "repository": {
+    "url": "https://github.com/arnakoff/api",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.arnakoff.com/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Clé API Arnakoff, sous la forme « Bearer <clé> »",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
