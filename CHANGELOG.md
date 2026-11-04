@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.53.1](https://github.com/arnakoff/api/compare/v0.53.0...v0.53.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ci:** let the admin role connect to the arnakoff database ([#262](https://github.com/arnakoff/api/issues/262)) ([d044bed](https://github.com/arnakoff/api/commit/d044bede49ea18642fcbc620072a851897b2bbf9)), closes [#261](https://github.com/arnakoff/api/issues/261)
+* **ci:** let the deploy workflow create the sync job's secret versions ([#265](https://github.com/arnakoff/api/issues/265)) ([7807f42](https://github.com/arnakoff/api/commit/7807f426a63117f7f394d9570eb5481162f8fa3e)), closes [#264](https://github.com/arnakoff/api/issues/264)
+
 ## [0.53.0](https://github.com/arnakoff/api/compare/v0.52.0...v0.53.0) (2026-11-04)
 
 
