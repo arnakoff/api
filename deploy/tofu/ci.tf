@@ -13,7 +13,10 @@ resource "scaleway_iam_policy" "ci_deploy_secrets" {
   description    = "CI: write the secret versions of the sync job"
   application_id = data.scaleway_iam_application.ci_deploy.id
   rule {
-    project_ids          = [data.scaleway_account_project.current.id]
-    permission_set_names = ["SecretManagerSecretWrite"]
+    project_ids = [data.scaleway_account_project.current.id]
+    # Create makes the new version, Write disables the previous one
+    # (disable-previous): Write alone cannot create a version (Scaleway
+    # documentation, iam/policies-permissions/permission-sets; #264).
+    permission_set_names = ["SecretManagerSecretCreate", "SecretManagerSecretWrite"]
   }
 }
