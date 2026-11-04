@@ -66,18 +66,20 @@ resource "scaleway_iam_api_key" "sync" {
   expires_at         = var.key_expiry
 }
 
-# A bucket policy replaces the default access of the project: the owner's
-# project keeps full access, or nobody could manage the bucket any more
-# (scaleway_object_bucket_policy documentation).
+# A bucket policy replaces the default access of the project, so the owner
+# keeps full access by name. Version 2023-04-17 only accepts user_id,
+# application_id or "*" as principals; project_id belongs to the deprecated
+# 2012-10-17 (Scaleway documentation, object-storage/api-cli/bucket-policy).
+# The Owner of the Organization may always edit the policy itself.
 resource "scaleway_object_bucket_policy" "snapshots" {
   bucket = scaleway_object_bucket.snapshots.id
   policy = jsonencode({
     Version = "2023-04-17"
     Statement = [
       {
-        Sid       = "Project keeps full access"
+        Sid       = "Owner keeps full access"
         Effect    = "Allow"
-        Principal = { SCW = "project_id:${data.scaleway_account_project.current.id}" }
+        Principal = { SCW = "user_id:${var.owner_user_id}" }
         Action    = ["*"]
         Resource  = [scaleway_object_bucket.snapshots.name, "${scaleway_object_bucket.snapshots.name}/*"]
       },

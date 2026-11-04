@@ -12,17 +12,21 @@ Les valeurs marquées « à vérifier » n'ont pas pu être confirmées dans la 
 
 Le code doit contenir #246 (clés par lien de connexion), #247 (`ARNAKOFF_CLIENT_IP_HEADER`) et #249 (`ARNAKOFF_DATABASE_CA`), publiés dans une version : la configuration de `deploy/tofu` leur donne leurs variables.
 
-Outils : OpenTofu 1.13.2, la CLI `scw` avec le profil `arnakoff` de `~/.config/scw/config.yaml` (projet `arnakoff-production`), `gh` connecté au dépôt, `docker`.
+Outils : OpenTofu 1.13.2, la CLI `scw` avec le profil `arnakoff` de `~/.config/scw/config.yaml` (projet `arnakoff-production`), `gh` connecté au dépôt, `docker`, `jq`, `cosign`. Sous Windows, tout se lance depuis Git Bash, dans un seul terminal gardé ouvert jusqu'au bout.
 
 Dans chaque terminal où OpenTofu tourne :
 
 ```sh
-export SCW_PROFILE=arnakoff
+export SCW_PROFILE=arnakoff   # sans lui, scw et OpenTofu prennent le profil par défaut
 # Le backend S3 lit les clés AWS_* : ce sont celles du profil arnakoff.
-export AWS_ACCESS_KEY_ID="$(scw config get access-key)"
-export AWS_SECRET_ACCESS_KEY="$(scw config get secret-key)"
+export AWS_ACCESS_KEY_ID="$(scw config get access-key | tail -n 1)"
+export AWS_SECRET_ACCESS_KEY="$(scw config get secret-key | tail -n 1)"
 read -rs TF_VAR_state_passphrase && export TF_VAR_state_passphrase   # 16 caractères au moins, gardée hors du dépôt
+# Le propriétaire : seul utilisateur que la politique du bucket des instantanés laisse le gérer.
+export TF_VAR_owner_user_id="$(scw iam api-key get "$AWS_ACCESS_KEY_ID" -o json | tail -n 1 | jq -r .APIKey.user_id)"
 ```
+
+`| tail -n 1` : sous Windows, `scw` écrit son avertissement sur les permissions de `config.yaml` sur la sortie standard, avant la valeur, et Windows ne permet pas de le faire taire (relevé le 04/11/2026, `scw` 2.65.2).
 
 ### 1. Bucket de l'état OpenTofu (une fois)
 
@@ -55,11 +59,11 @@ read -rs TF_VAR_db_api_password && export TF_VAR_db_api_password
 Le conteneur et le job se créent avec une image ; le workflow Deploy la remplace ensuite.
 
 ```sh
-docker login rg.fr-par.scw.cloud/arnakoff -u nologin --password-stdin <<< "$(scw config get secret-key)"
+scw config get secret-key | tail -n 1 | docker login rg.fr-par.scw.cloud/arnakoff -u nologin --password-stdin
 docker buildx imagetools create --tag rg.fr-par.scw.cloud/arnakoff/api:<version> ghcr.io/arnakoff/api@<digest linux/amd64>
 ```
 
-Le digest `linux/amd64` se lit avec `docker buildx imagetools inspect ghcr.io/arnakoff/api:<version>`, après `cosign verify` (README).
+Le digest `linux/amd64` se lit avec `docker buildx imagetools inspect ghcr.io/arnakoff/api:<version>`, après `cosign verify` (README). `imagetools create` enveloppe ce manifeste dans un nouvel index : le tag copié a un autre digest, le manifeste garde le sien (constaté le 04/11/2026 avec 0.52.0).
 
 ### 4. Infrastructure
 
@@ -73,7 +77,7 @@ tofu apply \
 
 La base n'a alors aucun point d'accès public : seul le réseau privé y mène.
 
-« À vérifier » : le conteneur est créé sans ses secrets, qui viennent au déploiement. S'il est marqué en erreur, c'est attendu jusqu'à l'étape 6 ; relancer `tofu apply` après.
+Le conteneur est créé sans ses secrets, qui viennent au déploiement : il reste en erreur (`ARNAKOFF_LOG_KEY: required`…) jusqu'à l'étape 7, c'est attendu (constaté le 04/11/2026). Les secrets du job `sync` reçoivent une version provisoire que le premier déploiement remplace ; d'ici là, une exécution planifiée du job échoue.
 
 ### 5. Valeurs de la CI
 
@@ -92,7 +96,7 @@ URL de la base, par le réseau privé, avec `verify-full` (le certificat de l'in
 
 ```sh
 printf 'postgres://arnakoff_api:%s@%s:%s/arnakoff?sslmode=verify-full' \
-  "$(printf %s "$TF_VAR_db_api_password" | jq -sRr @uri)" \
+  "$(printf %s "$TF_VAR_db_api_password" | jq -sRj @uri)" \
   "$(tofu output -raw database_private_host)" "$(tofu output -raw database_private_port)" \
   | gh secret set ARNAKOFF_DATABASE_URL --env production
 ```
@@ -110,7 +114,7 @@ tofu apply -var ... -var 'migration_cidrs=["<votre adresse IPv4>/32"]'
 Le point d'accès et sa liste d'adresses autorisées sont créés dans le même `apply`, mais l'un après l'autre : pendant ces quelques secondes, la liste par défaut de Scaleway (`0.0.0.0/0`) s'applique. La base reste protégée par TLS et par son mot de passe.
 
 ```sh
-export ARNAKOFF_DATABASE_URL="postgres://arnakoff_admin:<mot de passe encodé>@$(tofu output -raw database_public_endpoint)/arnakoff?sslmode=verify-full"
+export ARNAKOFF_DATABASE_URL="postgres://arnakoff_admin:$(printf %s "$TF_VAR_db_admin_password" | jq -sRj @uri)@$(tofu output -raw database_public_endpoint)/arnakoff?sslmode=verify-full"
 export ARNAKOFF_DATABASE_CA="$(tofu output -raw database_certificate)"
 export ARNAKOFF_LOG_KEY="$(openssl rand -hex 32)"   # journal local seulement
 go run ./cmd/admin migrate
