@@ -74,9 +74,9 @@ variable "image" {
 }
 
 variable "api_hostname" {
-  description = "Custom domain of the API, such as api.arnakoff.com, once its CNAME points at the container's default endpoint. Empty: none."
+  description = "Custom domain of the API, once its CNAME points at the container's default endpoint. Empty: none, only before that CNAME exists (docs/deploy.md, steps 4 and 8)."
   type        = string
-  default     = ""
+  default     = "api.arnakoff.com"
 }
 
 variable "key_expiry" {
