@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.56.1](https://github.com/arnakoff/api/compare/v0.56.0...v0.56.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **platform:** start no registry lookup for a check past its deadline ([#288](https://github.com/arnakoff/api/issues/288)) ([a4fb77c](https://github.com/arnakoff/api/commit/a4fb77cdf544cea715fa57f466f70ad488fd16c9)), closes [#287](https://github.com/arnakoff/api/issues/287)
+* **sync:** compare the shrink against the stored snapshot when none is in service ([#283](https://github.com/arnakoff/api/issues/283)) ([bb05d01](https://github.com/arnakoff/api/commit/bb05d01e3a5cd86a260ec7cb807689f1ff367313)), closes [#282](https://github.com/arnakoff/api/issues/282)
+* **sync:** refuse a snapshot whose rows the readers cannot index ([#286](https://github.com/arnakoff/api/issues/286)) ([3cbf866](https://github.com/arnakoff/api/commit/3cbf866a8ba978af3ddfa2773b4e59291c42f47e)), closes [#285](https://github.com/arnakoff/api/issues/285)
+
 ## [0.56.0](https://github.com/arnakoff/api/compare/v0.55.0...v0.56.0) (2026-11-04)
 
 
