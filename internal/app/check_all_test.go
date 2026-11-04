@@ -137,3 +137,27 @@ func TestCheckAllBoundsTheWholeBatchByTheTimeout(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckAllConsultsNoRegistryPastTheDeadline(t *testing.T) {
+	t.Parallel()
+
+	// With one check at a time, the first holds the batch until the
+	// deadline: the three inputs whose turn comes after it must not reach
+	// the registries, or a timed-out batch would fire them all at once.
+	const timeout = 50 * time.Millisecond
+	r := newRegistries()
+	r.domains.hold = func(ctx context.Context) { <-ctx.Done() }
+	ins := []domain.Input{parse(t, "a.fr"), parse(t, "b.fr"), parse(t, "c.fr"), parse(t, "d.fr")}
+	check := app.NewCheck(r.all(), &clock{now: t0}, app.WithTimeout(timeout), app.WithBatchLimit(1))
+
+	got := check.CheckAll(context.Background(), ins)
+
+	if asked := r.domains.got(); len(asked) != 1 {
+		t.Errorf("RDAP consulted about %q, want only the input checked before the deadline", asked)
+	}
+	for i, rep := range got {
+		if s := rep.Sources()[0].Status; s != domain.SourceUnavailable {
+			t.Errorf("report %d: RDAP %v, want unavailable past the deadline", i, s)
+		}
+	}
+}

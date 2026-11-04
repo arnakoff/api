@@ -52,10 +52,15 @@ func New[V any](cfg Config) (*Cache[V], error) {
 //
 // A caller whose ctx ends stops waiting and gets ctx.Err(), but the load
 // goes on for the others with a context that is never cancelled: load must
-// bound its own duration, as the platform HTTP client does.
+// bound its own duration, as the platform HTTP client does. A caller whose
+// ctx has already ended starts no load: it would wait for nothing.
 func (c *Cache[V]) Get(ctx context.Context, key string, load func(context.Context) (V, error)) (V, error) {
 	if e, ok := c.lookup(key); ok {
 		return e.value, e.err
+	}
+	if err := ctx.Err(); err != nil {
+		var zero V
+		return zero, err
 	}
 	loadCtx := context.WithoutCancel(ctx)
 	results := c.flight.DoChan(key, func() (any, error) {

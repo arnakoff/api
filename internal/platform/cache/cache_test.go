@@ -270,3 +270,31 @@ func TestNewRejectsNegativeConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLoadsNothingForACallerThatGaveUp(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		c, err := cache.New[string](cache.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Get(t.Context(), "cached", func(context.Context) (string, error) { return "v", nil }); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		var loaded atomic.Bool
+		_, err = c.Get(ctx, "missing", func(context.Context) (string, error) {
+			loaded.Store(true)
+			return "w", nil
+		})
+		synctest.Wait() // a load started in the background has run
+		if !errors.Is(err, context.Canceled) || loaded.Load() {
+			t.Errorf("Get(cancelled, miss) = %v, loaded %t; want context.Canceled and no load", err, loaded.Load())
+		}
+		if got, err := c.Get(ctx, "cached", nil); err != nil || got != "v" {
+			t.Errorf("Get(cancelled, hit) = %q, %v; want the cached v", got, err)
+		}
+	})
+}

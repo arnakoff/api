@@ -22,7 +22,7 @@ func WithBatchLimit(n int) CheckOption {
 }
 
 // CheckAll returns the report of each input, in the order of ins, as Check
-// returns it. It checks several inputs at once, up to the batch limit, and
+// returns it under the batch deadline. It checks several inputs at once, up to the batch limit, and
 // the timeout bounds the whole batch rather than each check: an input whose
 // turn comes at the deadline is reported with its registries unavailable.
 func (c *Check) CheckAll(ctx context.Context, ins []domain.Input) []domain.Report {
@@ -36,7 +36,7 @@ func (c *Check) CheckAll(ctx context.Context, ins []domain.Input) []domain.Repor
 	g.SetLimit(c.batchLimit)
 	for i, in := range ins {
 		g.Go(func() error {
-			reports[i] = c.Check(ctx, in)
+			reports[i] = c.check(ctx, in)
 			return nil
 		})
 	}
