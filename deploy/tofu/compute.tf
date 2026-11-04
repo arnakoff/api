@@ -69,10 +69,18 @@ resource "scaleway_container" "api" {
   }
 }
 
+# The public address of the API in production. An apply that forgot
+# api_hostname once planned to destroy it (#273): prevent_destroy makes such
+# a plan fail instead, including when count drops to 0 (checked with
+# OpenTofu 1.13.2). Removing the domain on purpose: docs/deploy.md.
 resource "scaleway_container_domain" "api" {
   count        = var.api_hostname == "" ? 0 : 1
   container_id = scaleway_container.api.id
   hostname     = var.api_hostname
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Secrets of the sync job, mounted from Secret Manager (ADR 0005). Their

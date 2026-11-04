@@ -74,7 +74,8 @@ cd deploy/tofu
 tofu init
 tofu apply \
   -var image=rg.fr-par.scw.cloud/arnakoff/api:<version> \
-  -var key_expiry=<date RFC 3339 dans la durée maximale des clés de l'organisation>
+  -var key_expiry=<date RFC 3339 dans la durée maximale des clés de l'organisation> \
+  -var api_hostname=   # pas de domaine tant que son CNAME n'existe pas (étape 8)
 ```
 
 La base n'a alors aucun point d'accès public : seul le réseau privé y mène.
@@ -138,8 +139,10 @@ Ensuite, chaque version publiée par release-please déclenche Deploy après le 
 ### 8. Domaine `api.arnakoff.com`
 
 1. Chez Cloudflare : `CNAME api` → `tofu output -raw container_host`, en « DNS only » (le certificat Let's Encrypt est émis par Scaleway).
-2. `tofu apply -var api_hostname=api.arnakoff.com ...`
+2. `tofu apply ...`, sans `-var api_hostname=` : `api_hostname` vaut `api.arnakoff.com` par défaut.
 3. Mettre `SCW_CONTAINER_ENDPOINT` à `https://api.arnakoff.com`.
+
+Le domaine est protégé par `prevent_destroy` (#273) : un plan qui le détruirait ou le remplacerait échoue (`has prevent_destroy set, but the plan calls for it to be destroyed`) au lieu de le proposer. Ce message veut presque toujours dire qu'une variable manque à la commande. Pour retirer ou changer le domaine volontairement : enlever le bloc `lifecycle` de `scaleway_container_domain.api` dans une PR, appliquer, puis le remettre.
 
 ## Observabilité et alertes
 
