@@ -2,7 +2,7 @@
 
 // Command admin administers the API key store (ADR 0004).
 //
-//	admin migrate
+//	admin migrate [-listen <address>]
 //	admin key create -label <holder> [-env live|test]
 //	admin key list
 //	admin key revoke -id <id>
@@ -10,7 +10,10 @@
 // migrate applies the embedded SQL migrations not yet applied, under an
 // advisory lock: run it with a role that may change the schema, distinct
 // from the role of the API, before deploying a version that needs them.
-// The API never migrates on start.
+// The API never migrates on start. With -listen, migrate serves /healthz
+// and /readyz on that address until it is stopped, /readyz answering 200
+// once the migrations are applied and 503 before or after a failure: the
+// form a Serverless Container inside the private network runs (#259).
 //
 // key create draws a key, "ark_live_…" or "ark_test_…", stores its keyed
 // digest and prints the key once on standard output: it is never stored and

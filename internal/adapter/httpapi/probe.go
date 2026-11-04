@@ -39,3 +39,12 @@ func writeProbe(w http.ResponseWriter, status int, body string) {
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, body)
 }
+
+// NewProbeHandler serves only the liveness and readiness probes, for a
+// process that answers nothing else, such as `admin migrate -listen`.
+func NewProbeHandler(ready Readiness) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("GET "+healthzPath, healthz())
+	mux.Handle("GET /readyz", readyz(ready))
+	return mux
+}

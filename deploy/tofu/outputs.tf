@@ -38,12 +38,9 @@ output "sync_secret_ids" {
   value       = jsonencode({ for k, s in scaleway_secret.sync : k => split("/", s.id)[1] })
 }
 
-# With IPAM, the endpoint on the Private Network has an address and no host
-# name (`scw rdb instance get`: "name": null). The instance certificate
-# covers that address (SAN IP Address), so verify-full holds.
 output "database_private_host" {
   description = "Host of the database on the Private Network, for ARNAKOFF_DATABASE_URL: its host name, or else its address."
-  value       = coalesce(scaleway_rdb_instance.main.private_network[0].hostname, scaleway_rdb_instance.main.private_network[0].ip)
+  value       = local.database_private_host
 }
 
 output "database_private_port" {
@@ -51,12 +48,6 @@ output "database_private_port" {
   value       = scaleway_rdb_instance.main.private_network[0].port
 }
 
-output "database_public_endpoint" {
-  description = "Public endpoint of the database, host:port, for `admin migrate` from var.migration_cidrs; empty while it is closed."
-  value = try(
-    "${scaleway_rdb_instance.main.load_balancer[0].hostname}:${scaleway_rdb_instance.main.load_balancer[0].port}", "",
-  )
-}
 
 output "database_certificate" {
   description = "CA certificate of the database, for sslrootcert with sslmode=verify-full."

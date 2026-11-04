@@ -51,10 +51,18 @@ Décisions du propriétaire à la mise en place du déploiement (`deploy/tofu/`,
 
 - **Infrastructure en OpenTofu**, appliquée par le propriétaire depuis sa machine, jamais par la CI. État dans un bucket privé et versionné du projet (`arnakoff-tofu-state`), chiffré avant l'écriture par le chiffrement d'état d'OpenTofu, avec une phrase de passe que le propriétaire garde ; verrouillage par écriture conditionnelle S3 (`use_lockfile`), que Scaleway Object Storage prend en charge.
 - **Secrets** : inchangé, ils restent dans l'environnement GitHub `production` et la CI les recopie à chaque déploiement, dans le conteneur et dans Secret Manager pour le job. OpenTofu ignore l'image et les secrets du conteneur une fois créé. Les mots de passe de la base sont en écriture seule (`password_wo`) : ils ne sont pas dans l'état. Les clés du bucket le sont, l'état est chiffré.
-- **Migrations** : à la main, depuis la machine du propriétaire, par un point d'accès public de la base qui n'existe que le temps de la migration, limité par ACL à son adresse (la liste par défaut de Scaleway autorise toute adresse), en TLS vérifié et avec le rôle administrateur ; puis `tofu apply` pour étendre les droits du rôle de l'API aux nouvelles tables.
+- **Migrations** : remplacé par #259, ci-dessous.
 - **Pas de préproduction** pour l'instant.
 - **Adresse du client** : derrière Serverless Containers, lue dans `X-Real-IP`, que Scaleway réécrit à chaque requête (#247) ; le point d'accès privé du conteneur reste fermé. **Autorité de la base** passée au conteneur en PEM (#249), faute de fichier monté.
 - La CI obtient le droit `SecretManagerSecretWrite` sur le projet, pour écrire les versions des secrets du job.
+
+## Migrations depuis le réseau privé (#259, 04/11/2026)
+
+Au premier déploiement, le point d'accès public de la base (`51.159.27.181:3162`) n'avait pas de nom d'hôte et le certificat de l'instance ne le couvrait pas (SAN : l'adresse privée `172.16.16.2` et `212.47.251.84`) : `verify-full` échouait. Décision du propriétaire :
+
+- Les migrations tournent dans le réseau privé, dans un conteneur Serverless `migrate` (Serverless Jobs ne rejoint pas encore de réseau privé, FAQ de Scaleway), créé par OpenTofu avec `migrate=true` et retiré à l'`apply` suivant. Il lance `admin migrate -listen`, qui répond `200` sur `/readyz` une fois les migrations appliquées. La base n'a plus jamais de point d'accès public.
+- Les identifiants du rôle administrateur viennent d'OpenTofu au moment de l'`apply` : le mot de passe est dans l'état, chiffré sur la machine du propriétaire, tant que le conteneur existe, et n'est jamais dans la CI.
+- Les migrations restent un geste du propriétaire, avant le déploiement de la version qui les apporte.
 
 ## Conséquences
 

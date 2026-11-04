@@ -7,6 +7,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"flag"
+	"log/slog"
+	"net"
 	"os"
 
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
@@ -37,10 +39,7 @@ func main() {
 // redacting logger is the slog default.
 func run(ctx context.Context, cfg config.Config, cmd command) error {
 	if cmd.action == actionMigrate {
-		if err := cfg.RequireDatabase(); err != nil {
-			return err
-		}
-		return postgres.Migrate(ctx, string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
+		return runMigrate(ctx, cfg, cmd.listen)
 	}
 	if err := cfg.RequireKeyStore(); err != nil {
 		return err
@@ -52,6 +51,25 @@ func run(ctx context.Context, cfg config.Config, cmd command) error {
 	defer keys.Close()
 	admin := app.NewKeyAdmin(keys, cfg.APIKeySecret.Bytes(), clock.System{}, rand.Reader)
 	return runKey(ctx, admin, cfg, cmd)
+}
+
+// runMigrate applies the migrations of the configured database, then
+// exits, or serves its probes on listen when it is set.
+func runMigrate(ctx context.Context, cfg config.Config, listen string) error {
+	if err := cfg.RequireDatabase(); err != nil {
+		return err
+	}
+	migrate := app.MigrateFunc(func(ctx context.Context) error {
+		return postgres.Migrate(ctx, string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
+	})
+	if listen == "" {
+		return migrate(ctx)
+	}
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", listen)
+	if err != nil {
+		return err
+	}
+	return serveMigration(ctx, ln, app.NewMigration(migrate), slog.Default())
 }
 
 // runKey runs a key action with admin, writing to standard output.
