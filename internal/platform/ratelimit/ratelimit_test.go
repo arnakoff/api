@@ -165,6 +165,14 @@ func TestPolicy(t *testing.T) {
 	}
 }
 
+func TestPerHourAppliesTheQuota(t *testing.T) {
+	t.Parallel()
+
+	if p := ratelimit.PerHour(3, time.Now).Policy(); p.Quota != 3 || p.Window != time.Hour {
+		t.Errorf("PerHour(3).Policy() = %+v, want 3 an hour", p)
+	}
+}
+
 func TestPerMinuteAppliesTheQuota(t *testing.T) {
 	t.Parallel()
 

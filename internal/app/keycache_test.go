@@ -27,14 +27,17 @@ func (f *countingFinder) FindKey(ctx context.Context, d domain.KeyDigest) (domai
 }
 
 // newCachedKeys returns a KeyCache of ttl over a store holding one active
-// key issued at t0, the store, its counter, the clock and the key digest.
+// key issued at t0, resumed, the store, its counter, the clock and the key
+// digest.
 func newCachedKeys(t *testing.T, ttl time.Duration) (*app.KeyCache, *keyStore, *countingFinder, *clock, domain.KeyDigest) {
 	t.Helper()
 	d := domain.KeyDigest{1}
 	store := &keyStore{recs: []domain.KeyRecord{{ID: 1, Digest: d, Environment: domain.KeyLive, CreatedAt: t0}}}
 	finder := &countingFinder{store: store}
 	c := &clock{now: t0}
-	return app.NewKeyCache(finder, c, ttl), store, finder, c, d
+	cache := app.NewKeyCache(finder, c, ttl)
+	cache.Resume()
+	return cache, store, finder, c, d
 }
 
 // findN calls FindKey n times and fails on an error other than want.

@@ -19,10 +19,12 @@ import (
 const queryTimeout = 3 * time.Second
 
 // keyColumns are the columns scanned by scanKey, in its order.
-const keyColumns = "id, digest, environment, label, hint, created_at, revoked_at"
+const keyColumns = "id, digest, environment, label, hint, email, created_at, revoked_at"
 
-// Keys keeps the records of API keys in the api_keys table. It implements
-// app.KeyFinder, app.KeyIssuer and app.KeyPurger.
+// Keys keeps the records of API keys in the api_keys table, and the login
+// requests in the login_requests table. It implements app.KeyFinder,
+// app.KeyIssuer, app.KeyPurger, app.LoginRequestStore and
+// app.AccountKeyIssuer.
 type Keys struct {
 	pool *pgxpool.Pool
 }
@@ -63,15 +65,37 @@ func (k *Keys) FindKey(ctx context.Context, d domain.KeyDigest) (domain.KeyRecor
 func (k *Keys) CreateKey(ctx context.Context, r domain.KeyRecord) (domain.KeyRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
-	err := k.pool.QueryRow(ctx,
-		`INSERT INTO api_keys (digest, environment, label, hint, created_at)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		r.Digest[:], r.Environment.String(), r.Label, r.Hint, r.CreatedAt,
-	).Scan(&r.ID)
-	if err != nil {
-		return domain.KeyRecord{}, fmt.Errorf("insert API key: %w", err)
+	if err := insertKey(ctx, k.pool, &r); err != nil {
+		return domain.KeyRecord{}, err
 	}
 	return r, nil
+}
+
+// querier runs a query returning a row: the pool or a transaction.
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// insertKey stores r through q and sets its identifier.
+func insertKey(ctx context.Context, q querier, r *domain.KeyRecord) error {
+	err := q.QueryRow(ctx,
+		`INSERT INTO api_keys (digest, environment, label, hint, email, account, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		r.Digest[:], r.Environment.String(), r.Label, r.Hint,
+		optional(r.Email, domain.Email.String), optional(r.Email, domain.Email.Account), r.CreatedAt,
+	).Scan(&r.ID)
+	if err != nil {
+		return fmt.Errorf("insert API key: %w", err)
+	}
+	return nil
+}
+
+// optional is the value of a column of e, of(e): NULL for no address.
+func optional(e domain.Email, of func(domain.Email) string) any {
+	if e.IsZero() {
+		return nil
+	}
+	return of(e)
 }
 
 // ListKeys returns every record, oldest first.
@@ -126,9 +150,10 @@ func scanKey(row pgx.Row) (domain.KeyRecord, error) {
 		rec     domain.KeyRecord
 		digest  []byte
 		env     string
+		email   *string
 		revoked *time.Time
 	)
-	if err := row.Scan(&rec.ID, &digest, &env, &rec.Label, &rec.Hint, &rec.CreatedAt, &revoked); err != nil {
+	if err := row.Scan(&rec.ID, &digest, &env, &rec.Label, &rec.Hint, &email, &rec.CreatedAt, &revoked); err != nil {
 		return domain.KeyRecord{}, err
 	}
 	if len(digest) != len(rec.Digest) {
@@ -140,6 +165,11 @@ func scanKey(row pgx.Row) (domain.KeyRecord, error) {
 		return domain.KeyRecord{}, fmt.Errorf("API key %d: %w", rec.ID, err)
 	}
 	rec.Environment = e
+	if email != nil {
+		if rec.Email, err = domain.ParseEmail(*email); err != nil {
+			return domain.KeyRecord{}, fmt.Errorf("API key %d: %w", rec.ID, err)
+		}
+	}
 	rec.CreatedAt = rec.CreatedAt.UTC()
 	if revoked != nil {
 		rec.RevokedAt = revoked.UTC()

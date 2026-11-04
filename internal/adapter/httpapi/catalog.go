@@ -51,6 +51,22 @@ var (
 		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
 		"Le corps de la requête doit être un objet JSON contenant q et turnstile_token.",
 	}
+	invalidKeyRequestBody = problem{
+		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
+		"Le corps de la requête doit être un objet JSON contenant email et turnstile_token.",
+	}
+	invalidKeyRedeemBody = problem{
+		http.StatusBadRequest, "invalid_body", "Corps de requête invalide",
+		"Le corps de la requête doit être un objet JSON contenant token.",
+	}
+	invalidLoginLink = problem{
+		http.StatusUnprocessableEntity, "invalid_login_link", "Lien de connexion invalide",
+		"Le lien de connexion est invalide, expiré ou déjà utilisé. Demande un nouveau lien.",
+	}
+	keyRequestUnavailable = problem{
+		http.StatusServiceUnavailable, "key_request_unavailable", "Demande de clé indisponible",
+		"La demande de clé ne peut pas être traitée pour le moment. Réessaie plus tard.",
+	}
 	missingAPIKey = problem{
 		http.StatusUnauthorized, "missing_api_key", "Clé API manquante",
 		"Cette ressource demande une clé API, envoyée dans l'en-tête Authorization avec le schéma Bearer.",
@@ -120,7 +136,7 @@ var problemCatalog = append([]problem{
 	invalidKind, missingParameter, notFound, methodNotAllowed, contentTooLarge,
 	unsupportedMediaType, invalidBody, invalidDemoBody, missingAPIKey, invalidAPIKey,
 	authenticationUnavailable, challengeFailed, challengeUnavailable, tooManyRequests, internalError,
-	serviceUnavailable,
+	serviceUnavailable, invalidKeyRequestBody, invalidKeyRedeemBody, invalidLoginLink, keyRequestUnavailable,
 }, slices.Collect(maps.Values(invalidInputOf))...)
 
 // problemFor returns the problem answering err, an error of the domain

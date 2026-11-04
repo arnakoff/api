@@ -69,31 +69,17 @@ func demoOptions(t *testing.T) (httpapi.Options, *checker, *verifier) {
 // contract.
 func (call demoCall) send(t *testing.T, opts httpapi.Options) *httptest.ResponseRecorder {
 	t.Helper()
-	rec := do(httpapi.NewHandler(opts), call.request(t))
-	ct, err := contract()
-	if err != nil {
-		t.Fatal(err)
-	}
-	hold := ct.Check
-	if call.refused {
-		hold = ct.CheckRefused
-	}
-	if err := hold(t.Context(), call.request(t), rec.Result()); err != nil {
-		t.Errorf("POST %.60s breaks the contract: %v", call.body, err)
-	}
-	return rec
+	return call.post().send(t, opts)
 }
 
 func (call demoCall) request(t *testing.T) *http.Request {
 	t.Helper()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/demo/check", strings.NewReader(call.body))
-	req.Header.Set("Origin", siteOrigin)
-	ct := call.contentType
-	if ct == "" {
-		ct = "application/json"
-	}
-	req.Header.Set("Content-Type", ct)
-	return req
+	return call.post().request(t)
+}
+
+// post is call as a POST /v1/demo/check.
+func (call demoCall) post() postCall {
+	return postCall{path: "/v1/demo/check", body: call.body, contentType: call.contentType, refused: call.refused}
 }
 
 func TestDemoAnswersTheReportOfAValidToken(t *testing.T) {

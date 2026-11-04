@@ -81,6 +81,12 @@ func PerMinute(n int, now func() time.Time) *Limiter {
 	return New(Policy{Quota: n, Window: time.Minute}, DefaultMaxKeys, now)
 }
 
+// PerHour returns a limiter allowing each client n requests an hour,
+// keeping at most DefaultMaxKeys clients.
+func PerHour(n int, now func() time.Time) *Limiter {
+	return New(Policy{Quota: n, Window: time.Hour}, DefaultMaxKeys, now)
+}
+
 // Policy returns the policy l applies.
 func (l *Limiter) Policy() Policy {
 	return l.policy
