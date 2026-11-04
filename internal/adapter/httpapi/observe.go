@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-// observe logs one access line per request and turns a panic into a 500
+// observe logs one access line per request, but for a passing probe, and
+// turns a panic into a 500
 // problem. The line names the matched route, never the path or the query:
 // both are the client's, and the query holds the checked input, personal
 // data for an email, a phone number or an IBAN. A
@@ -44,6 +45,9 @@ func finish(logger *slog.Logger, ps problems, r *http.Request, rec *recorder, st
 	status := rec.status
 	if status == 0 {
 		status = http.StatusOK // net/http sends 200 for a handler that wrote nothing
+	}
+	if passingProbe(r.Pattern, status) {
+		return
 	}
 	logger.LogAttrs(ctx, slog.LevelInfo, "request",
 		slog.String("method", r.Method), slog.String("route", r.Pattern), slog.Int("status", status),

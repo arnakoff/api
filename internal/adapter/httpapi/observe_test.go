@@ -20,7 +20,7 @@ func TestAccessLogNamesTheRouteNeverThePathOrQuery(t *testing.T) {
 		name, target, route string
 		status              float64
 	}{
-		{"matched", "/healthz?q=jean.dupont@exemple.fr", "GET /healthz", 200},
+		{"matched", "/v1/signals?q=jean.dupont@exemple.fr", "GET /v1/signals", 200},
 		{"unmatched", "/jean.dupont@exemple.fr", "", 404},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,6 +49,38 @@ func accessLine(t *testing.T, lines []map[string]any, want map[string]any) {
 		if lines[0][k] != v {
 			t.Errorf("log %s = %v, want %v", k, lines[0][k], v)
 		}
+	}
+}
+
+// The platform probes every few hundred milliseconds: a probe that passes
+// is the normal state and writes nothing, one that fails explains an
+// unready container and is logged.
+func TestAccessLogSkipsPassingProbes(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name   string
+		ready  bool
+		target string
+		lines  int
+	}{
+		{"alive", true, "/healthz", 0},
+		{"ready", true, "/readyz", 0},
+		{"not ready", false, "/readyz", 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			opts, logs := options(t, tt.ready)
+			serve(t, httpapi.NewHandler(opts), http.MethodGet, tt.target, nil)
+
+			lines := logs.Lines(t)
+			if len(lines) != tt.lines {
+				t.Fatalf("GET %s logged %d lines, want %d", tt.target, len(lines), tt.lines)
+			}
+			if tt.lines == 1 {
+				accessLine(t, lines, map[string]any{"route": "GET /readyz", "status": float64(http.StatusServiceUnavailable)})
+			}
+		})
 	}
 }
 

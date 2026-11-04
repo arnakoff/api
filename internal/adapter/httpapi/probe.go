@@ -7,8 +7,19 @@ import (
 	"net/http"
 )
 
-// healthzPath is the route of the liveness probe, which ProbeAlive asks.
-const healthzPath = "/healthz"
+// Paths of the probes: liveness, which ProbeAlive asks, and readiness.
+const (
+	healthzPath = "/healthz"
+	readyzPath  = "/readyz"
+)
+
+// passingProbe reports whether route is a probe and status says it passed:
+// the platform probes every few hundred milliseconds, so such a request is
+// the normal state and is not logged (#266). A failing probe is.
+func passingProbe(route string, status int) bool {
+	isProbe := route == "GET "+healthzPath || route == "GET "+readyzPath
+	return isProbe && status >= 200 && status < 300
+}
 
 // Probe bodies: the probes are outside the public contract.
 const (
@@ -45,6 +56,6 @@ func writeProbe(w http.ResponseWriter, status int, body string) {
 func NewProbeHandler(ready Readiness) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET "+healthzPath, healthz())
-	mux.Handle("GET /readyz", readyz(ready))
+	mux.Handle("GET "+readyzPath, readyz(ready))
 	return mux
 }
