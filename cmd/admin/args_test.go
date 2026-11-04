@@ -17,6 +17,7 @@ func TestParseArgs(t *testing.T) {
 		want command
 	}{
 		{"migrate", []string{"migrate"}, command{action: actionMigrate}},
+		{"migrate listening", []string{"migrate", "-listen", ":8080"}, command{action: actionMigrate, listen: ":8080"}},
 		{"create", []string{"key", "create", "-label", "Bot Discord"}, command{action: actionCreate, label: "Bot Discord"}},
 		{"create for test", []string{"key", "create", "-env", "test", "-label", "x"}, command{action: actionCreate, label: "x", env: "test"}},
 		{"list", []string{"key", "list"}, command{action: actionList}},
@@ -44,6 +45,7 @@ func TestParseArgsRejectsMisuse(t *testing.T) {
 		{"key", "create"},
 		{"key", "create", "-label", "x", "extra"},
 		{"key", "list", "-label", "x"},
+		{"key", "list", "-listen", ":8080"},
 		{"key", "revoke"},
 		{"key", "revoke", "-id", "0"},
 		{"key", "revoke", "-id", "abc"},

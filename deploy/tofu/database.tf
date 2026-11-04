@@ -29,29 +29,15 @@ resource "scaleway_rdb_instance" "main" {
     pn_id       = scaleway_vpc_private_network.main.id
     enable_ipam = true
   }
-
-  # Public endpoint, for `admin migrate` from the owner's machine only, and
-  # only while var.migration_cidrs is set: its default ACL is 0.0.0.0/0, any
-  # host (Scaleway, manage-allowed-ip-addresses), so it never exists without
-  # the ACL below. ACLs apply to the public endpoint only, never to the
-  # Private Network.
-  dynamic "load_balancer" {
-    for_each = length(var.migration_cidrs) > 0 ? [true] : []
-    content {}
-  }
+  # No public endpoint: the migrations run inside the Private Network too
+  # (migrate.tf, #259). The instance certificate names the Private Network
+  # address only.
 }
 
-resource "scaleway_rdb_acl" "migrations" {
-  count       = length(var.migration_cidrs) > 0 ? 1 : 0
-  instance_id = scaleway_rdb_instance.main.id
-
-  dynamic "acl_rules" {
-    for_each = var.migration_cidrs
-    content {
-      ip          = acl_rules.value
-      description = "admin migrate from the owner"
-    }
-  }
+locals {
+  # With IPAM the endpoint has an address and no host name; the instance
+  # certificate covers that address (SAN IP Address), so verify-full holds.
+  database_private_host = coalesce(scaleway_rdb_instance.main.private_network[0].hostname, scaleway_rdb_instance.main.private_network[0].ip)
 }
 
 resource "scaleway_rdb_database" "api" {

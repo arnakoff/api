@@ -105,25 +105,22 @@ Avec l'IPAM, la base n'a pas de nom d'hôte sur le réseau privé : `database_pr
 
 ### 6. Migrations, puis droits
 
-Ouvrir le point d'accès public pour sa seule adresse :
+Les migrations tournent dans le réseau privé, dans le conteneur `migrate` (`deploy/tofu/migrate.tf`, #259) : la base n'a jamais de point d'accès public. Il faut une image qui contient `admin migrate -listen` (la première version publiée avec #259, ou une plus récente), copiée dans Container Registry comme à l'étape 3.
 
 ```sh
-tofu apply -var ... -var 'migration_cidrs=["<votre adresse IPv4>/32"]'
+export TF_VAR_image=rg.fr-par.scw.cloud/arnakoff/api:<version>
+export TF_VAR_migrate_log_key="$(openssl rand -hex 32)"
+tofu apply -var migrate=true
+scw container container get "$(tofu output -raw migrate_container_id)" | grep '^Status'   # ready : migrations appliquées
+tofu apply                                                                               # sans migrate
+unset TF_VAR_migrate_log_key
 ```
 
-Le point d'accès et sa liste d'adresses autorisées sont créés dans le même `apply`, mais l'un après l'autre : pendant ces quelques secondes, la liste par défaut de Scaleway (`0.0.0.0/0`) s'applique. La base reste protégée par TLS et par son mot de passe.
+Le conteneur reçoit l'URL du rôle `arnakoff_admin` vers l'adresse privée de la base, en `verify-full`, et l'autorité de l'instance. Il applique les migrations, puis répond `200` sur `/readyz` : Scaleway le marque alors prêt (`ready`). Un échec laisse `/readyz` à `503` et le conteneur non prêt, sans redémarrer en boucle ; ses journaux se lisent dans Cockpit. Le mot de passe admin est dans l'état, chiffré, tant que le conteneur existe.
 
-```sh
-export ARNAKOFF_DATABASE_URL="postgres://arnakoff_admin:$(printf %s "$TF_VAR_db_admin_password" | jq -sRj @uri)@$(tofu output -raw database_public_endpoint)/arnakoff?sslmode=verify-full"
-export ARNAKOFF_DATABASE_CA="$(tofu output -raw database_certificate)"
-export ARNAKOFF_LOG_KEY="$(openssl rand -hex 32)"   # journal local seulement
-go run ./cmd/admin migrate
-tofu apply -var ...   # mêmes variables qu'à l'étape 4, sans migration_cidrs
-```
+Le second `tofu apply` retire le conteneur et ses secrets, et étend le droit `readwrite` du rôle `arnakoff_api` aux tables que la migration vient de créer : Scaleway n'applique un droit qu'aux objets qui existent à ce moment (documentation de `scaleway_rdb_privilege`, « Permission Drift »). « À vérifier » : que `readwrite` donne bien `SELECT`, `INSERT`, `UPDATE` et `DELETE` (la purge en a besoin, ADR 0006).
 
-Ce dernier `tofu apply` ferme le point d'accès public et étend le droit `readwrite` du rôle `arnakoff_api` aux tables que la migration vient de créer : Scaleway n'applique un droit qu'aux objets qui existent à ce moment (documentation de `scaleway_rdb_privilege`, « Permission Drift »). « À vérifier » : que `readwrite` donne bien `SELECT`, `INSERT`, `UPDATE` et `DELETE` (la purge en a besoin, ADR 0006).
-
-`admin` lit toute la configuration : laisser `ARNAKOFF_SMTP_ADDR` vide dans ce terminal (sinon il exige aussi le mot de passe SMTP).
+« À vérifier » au premier usage : qu'un conteneur privé sans point d'accès public (`enable_default_public_endpoint = false`) passe bien ses sondes.
 
 ### 7. Premier déploiement
 
@@ -141,7 +138,7 @@ Ensuite, chaque version publiée par release-please déclenche Deploy après le 
 ## Opérations courantes
 
 - **Retour arrière** : Actions → Deploy → Run workflow avec la version précédente. Une migration n'est jamais annulée par un retour arrière : une migration doit rester compatible avec la version précédente du code.
-- **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 (ouvrir, migrer, puis `tofu apply` sans `migration_cidrs`, qui ferme le point d'accès et étend les droits).
+- **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 avec cette version (`migrate=true`, attendre `ready`, puis `tofu apply` sans `migrate`, qui retire le conteneur et étend les droits).
 - **Rotation** :
   - clés du bucket : nouvelle `key_expiry`, `tofu apply` (les clés sont recréées), puis l'étape 5 pour les clés et un déploiement ;
   - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL`, déploiement ;

@@ -18,11 +18,13 @@ const (
 )
 
 // command is the action asked on the command line and its flags. An empty
-// env means the configured ARNAKOFF_API_KEY_ENV.
+// env means the configured ARNAKOFF_API_KEY_ENV; an empty listen, a
+// migration that exits once done.
 type command struct {
 	action string
 	label  string
 	env    string
+	listen string
 	id     int64
 }
 
@@ -31,7 +33,7 @@ var errUsage = errors.New("usage")
 
 // usage is printed with every misuse.
 const usage = `usage:
-  admin migrate
+  admin migrate [-listen <address>]
   admin key create -label <holder> [-env live|test]
   admin key list
   admin key revoke -id <id>`
@@ -53,7 +55,9 @@ func parseArgs(args []string, w io.Writer) (command, error) {
 		fs.StringVar(&cmd.env, "env", "", "live or test; ARNAKOFF_API_KEY_ENV by default")
 	case actionRevoke:
 		fs.Int64Var(&cmd.id, "id", 0, "identifier of the key, from key list")
-	case actionMigrate, actionList:
+	case actionMigrate:
+		fs.StringVar(&cmd.listen, "listen", "", "serve /healthz and /readyz on this address until stopped, /readyz answering 200 once the migrations are applied")
+	case actionList:
 	default:
 		return command{}, misuse(w, "unknown action")
 	}

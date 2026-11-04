@@ -16,11 +16,19 @@ variable "owner_user_id" {
   }
 }
 
+# Not ephemeral: while var.migrate is set, the migrate container gets it in
+# its database URL, so it is in the state, encrypted on the owner's machine,
+# until the next apply without var.migrate removes the container (#259).
+# The instance itself takes it write-only.
 variable "db_admin_password" {
-  description = "Password of the database administrator, the migration role (ADR 0004). Write-only: never stored in the state."
+  description = "Password of the database administrator, the migration role (ADR 0004). Without spaces: it goes into a URL."
   type        = string
   sensitive   = true
-  ephemeral   = true
+
+  validation {
+    condition     = !strcontains(var.db_admin_password, " ")
+    error_message = "db_admin_password must not contain spaces."
+  }
 }
 
 variable "db_admin_password_version" {
@@ -42,10 +50,22 @@ variable "db_api_password_version" {
   default     = 1
 }
 
-variable "migration_cidrs" {
-  description = "Addresses allowed on the public endpoint of the database, to run `admin migrate`: the owner's, as CIDR. Empty: no public endpoint at all."
-  type        = list(string)
-  default     = []
+variable "migrate" {
+  description = "Run the migrate container, which applies the migrations from the Private Network with image (docs/deploy.md). Apply without it afterwards: the container is removed."
+  type        = bool
+  default     = false
+}
+
+variable "migrate_log_key" {
+  description = "ARNAKOFF_LOG_KEY of the migrate container, 64 hex characters (openssl rand -hex 32); required with migrate."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.migrate || can(regex("^[0-9a-f]{64}$", var.migrate_log_key))
+    error_message = "migrate_log_key must be 64 lower-case hex characters when migrate is set."
+  }
 }
 
 variable "image" {
