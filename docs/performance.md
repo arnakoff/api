@@ -79,7 +79,7 @@ Lecture :
 
 ## Cache des clés valides (#198)
 
-Depuis #198, une clé valide trouvée en base est gardée en mémoire 30 s (`app.KeyCacheTTL`, durée validée par le propriétaire le 02/11/2026). Seules les clés actives sont gardées : une clé inconnue ou révoquée, et une base qui ne répond pas, sont vérifiées en base à chaque requête. Contrepartie : une clé révoquée par `admin key revoke` reste acceptée au plus 30 s par une API déjà démarrée.
+Depuis #198, une clé valide trouvée en base est gardée en mémoire 30 s (`app.KeyCacheTTL`, durée validée par le propriétaire le 02/11/2026). Seules les clés actives sont gardées : une clé inconnue ou révoquée, et une base qui ne répond pas, sont vérifiées en base à chaque requête. Depuis #246, une révocation est oubliée tout de suite par chaque instance : un déclencheur sur `api_keys` (migration `0003`) envoie `NOTIFY api_key_revoked` avec l'empreinte de la clé, que chaque API écoute sur une connexion à part (`Keys.WatchRevocations`). Tant que cette écoute n'est pas établie, ou dès qu'elle est perdue, le cache est vidé et ne garde plus rien : chaque clé est vérifiée en base, aux performances d'avant #198. Les 30 s ne bornent plus que la durée de vie d'une entrée en mémoire.
 
 Mesure du 03/11/2026, même machine et même banc que ci-dessus, registres rejoués sans latence, 100 clés valides depuis une seule adresse, `main` puis cette version, une attaque de 30 s par palier :
 

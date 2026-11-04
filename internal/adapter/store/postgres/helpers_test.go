@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/arnakoff/api/internal/adapter/store/postgres"
 )
 
 // envTestDatabase names the database the tests of this package run
@@ -63,4 +65,36 @@ func withSearchPath(t *testing.T, base, schema string) string {
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
 	return u.String()
+}
+
+// terminateListeners ends, from another connection, every watch of
+// revocations connected to the test database.
+func terminateListeners(t *testing.T) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv(envTestDatabase))
+	if err != nil {
+		t.Fatalf("connect to the test database: %v", err)
+	}
+	defer func() { _ = conn.Close(ctx) }()
+	if _, err := conn.Exec(ctx,
+		`SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+		 WHERE datname = current_database() AND application_name = $1`, postgres.WatchApplicationName); err != nil {
+		t.Fatalf("terminate listeners: %v", err)
+	}
+}
+
+// notify sends payload on the channel of the revocations of the test
+// database.
+func notify(t *testing.T, payload string) {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv(envTestDatabase))
+	if err != nil {
+		t.Fatalf("connect to the test database: %v", err)
+	}
+	defer func() { _ = conn.Close(ctx) }()
+	if _, err := conn.Exec(ctx, "SELECT pg_notify('api_key_revoked', $1)", payload); err != nil {
+		t.Fatalf("notify: %v", err)
+	}
 }

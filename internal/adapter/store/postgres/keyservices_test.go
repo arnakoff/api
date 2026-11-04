@@ -3,9 +3,11 @@
 package postgres_test
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/app"
@@ -36,14 +38,14 @@ func TestOpenKeyServicesOpensLazily(t *testing.T) {
 		t.Fatalf("OpenKeyServices() error = %v", err)
 	}
 	defer svc.Close()
-	if svc.Auth == nil || svc.Purge == nil {
-		t.Errorf("OpenKeyServices() = %+v, want an authenticator and a purge", svc)
+	if svc.Auth == nil || svc.Purge == nil || svc.WatchRevocations == nil {
+		t.Errorf("OpenKeyServices() = %+v, want an authenticator, a purge and a watch", svc)
 	}
 }
 
-// A valid key is checked against the database once, then kept for
-// app.KeyCacheTTL: its revocation is not seen until then.
-func TestOpenKeyServicesCachesValidKeys(t *testing.T) {
+// While the watch of revocations runs, a revoked key is refused within
+// moments, though valid keys are kept in memory.
+func TestOpenKeyServicesRefusesARevokedKeyAtOnce(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
@@ -71,14 +73,26 @@ func TestOpenKeyServicesCachesValidKeys(t *testing.T) {
 		t.Fatalf("OpenKeyServices() error = %v", err)
 	}
 	defer svc.Close()
-	auth := svc.Auth
-	if _, err := auth.Authenticate(ctx, key.String()); err != nil {
+	watching, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() { defer close(done); svc.WatchRevocations(watching, func(error) {}) }()
+	t.Cleanup(func() { stop(); <-done })
+
+	if _, err := svc.Auth.Authenticate(ctx, key.String()); err != nil {
 		t.Fatalf("Authenticate() error = %v", err)
 	}
 	if err := admin.Revoke(ctx, rec.ID); err != nil {
 		t.Fatalf("Revoke() error = %v", err)
 	}
-	if _, err := auth.Authenticate(ctx, key.String()); err != nil {
-		t.Errorf("Authenticate() right after the revocation error = %v, want the cached key accepted", err)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		_, err := svc.Auth.Authenticate(ctx, key.String())
+		if errors.Is(err, app.ErrKeyRevoked) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Authenticate() 5 s after the revocation error = %v, want ErrKeyRevoked", err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

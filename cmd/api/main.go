@@ -90,7 +90,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	return serve(ctx, cfg, svc.Sync, keys.Purge, opts)
+	return serve(ctx, cfg, svc.Sync, keys, opts)
 }
 
 // withAccess returns opts with the access rules of cfg: its rate limits,
@@ -111,9 +111,10 @@ func withAccess(cfg config.Config, keys postgres.KeyServices, opts httpapi.Optio
 	return opts, nil
 }
 
-// serve answers the API of opts on cfg.Addr, reloads the snapshots of s
-// and purges the revoked keys with purge until ctx is done.
-func serve(ctx context.Context, cfg config.Config, s *app.Sync, purge *app.KeyPurge, opts httpapi.Options) error {
+// serve answers the API of opts on cfg.Addr, reloads the snapshots of s,
+// purges the revoked keys and watches the revocations of keys until ctx
+// is done.
+func serve(ctx context.Context, cfg config.Config, s *app.Sync, keys postgres.KeyServices, opts httpapi.Options) error {
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Addr)
 	if err != nil {
 		return err
@@ -127,7 +128,13 @@ func serve(ctx context.Context, cfg config.Config, s *app.Sync, purge *app.KeyPu
 		return nil
 	})
 	g.Go(func() error {
-		purge.Run(ctx, logPurge(opts.Logger))
+		keys.Purge.Run(ctx, logPurge(opts.Logger))
+		return nil
+	})
+	g.Go(func() error {
+		keys.WatchRevocations(ctx, func(err error) {
+			opts.Logger.ErrorContext(ctx, "key revocations not watched, valid keys not cached", "error", err.Error())
+		})
 		return nil
 	})
 	g.Go(func() error { return httpapi.Serve(ctx, srv, ln) })
