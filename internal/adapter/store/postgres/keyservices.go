@@ -48,7 +48,7 @@ func OpenKeyServices(ctx context.Context, cfg config.Config) (KeyServices, error
 	if err != nil {
 		return KeyServices{}, err
 	}
-	keys, err := Open(ctx, string(cfg.DatabaseURL.Bytes()))
+	keys, err := Open(ctx, string(cfg.DatabaseURL.Bytes()), WithCA([]byte(cfg.DatabaseCA)))
 	if err != nil {
 		return KeyServices{}, err
 	}

@@ -4,6 +4,7 @@ package config
 
 import (
 	"crypto/subtle"
+	"encoding/pem"
 	"errors"
 	"fmt"
 )
@@ -49,6 +50,25 @@ func parseOptionalKey(s string) (Secret, error) {
 		return nil, nil
 	}
 	return parseKey(s)
+}
+
+// parseOptionalPEM accepts an empty string, as none, or a text holding at
+// least one PEM CERTIFICATE block. Whether it parses as a certificate is
+// checked where it is used.
+func parseOptionalPEM(s string) (string, error) {
+	if s == "" {
+		return "", nil
+	}
+	for rest := []byte(s); ; {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			return "", errors.New("no PEM CERTIFICATE block")
+		}
+		if block.Type == "CERTIFICATE" {
+			return s, nil
+		}
+	}
 }
 
 // parseAPIKeyEnv accepts "live" or "test".

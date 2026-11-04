@@ -33,6 +33,7 @@ const (
 	EnvBatchMaxItems = "ARNAKOFF_BATCH_MAX_ITEMS"
 
 	EnvDatabaseURL  = "ARNAKOFF_DATABASE_URL"
+	EnvDatabaseCA   = "ARNAKOFF_DATABASE_CA"
 	EnvAPIKeySecret = "ARNAKOFF_API_KEY_SECRET" //nolint:gosec // G101: the name of a variable, not its value.
 	EnvAPIKeyEnv    = "ARNAKOFF_API_KEY_ENV"    //nolint:gosec // G101: the name of a variable, not its value.
 
@@ -114,6 +115,11 @@ type Config struct {
 	// nil when unset or empty. RequireKeyStore tells whether it is set.
 	DatabaseURL Secret
 
+	// DatabaseCA is the certificate authority of the database, in PEM,
+	// which replaces the system's to verify it: that of a managed database
+	// instance. Empty when unset. It is public: no Secret.
+	DatabaseCA string
+
 	// APIKeySecret is the HMAC key the API keys are digested with, kept
 	// out of the database; nil when unset or empty.
 	APIKeySecret Secret
@@ -179,6 +185,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvProblemBaseURL, DefaultProblemBaseURL, &cfg.ProblemBaseURL, parseProblemBase),
 		parse(lookup, EnvBatchMaxItems, strconv.Itoa(DefaultBatchMaxItems), &cfg.BatchMaxItems, parseBatchMaxItems),
 		parse(lookup, EnvDatabaseURL, "", &cfg.DatabaseURL, parseOptionalSecret),
+		parse(lookup, EnvDatabaseCA, "", &cfg.DatabaseCA, parseOptionalPEM),
 		parse(lookup, EnvAPIKeySecret, "", &cfg.APIKeySecret, parseOptionalKey),
 		parse(lookup, EnvAPIKeyEnv, DefaultAPIKeyEnv, &cfg.APIKeyEnv, parseAPIKeyEnv),
 		parse(lookup, EnvRateLimitKey, strconv.Itoa(DefaultRateLimitKey), &cfg.RateLimitKey, parseRateLimit),

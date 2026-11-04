@@ -20,7 +20,8 @@
 // running API is notified of the revocation and refuses the key at once.
 //
 // The database is ARNAKOFF_DATABASE_URL, which must use
-// sslmode=verify-full beyond the local machine; keys are digested with
+// sslmode=verify-full beyond the local machine, verified against the PEM
+// certificates of ARNAKOFF_DATABASE_CA when it is set; keys are digested with
 // ARNAKOFF_API_KEY_SECRET, which must differ from ARNAKOFF_LOG_KEY, and
 // issued for ARNAKOFF_API_KEY_ENV ("live" by default) unless -env says
 // otherwise. Logs go to standard error.

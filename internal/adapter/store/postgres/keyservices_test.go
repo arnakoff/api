@@ -96,3 +96,19 @@ func TestOpenKeyServicesRefusesARevokedKeyAtOnce(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// A certificate authority that holds no certificate stops the API at
+// start, before any key is checked.
+func TestOpenKeyServicesRefusesAnUnusableCA(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Config{
+		DatabaseURL:  config.Secret("postgres://api@db.example.eu/arnakoff?sslmode=verify-full"),
+		DatabaseCA:   "-----BEGIN CERTIFICATE-----\nAQID\n-----END CERTIFICATE-----\n",
+		APIKeySecret: config.Secret("a test secret of thirty-two byte"),
+		APIKeyEnv:    "test",
+	}
+	if _, err := postgres.OpenKeyServices(t.Context(), cfg); !errors.Is(err, postgres.ErrBadCA) {
+		t.Errorf("OpenKeyServices() error = %v, want ErrBadCA", err)
+	}
+}

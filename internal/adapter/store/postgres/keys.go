@@ -29,11 +29,12 @@ type Keys struct {
 	pool *pgxpool.Pool
 }
 
-// Open returns a Keys on the database of conn, which ParseConfig checks.
+// Open returns a Keys on the database of conn, which ParseConfig checks
+// with opts.
 // It does not connect: the first query does, so the API starts and answers
 // 503 while the database is unreachable.
-func Open(ctx context.Context, conn string) (*Keys, error) {
-	cfg, err := ParseConfig(conn)
+func Open(ctx context.Context, conn string, opts ...Option) (*Keys, error) {
+	cfg, err := ParseConfig(conn, opts...)
 	if err != nil {
 		return nil, err
 	}
