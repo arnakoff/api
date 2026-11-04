@@ -40,6 +40,7 @@ Référentiel contraignant : chaque règle cite sa norme. Les versions ont été
 | `actions/create-github-app-token` | v3.3.0, épinglée par SHA | GitHub releases |
 | `ossf/scorecard-action` | v2.5.0, épinglée par SHA | GitHub releases |
 | cosign / syft | v3.1.4 / v1.55.0 | GitHub releases |
+| `mcp-publisher` (`modelcontextprotocol/registry`, workflow `mcp-registry.yml`) | v1.8.7 (publiée le 30/10/2026), vérifiée le 04/11/2026 ; archive vérifiée par cosign contre l'identité `release.yml@refs/tags/v1.8.7` | GitHub releases |
 | OpenTofu (`deploy/tofu`, appliqué par le propriétaire) | 1.13.2 (publiée le 21/10/2026), `required_version = "~> 1.13.2"`, vérifiée le 03/11/2026 | GitHub releases `opentofu/opentofu` |
 | Fournisseur `scaleway/scaleway` | 2.89.0 (publiée le 27/10/2026), sommes de contrôle dans `deploy/tofu/.terraform.lock.hcl` ; la v2.90.0 (30/10/2026) attend la fin du délai de carence de 7 jours et n'est pas encore dans le registre OpenTofu | `registry.opentofu.org`, GitHub releases |
 | CLI `scw` (workflow Deploy) | 2.65.2 (publiée le 21/10/2026), binaire `linux_amd64` vérifié par son SHA-256 (`184e697e…31b3`) du fichier `SHA256SUMS` de la version | GitHub releases `scaleway/scaleway-cli` |
