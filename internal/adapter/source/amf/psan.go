@@ -87,7 +87,7 @@ func NewPSAN(client Getter, datasetURL string) *Fetcher {
 	return &Fetcher{
 		client:     client,
 		datasetURL: datasetURL,
-		spec:       domain.SnapshotSpec{Source: PSANSource, Columns: psanColumns, MinRows: psanMinRows},
+		spec:       domain.SnapshotSpec{Source: PSANSource, Columns: psanColumns, MinRows: psanMinRows, Rows: checkWhitelist(PSANWhitelist)},
 		parse:      ParsePSAN,
 	}
 }

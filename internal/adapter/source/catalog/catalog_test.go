@@ -81,3 +81,12 @@ func TestOfflineNeverFetches(t *testing.T) {
 		}
 	}
 }
+
+func TestEverySourceChecksItsRowsReadBack(t *testing.T) {
+	t.Parallel()
+	for _, f := range catalog.New(catalog.Offline{}, catalog.Options{ACPR: true}).Fetchers() {
+		if f.Spec().Rows == nil {
+			t.Errorf("%s: Spec().Rows is nil, so sync and restore would accept rows the API cannot index", f.Spec().Source)
+		}
+	}
+}

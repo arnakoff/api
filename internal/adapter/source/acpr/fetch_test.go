@@ -3,14 +3,18 @@
 package acpr
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
+	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/httpclient"
 	"github.com/arnakoff/api/internal/platform/httpclient/httpclienttest"
 )
@@ -86,5 +90,26 @@ func TestHosts(t *testing.T) {
 	u, err := url.Parse(BlacklistURL)
 	if err != nil || u.Scheme != "https" || len(Hosts()) != 1 || u.Host != Hosts()[0] {
 		t.Errorf("%s is not served by Hosts() = %q", BlacklistURL, Hosts())
+	}
+}
+
+func TestSpecRefusesARowTheReaderCannotIndex(t *testing.T) {
+	t.Parallel()
+	spec := NewBlacklist(nil, "").Spec()
+	if spec.Rows == nil {
+		t.Fatal("Spec().Rows is nil")
+	}
+	snap, err := ParseBlacklist(bytes.NewReader(readFixture(t, csvFixture)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := spec.Rows(snap); err != nil {
+		t.Errorf("Rows(fixture) = %v, want nil", err)
+	}
+	bad := slices.Clone(snap.Rows[0])
+	bad[0], bad[1], bad[2] = domain.KindDomain.String(), "exemple.invalidtld", ""
+	snap.Rows = append(slices.Clone(snap.Rows), bad)
+	if err := spec.Rows(snap); !errors.Is(err, listing.ErrSnapshot) {
+		t.Errorf("Rows(unreadable row) = %v, want %v", err, listing.ErrSnapshot)
 	}
 }

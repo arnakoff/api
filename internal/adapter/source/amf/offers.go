@@ -39,7 +39,7 @@ func NewOffers(client Getter, datasetURL string) *Fetcher {
 	return &Fetcher{
 		client:     client,
 		datasetURL: datasetURL,
-		spec:       domain.SnapshotSpec{Source: OffersSource, Columns: offersColumns, MinRows: offersMinRows},
+		spec:       domain.SnapshotSpec{Source: OffersSource, Columns: offersColumns, MinRows: offersMinRows, Rows: checkWhitelist(OffersWhitelist)},
 		parse:      ParseOffers,
 	}
 }

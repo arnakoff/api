@@ -5,12 +5,15 @@ package amf
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/arnakoff/api/internal/adapter/source/listing"
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/platform/httpclient"
 	"github.com/arnakoff/api/internal/platform/httpclient/httpclienttest"
@@ -176,5 +179,37 @@ func TestSpec(t *testing.T) {
 		if spec.Source != l.source || len(spec.Columns) == 0 || spec.MinRows <= l.rows/2 {
 			t.Errorf("Spec() = %+v", spec)
 		}
+	}
+}
+
+// withUnreadableRow returns snap with one more row whose site the API
+// cannot parse.
+func withUnreadableRow(snap domain.Snapshot) domain.Snapshot {
+	bad := slices.Clone(snap.Rows[0])
+	bad[0], bad[1], bad[2] = domain.KindDomain.String(), "exemple.invalidtld", ""
+	snap.Rows = append(slices.Clone(snap.Rows), bad)
+	return snap
+}
+
+func TestSpecRefusesARowTheReaderCannotIndex(t *testing.T) {
+	t.Parallel()
+	parsers := map[domain.Source]func(io.Reader) (domain.Snapshot, error){
+		BlacklistSource: ParseBlacklist, PSANSource: ParsePSAN, OffersSource: ParseOffers,
+	}
+	for _, l := range lists {
+		t.Run(string(l.source), func(t *testing.T) {
+			t.Parallel()
+			spec := l.newList(nil, "").Spec()
+			if spec.Rows == nil {
+				t.Fatal("Spec().Rows is nil")
+			}
+			snap := parsedFixture(t, l.fixture, parsers[l.source])
+			if err := spec.Rows(snap); err != nil {
+				t.Errorf("Rows(fixture) = %v, want nil", err)
+			}
+			if err := spec.Rows(withUnreadableRow(snap)); !errors.Is(err, listing.ErrSnapshot) {
+				t.Errorf("Rows(unreadable row) = %v, want %v", err, listing.ErrSnapshot)
+			}
+		})
 	}
 }
