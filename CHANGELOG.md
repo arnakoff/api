@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.55.0](https://github.com/arnakoff/api/compare/v0.54.0...v0.55.0) (2026-11-04)
+
+
+### Features
+
+* **mcp:** describe the remote server for the official mcp registry ([#275](https://github.com/arnakoff/api/issues/275)) ([3d6b303](https://github.com/arnakoff/api/commit/3d6b303771763c2f2dd8b26dfba93659ce3d6c4a))
+
 ## [0.54.0](https://github.com/arnakoff/api/compare/v0.53.1...v0.54.0) (2026-11-04)
 
 
