@@ -90,6 +90,18 @@ variable "sync_schedule" {
   default     = "17 */6 * * *"
 }
 
+# Personal data of the owner: kept in their tfvars, never committed.
+variable "alert_email" {
+  description = "Email address the Cockpit alert manager notifies (#72)."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be an email address."
+  }
+}
+
 variable "demo_origin" {
   description = "Origin of the site, the only one CORS allows on the demo and key request routes."
   type        = string

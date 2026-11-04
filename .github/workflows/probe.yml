@@ -1,0 +1,54 @@
+# External availability probe of the production (#72). A failed run is the
+# alert: GitHub notifies the user who created the workflow, or last changed
+# its cron, of a failed scheduled run (github/docs, notifications for
+# workflow runs). GitHub may delay or drop a scheduled run under load, and
+# disables the schedule of a public repository after 60 days without
+# activity (events that trigger workflows, schedule).
+#
+# It fails when /readyz does not answer 200, or when the data of a
+# downloaded source is older than MAX_AGE_HOURS: the sync job runs every
+# 6 hours (deploy/tofu/variables.tf), so 24 hours is four runs missed. A
+# single failed run is already emailed by Cockpit (deploy/tofu/
+# observability.tf).
+name: Probe
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://api.arnakoff.com
+      MAX_AGE_HOURS: "24"
+    steps:
+      - name: Readiness
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 10 \
+            --retry 2 --retry-all-errors --retry-delay 5 \
+            --proto '=https' "$BASE_URL/readyz"
+      - name: Freshness of the sources
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 10 \
+            --retry 2 --retry-all-errors --retry-delay 5 \
+            --proto '=https' "$BASE_URL/v1/sources" > sources.json
+          # A downloaded source has a number of entries; a registry
+          # queried on demand has null and no data in service to age.
+          jq --exit-status --argjson max "$((MAX_AGE_HOURS * 3600))" '
+            [.sources[]
+             | select(.entries != null)
+             | select(.status != "ok" or .updated_at == null
+                      or (now - (.updated_at | fromdateiso8601)) > $max)
+             | "\(.name): \(.status), updated_at \(.updated_at)"]
+            | if length == 0 then "every source is fresh" else error(join("; ")) end
+          ' sources.json

@@ -24,6 +24,8 @@ export AWS_SECRET_ACCESS_KEY="$(scw config get secret-key | tail -n 1)"
 read -rs TF_VAR_state_passphrase && export TF_VAR_state_passphrase   # 16 caractères au moins, gardée hors du dépôt
 # Le propriétaire : seul utilisateur que la politique du bucket des instantanés laisse le gérer.
 export TF_VAR_owner_user_id="$(scw iam api-key get "$AWS_ACCESS_KEY_ID" -o json | tail -n 1 | jq -r .APIKey.user_id)"
+# Adresse que les alertes de Cockpit préviennent (#72) : donnée personnelle, hors du dépôt.
+export TF_VAR_alert_email=<adresse e-mail du propriétaire>
 ```
 
 `| tail -n 1` : sous Windows, `scw` écrit son avertissement sur les permissions de `config.yaml` sur la sortie standard, avant la valeur, et Windows ne permet pas de le faire taire (relevé le 04/11/2026, `scw` 2.65.2).
@@ -138,6 +140,15 @@ Ensuite, chaque version publiée par release-please déclenche Deploy après le 
 1. Chez Cloudflare : `CNAME api` → `tofu output -raw container_host`, en « DNS only » (le certificat Let's Encrypt est émis par Scaleway).
 2. `tofu apply -var api_hostname=api.arnakoff.com ...`
 3. Mettre `SCW_CONTAINER_ENDPOINT` à `https://api.arnakoff.com`.
+
+## Observabilité et alertes
+
+Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Cockpit collecte seul, des alertes par e-mail, une sonde externe dans GitHub Actions. L'application n'envoie rien à Cockpit.
+
+- **Métriques et journaux** : Cockpit collecte ceux du conteneur `api`, du job `sync` et de la base, gratuitement dans la durée de conservation par défaut (31 jours pour les métriques, 7 jours pour les journaux ; documentation de Scaleway, `cockpit-product-integration` et `cockpit-pricing`). Ils se lisent dans Grafana : Cockpit → Grafana, tableaux de bord préconfigurés de Serverless Containers, Serverless Jobs et Managed Database. Pour le conteneur : état, nombre d'instances, CPU, mémoire, requêtes par seconde et part de chaque code de statut (`serverless-containers/how-to/monitor-container`) ; pas de latence. La latence se lit dans les journaux d'accès de l'API (Serverless Containers logs), qui donnent la route, le statut et la durée de chaque requête, sans le chemin ni la requête du client.
+- **Alertes Cockpit** (`deploy/tofu/observability.tf`) : le gestionnaire d'alertes de fr-par prévient `alert_email`. Alertes préconfigurées activées : échec d'une exécution du job (`JobRunFailed`), et, pour la base, charge CPU, stockage et nombre de connexions (`PostgreSQLHighCPULoad`, `PostgreSQLHighStorageUsage`, `PostgresqlTooManyConnections`). `sync -once` sort en erreur dès qu'une source échoue ou que son instantané est rejeté : chaque échec de synchronisation est donc un e-mail. Cockpit n'a pas d'alerte préconfigurée pour Serverless Containers (liste de l'API Cockpit du projet, relevée le 04/11/2026). Après le premier `tofu apply` : Cockpit → Alertes → Contacts → « Send test alert ».
+- **Sonde externe** (`.github/workflows/probe.yml`) : toutes les 15 minutes, `GET /readyz` doit répondre 200, et chaque source téléchargée de `GET /v1/sources` doit être `ok` avec des données de moins de 24 heures (quatre synchronisations manquées). Un échec est l'alerte : GitHub prévient par e-mail, selon ses réglages de notification Actions, l'utilisateur qui a créé le workflow ou modifié son `cron` en dernier. GitHub peut retarder une exécution planifiée, et désactive la planification d'un dépôt public après 60 jours sans activité : la réactiver dans Actions → Probe. Lancement à la main : Actions → Probe → Run workflow.
+- **Webhook `ARNAKOFF_ALERT_WEBHOOK`** : reste disponible pour un environnement local ou un autre hébergement ; il n'est pas réglé en production.
 
 ## Opérations courantes
 
