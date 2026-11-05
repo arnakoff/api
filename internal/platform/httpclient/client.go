@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/arnakoff/api/internal/platform/clock"
@@ -117,13 +118,26 @@ func (c *Client) Post(ctx context.Context, rawURL, contentType string, body []by
 // answer's body, as Post does otherwise: an upstream that must not get body
 // twice is reached through a Client of one attempt.
 func (c *Client) Submit(ctx context.Context, rawURL, contentType string, body []byte) ([]byte, error) {
+	var header http.Header
+	if contentType != "" {
+		header = http.Header{"Content-Type": {contentType}}
+	}
+	return c.Send(ctx, http.MethodPost, rawURL, header, body)
+}
+
+// Send sends body to rawURL with method and the fields of header, such as
+// an Authorization, and returns the answer's body. It is retried like Get,
+// so the receiver may get the request twice: use it for an idempotent
+// call, or through a Client of one attempt. Its errors, those of Get
+// otherwise, never quote rawURL nor header.
+func (c *Client) Send(ctx context.Context, method, rawURL string, header http.Header, body []byte) ([]byte, error) {
 	u, err := c.parse(rawURL)
 	if err != nil {
 		return nil, err
 	}
-	answer, err := c.send(ctx, request{method: http.MethodPost, url: u, contentType: contentType, body: body})
+	answer, err := c.send(ctx, request{method: method, url: u, header: header, body: body})
 	if err != nil {
-		return nil, fmt.Errorf("post: %w", err)
+		return nil, fmt.Errorf("%s: %w", strings.ToLower(method), err)
 	}
 	return answer, nil
 }
@@ -138,12 +152,12 @@ func (c *Client) parse(rawURL string) (*url.URL, error) {
 	return u, nil
 }
 
-// request is what Get and Post send, built anew at each attempt.
+// request is what Get and Send send, built anew at each attempt.
 type request struct {
-	method      string
-	url         *url.URL
-	contentType string
-	body        []byte
+	method string
+	url    *url.URL
+	header http.Header
+	body   []byte
 }
 
 // send tries r until an answer is final and returns its body. Its errors
@@ -169,8 +183,8 @@ func (c *Client) attempt(ctx context.Context, r request) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", c.userAgent)
-	if r.contentType != "" {
-		req.Header.Set("Content-Type", r.contentType)
+	for name, values := range r.header {
+		req.Header[http.CanonicalHeaderKey(name)] = values
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {

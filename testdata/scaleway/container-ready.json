@@ -1,0 +1,42 @@
+{
+  "args": [],
+  "command": [],
+  "cpu_limit": 140,
+  "created_at": "2025-08-27T15:05:59.174365Z",
+  "description": "environment variables test",
+  "domain_name": "testcrns02pmr43ixn-my-container-02.functions.fnc.fr-par.scw.cloud",
+  "environment_variables": {
+    "foo": "var"
+  },
+  "error_message": null,
+  "health_check": {
+    "failure_threshold": 30,
+    "interval": "10s",
+    "tcp": {}
+  },
+  "http_option": "enabled",
+  "id": "5009f716-393c-4be9-850e-3d93380648fc",
+  "local_storage_limit": 1000,
+  "max_concurrency": 80,
+  "max_scale": 5,
+  "memory_limit": 256,
+  "min_scale": 3,
+  "name": "my-container-02",
+  "namespace_id": "339f34c3-4c1c-4744-8539-c0f01ed0e6c3",
+  "port": 80,
+  "privacy": "private",
+  "private_network_id": null,
+  "protocol": "h2c",
+  "ready_at": "2025-08-27T15:06:11.160429Z",
+  "region": "fr-par",
+  "registry_image": "nginx:latest",
+  "sandbox": "v2",
+  "scaling_option": {
+    "concurrent_requests_threshold": 80
+  },
+  "secret_environment_variables": [],
+  "status": "ready",
+  "tags": [],
+  "timeout": "600s",
+  "updated_at": "2025-08-27T15:06:11.172300Z"
+}

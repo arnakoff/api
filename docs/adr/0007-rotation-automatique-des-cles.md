@@ -43,7 +43,7 @@ Une échéance manquée arrête la lecture des instantanés ou tout déploiement
 
 ### Un job `rotate`
 
-Un Serverless Job privé `rotate`, sur l'image de l'API, sans point d'accès entrant. Il est lancé chaque jour à 03:10, heure de Paris, en dehors des passages de `sync` (`17 */6 * * *`, 30 minutes au plus). Une clé est renouvelée quand la plus récente de son application a plus de 30 jours. Les nouvelles clés valent 89 jours : un échec est repris le lendemain, et il reste près de deux mois avant l'expiration.
+Un Serverless Job privé `rotate`, sur l'image de l'API, sans point d'accès entrant. Il est lancé chaque jour à 03:10, heure de Paris, en dehors des passages de `sync` (`17 */6 * * *`, 30 minutes au plus). Les clés d'une application sont renouvelées dès que l'une d'elles a plus de 30 jours : une clé créée par un passage en échec est plus récente que la clé en service, qui reste donc due (précisé dans #307). Les nouvelles clés valent 89 jours : un échec est repris le lendemain, et il reste près de deux mois avant l'expiration.
 
 Pour chaque application dont la clé doit changer, dans cet ordre :
 
