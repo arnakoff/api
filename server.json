@@ -3,7 +3,7 @@
   "name": "com.arnakoff/api",
   "title": "Arnakoff",
   "description": "Signaux anti-arnaque sourcés sur un site, un e-mail, un numéro, un IBAN ou un SIREN",
-  "version": "0.59.1",
+  "version": "0.60.0",
   "repository": {
     "url": "https://github.com/arnakoff/api",
     "source": "github"
