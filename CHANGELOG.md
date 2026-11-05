@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.59.0](https://github.com/arnakoff/api/compare/v0.58.0...v0.59.0) (2026-11-05)
+
+
+### Features
+
+* **app:** rotate the scaleway keys of the buckets, the ci and the rotator itself ([#311](https://github.com/arnakoff/api/issues/311)) ([ec976ae](https://github.com/arnakoff/api/commit/ec976aeed1d1abd1d39b79a00a799651af8502ef)), closes [#307](https://github.com/arnakoff/api/issues/307)
+* **ci:** run the key rotation job and stop deploying the bucket keys ([#314](https://github.com/arnakoff/api/issues/314)) ([3b1bd7b](https://github.com/arnakoff/api/commit/3b1bd7bc83bbfd12dc6791aa1768ab1e77df4023))
+
+
+### Bug Fixes
+
+* **app:** rotate a key close to its expiry, and sync before api ([#315](https://github.com/arnakoff/api/issues/315)) ([25113f0](https://github.com/arnakoff/api/commit/25113f06eafedc59eef111e3a98f70cb0d05f19c)), closes [#308](https://github.com/arnakoff/api/issues/308)
+
 ## [0.58.0](https://github.com/arnakoff/api/compare/v0.57.0...v0.58.0) (2026-11-05)
 
 
