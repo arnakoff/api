@@ -269,8 +269,9 @@ tofu apply -var restore=true                       # exercice : ajouter -var res
 scw container container get "$(tofu output -raw restore_container_id)" | grep '^Status'   # ready : dump restauré
 tofu apply                                         # sans restore : retire le conteneur, ses secrets et la base d'exercice
 aws s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ \
-  --query 'Versions[].[Key,VersionId]' --output text \
-  | while read -r key version; do aws s3api delete-object --bucket arnakoff-key-backups --key "$key" --version-id "$version"; done
+  --query 'Versions[].[Key,VersionId]' --output text | tr -d '\r' \
+  | while read -r key version; do [ "$key" = None ] || aws s3api delete-object --bucket arnakoff-key-backups --key "$key" --version-id "$version"; done
+aws s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ --query 'length(Versions || `[]`)'   # 0
 rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity TF_VAR_restore_url
 ```
 
