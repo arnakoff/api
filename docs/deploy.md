@@ -76,11 +76,11 @@ cd deploy/tofu
 tofu init
 tofu apply \
   -var image=rg.fr-par.scw.cloud/arnakoff/api:<version> \
-  -var key_expiry=<date RFC 3339 dans la durée maximale des clés de l'organisation> \
+  -var github_app_client_id=<Client ID> -var github_app_installation_id=<identifiant> \
   -var api_hostname=   # pas de domaine tant que son CNAME n'existe pas (étape 8)
 ```
 
-La base n'a alors aucun point d'accès public : seul le réseau privé y mène.
+La base n'a alors aucun point d'accès public : seul le réseau privé y mène. La GitHub App du job `rotate` est créée avant (« Rotation automatique des clés », étape 1).
 
 Le conteneur est créé sans ses secrets, qui viennent au déploiement : il reste en erreur (`ARNAKOFF_LOG_KEY: required`…) jusqu'à l'étape 7, c'est attendu (constaté le 04/11/2026). Les secrets du job `sync` reçoivent une version provisoire que le premier déploiement remplace ; d'ici là, une exécution planifiée du job échoue.
 
@@ -91,10 +91,7 @@ gh variable set SCW_CONTAINER_ID --env production --body "$(tofu output -raw con
 gh variable set SCW_CONTAINER_ENDPOINT --env production --body "$(tofu output -raw container_endpoint)"
 gh variable set SCW_JOB_DEFINITION_ID --env production --body "$(tofu output -raw job_definition_id)"
 gh variable set SCW_SYNC_SECRET_IDS --env production --body "$(tofu output -raw sync_secret_ids)"
-tofu output -raw api_bucket_access_key  | gh secret set API_SNAPSHOT_BUCKET_ACCESS_KEY --env production
-tofu output -raw api_bucket_secret_key  | gh secret set API_SNAPSHOT_BUCKET_SECRET_KEY --env production
-tofu output -raw sync_bucket_access_key | gh secret set SYNC_SNAPSHOT_BUCKET_ACCESS_KEY --env production
-tofu output -raw sync_bucket_secret_key | gh secret set SYNC_SNAPSHOT_BUCKET_SECRET_KEY --env production
+gh variable set SCW_ROTATE_JOB_DEFINITION_ID --env production --body "$(tofu output -raw rotate_job_definition_id)"
 ```
 
 URL de la base, par le réseau privé, avec `verify-full` (le certificat de l'instance est passé au conteneur par `ARNAKOFF_DATABASE_CA`) :
@@ -133,8 +130,9 @@ La base n'a pas de point d'accès public. Si elle en avait un (un `load_balancer
 
 ### 7. Premier déploiement
 
-1. Lancer une première synchronisation, sans laquelle `/readyz` répond 503 et le conteneur n'est jamais prêt : écrire d'abord les secrets du job en lançant le workflow Deploy (il échouera à l'attente du conteneur), puis `scw jobs definition start <SCW_JOB_DEFINITION_ID>` et suivre le run avec `scw jobs run list`.
-2. Relancer le workflow Deploy : Actions → Deploy → Run workflow, version `<version>`, puis approuver l'environnement `production`.
+1. Faire l'amorçage du job `rotate` (« Rotation automatique des clés », étape 3) et lancer un passage : il crée les clés des buckets et écrit celle de `sync` dans Secret Manager. Le conteneur `api` n'étant pas encore prêt, le passage échoue ensuite sur lui ; celui de 03:10, après le déploiement, finit le travail.
+2. Lancer une première synchronisation, sans laquelle `/readyz` répond 503 et le conteneur n'est jamais prêt : écrire d'abord les secrets du job en lançant le workflow Deploy (il échouera à l'attente du conteneur), puis `scw jobs definition start <SCW_JOB_DEFINITION_ID>` et suivre le run avec `scw jobs run list`.
+3. Relancer le workflow Deploy : Actions → Deploy → Run workflow, version `<version>`, puis approuver l'environnement `production`.
 
 Ensuite, chaque version publiée par release-please déclenche Deploy après le workflow Image ; il attend l'approbation du propriétaire.
 
@@ -283,6 +281,73 @@ rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity
 - **Exercice** : une fois après la mise en place de #297, puis avec l'exercice trimestriel, sur `arnakoff_drill`. Fait le 05/11/2026 avec 0.58.0 (#302) : plan de 3 ressources ajoutées sans autre changement, conteneur `ready` et `step done` (`step=restore`) dès le premier contrôle, base `arnakoff_drill` restaurée (dump de 0 clé, schéma migré), puis 3 ressources détruites et aucune version restante sous `restore/`. Pièges rencontrés et corrigés ci-dessus : les clés Scaleway de l'état dans `AWS_ACCESS_KEY_ID` (refus `InvalidAccessKeyId` de la CLI AWS) et, à l'inverse, un `AWS_PROFILE` resté exporté sans ces clés (refus `403` à la lecture de l'état) ; les `\r` de la CLI AWS sous Git Bash.
 - **Essai local**, avant une version qui l'apporte : la même chaîne, sans Scaleway, avec `go run ./cmd/admin restore -listen 127.0.0.1:8099` sur une base Postgres locale, `ARNAKOFF_RESTORE_URL` et `ARNAKOFF_RESTORE_IDENTITY` exportées. Fait le 05/11/2026 : URL de `aws s3 presign --region eu-west-3` acceptée, dump `keys/` déchiffré, rechiffré et restauré (`step done`, 0 clé, comme le manifeste du dump).
 
+## Rotation automatique des clés (ADR 0007, #308)
+
+Le job `rotate` (`cmd/rotate`, `deploy/tofu/rotate.tf`) remplace chaque jour à 03:10 les clés Scaleway de `arnakoff-api`, `arnakoff-sync`, `ci-deploy` et la sienne, dès que l'une d'elles a plus de 30 jours. Ordre et garde-fous : ADR 0007. Le propriétaire n'agit qu'une fois, ici, puis seulement sur alerte.
+
+### 1. GitHub App (une fois)
+
+Réglages de l'organisation `arnakoff` → Developer settings → GitHub Apps → New GitHub App :
+
+- nom libre, par exemple `arnakoff-rotate` ; page d'accueil : l'URL du dépôt ; webhook désactivé ;
+- permission de dépôt « Environments » en « Read and write », aucune autre ;
+- « Only on this account », puis Install App → `arnakoff` → « Only select repositories » → `arnakoff/api`.
+
+Noter le « Client ID » (page de l'App) et l'identifiant d'installation (le nombre à la fin de l'URL de la page de l'installation). Générer une clé privée (« Generate a private key ») : le fichier `.pem` téléchargé reste sur la machine du propriétaire et est supprimé après l'étape 3.
+
+### 2. Infrastructure
+
+```sh
+export TF_VAR_github_app_client_id=<Client ID>
+export TF_VAR_github_app_installation_id=<identifiant d'installation>
+tofu apply -var image=rg.fr-par.scw.cloud/arnakoff/api:<version qui contient cmd/rotate>
+gh variable set SCW_ROTATE_JOB_DEFINITION_ID --env production --body "$(tofu output -raw rotate_job_definition_id)"
+```
+
+L'apply oublie les clés des buckets sans les détruire (blocs `removed`) : elles restent en service jusqu'à ce que le job les remplace.
+
+### 3. Amorçage (une fois)
+
+Dans `deploy/tofu`, le terminal de l'étape 2 :
+
+```sh
+umask 077
+ids="$(tofu output -raw rotate_secret_ids)"
+# Première clé du job, 89 jours comme celles qu'il crée.
+scw iam api-key create application-id="$(tofu output -raw rotate_application_id)" \
+  default-project-id="$(scw config get default-project-id | tail -n 1)" \
+  expires-at="$(date -u -d '+89 days' +%Y-%m-%dT%H:%M:%SZ)" description="first key of the rotate job (ADR 0007)" \
+  -o json | tail -n 1 > key.json
+jq -j .access_key key.json > access
+jq -j .secret_key key.json > secret
+scw secret version create secret-id="$(jq -r .ARNAKOFF_ROTATE_ACCESS_KEY <<< "$ids")" data=@access disable-previous=true -o json > /dev/null
+scw secret version create secret-id="$(jq -r .ARNAKOFF_ROTATE_SECRET_KEY <<< "$ids")" data=@secret disable-previous=true -o json > /dev/null
+scw secret version create secret-id="$(jq -r .ARNAKOFF_GITHUB_APP_PRIVATE_KEY <<< "$ids")" data=@app.pem disable-previous=true -o json > /dev/null
+rm key.json access secret app.pem
+```
+
+(`app.pem` : la clé privée de l'App, copiée là sous ce nom.)
+
+Puis, dans la console Scaleway, Audit Trail → Alertes : activer `ApiKeyCreated`, `ApiKeyDeleted` et `ApiKeyCreationUnauthorized` vers l'adresse des alertes. Le fournisseur OpenTofu n'a pas de ressource pour elles. Une création de clé en dehors du passage de 03:10 est à examiner.
+
+### 4. Mise en service
+
+1. Lancer un passage : `scw jobs definition start <SCW_ROTATE_JOB_DEFINITION_ID>`, le suivre avec `scw jobs run list`, lire son journal dans Cockpit (Serverless Jobs). Chaque cible donne une ligne `key rotation` : `rotated`, la nouvelle clé (identifiant d'accès et expiration), les clés supprimées.
+2. Une clé n'est remplacée qu'à 30 jours : le premier passage peut ne rien faire. Après chaque première rotation réelle, vérifier :
+   - `api` : `/readyz` répond 200 et `GET /v1/sources` montre des données fraîches ;
+   - `sync` : le passage suivant du job réussit ;
+   - `ci-deploy` : un déploiement réussit (Actions → Deploy).
+3. Une fois les clés des buckets remplacées une première fois, supprimer les anciens secrets GitHub, que le déploiement ne lit plus : `gh secret delete API_SNAPSHOT_BUCKET_ACCESS_KEY --env production`, de même pour `API_SNAPSHOT_BUCKET_SECRET_KEY`, `SYNC_SNAPSHOT_BUCKET_ACCESS_KEY` et `SYNC_SNAPSHOT_BUCKET_SECRET_KEY`.
+4. Fermer #254 et #238.
+
+À noter dans #308 au premier passage qui remplace une clé : le temps qu'une nouvelle clé met à lire le bucket (le job essaie 6 fois, à une minute d'écart), et que le passage suivant démarre bien avec la nouvelle clé du job.
+
+### En cas d'échec
+
+Un passage en échec envoie l'e-mail `JobRunFailed`. Il ne supprime rien : l'ancienne clé reste en service, la nouvelle reste inutilisée, et le passage du lendemain recommence puis supprime les deux. Le journal du passage nomme l'étape en cause. Si l'échec dure et qu'une clé approche de son expiration (`scw iam api-key list bearer-type=application`), la remplacer à la main comme avant (#238, #254).
+
+Le déploiement ne réécrit plus les clés des buckets : il met à jour le conteneur `api` par `containers/v1beta1`, qui garde les secrets qu'on ne lui envoie pas, et n'écrit que `ARNAKOFF_LOG_KEY` dans les secrets du job `sync`.
+
 ## Observabilité et alertes
 
 Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Cockpit collecte seul, des alertes par e-mail, une sonde externe dans GitHub Actions. L'application n'envoie rien à Cockpit.
@@ -331,9 +396,9 @@ Le registre garde chaque version publiée et refuse de la modifier : le job s'ar
 - **Retour arrière** : Actions → Deploy → Run workflow avec la version précédente. Une migration n'est jamais annulée par un retour arrière : une migration doit rester compatible avec la version précédente du code.
 - **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 avec cette version (`migrate=true`, attendre `ready`, puis `tofu apply` sans `migrate`, qui retire le conteneur et étend les droits, `readonly` du rôle `arnakoff_backup` compris). Une migration qui ajoute une table dit si la sauvegarde la copie (`backedUp` ou `leftOut`, `internal/adapter/store/postgres/backup.go`) : un test l'exige.
 - **Rotation** :
-  - clés du bucket : nouvelle `key_expiry`, `tofu apply` (les clés sont recréées), puis l'étape 5 pour les clés et un déploiement ;
+  - clés des buckets, de la CI `ci-deploy` et du job `rotate` : automatiques (« Rotation automatique des clés ») ;
   - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`, `db_backup_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL` (ou `BACKUP_DATABASE_URL`), déploiement ;
   - clé AWS du conteneur `backup` : `tofu apply -replace=aws_iam_access_key.backup` dans `deploy/tofu-aws`, nouveaux `BACKUP_BUCKET_ACCESS_KEY` et `BACKUP_BUCKET_SECRET_KEY`, déploiement ;
-  - clé de la CI `ci-deploy` : 30 jours, manuelle (#238).
+  - clé privée de la GitHub App du job `rotate` : elle n'expire pas. Sur fuite, ou pour la changer : en générer une nouvelle dans les réglages de l'App, l'écrire comme à l'amorçage (`ARNAKOFF_GITHUB_APP_PRIVATE_KEY`), puis supprimer l'ancienne dans GitHub.
   - clé du registre MCP : nouvelle paire Ed25519, nouveau TXT à l'apex de `arnakoff.com` (Cloudflare) **et suppression de l'ancien**, que le registre essaie en premier, puis nouveau secret `MCP_PRIVATE_KEY`.
-- **Secrets du job `sync`** : réécrits à chaque déploiement dans Secret Manager (`disable-previous=true`).
+- **Secrets du job `sync`** : `ARNAKOFF_LOG_KEY` réécrit à chaque déploiement dans Secret Manager (`disable-previous=true`) ; les clés du bucket, par le job `rotate`.

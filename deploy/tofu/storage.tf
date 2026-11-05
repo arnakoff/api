@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
 # Snapshot bucket (ADR 0005): sync writes, api reads, each with a key of its
-# own application, restricted by the bucket policy.
+# own application, restricted by the bucket policy. The keys are the rotate
+# job's (rotate.tf).
 
 data "scaleway_account_project" "current" {
   name = "arnakoff-production"
@@ -52,19 +53,7 @@ resource "scaleway_iam_policy" "sync" {
   }
 }
 
-resource "scaleway_iam_api_key" "api" {
-  application_id     = scaleway_iam_application.api.id
-  description        = "api: snapshot bucket, read only"
-  default_project_id = data.scaleway_account_project.current.id
-  expires_at         = var.key_expiry
-}
-
-resource "scaleway_iam_api_key" "sync" {
-  application_id     = scaleway_iam_application.sync.id
-  description        = "sync: snapshot bucket, read and write"
-  default_project_id = data.scaleway_account_project.current.id
-  expires_at         = var.key_expiry
-}
+# Their keys are created and replaced by the rotate job (rotate.tf, ADR 0007).
 
 # A bucket policy replaces the default access of the project, so the owner
 # keeps full access by name. Version 2023-04-17 only accepts user_id,
