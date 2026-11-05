@@ -4,7 +4,7 @@
 //
 //	admin migrate [-listen <address>]
 //	admin backup [-listen <address>]
-//	admin restore -file <dump>
+//	admin restore -file <dump> | -listen <address>
 //	admin key create -label <holder> [-env live|test]
 //	admin key list
 //	admin key revoke -id <id>
@@ -27,7 +27,13 @@
 // restore loads a dump, decrypted with age -d, into an empty store: it
 // migrates the schema up to the dump's version, loads the rows in one
 // transaction, then applies the later migrations, and refuses a database
-// that holds keys. Run it with the role of the migrations.
+// that holds keys. Run it with the role of the migrations. With -listen,
+// it fetches the dump from the presigned URL ARNAKOFF_RESTORE_URL (Amazon
+// S3 in eu-west-3), opens it with ARNAKOFF_RESTORE_IDENTITY, an age key
+// drawn for this restore, keeps the clear dump in memory only, and serves
+// /healthz and /readyz until it is stopped, /readyz answering 200 once the
+// dump is restored: the form a Serverless Container inside the private
+// network runs (#297).
 //
 // key create draws a key, "ark_live_…" or "ark_test_…", stores its keyed
 // digest and prints the key once on standard output: it is never stored and

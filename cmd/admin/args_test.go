@@ -24,6 +24,7 @@ func TestParseArgs(t *testing.T) {
 		{"backup", []string{"backup"}, command{action: actionBackup}},
 		{"backup listening", []string{"backup", "-listen", ":8080"}, command{action: actionBackup, listen: ":8080"}},
 		{"restore", []string{"restore", "-file", "keys.tar"}, command{action: actionRestore, file: "keys.tar"}},
+		{"restore listening", []string{"restore", "-listen", ":8080"}, command{action: actionRestore, listen: ":8080"}},
 		{"revoke", []string{"key", "revoke", "-id", "42"}, command{action: actionRevoke, id: 42}},
 	}
 	for _, tt := range tests {
@@ -55,7 +56,7 @@ func TestParseArgsRejectsMisuse(t *testing.T) {
 		{"backup", "now"},
 		{"backup", "-file", "keys.tar"},
 		{"restore"},
-		{"restore", "-listen", ":8080"},
+		{"restore", "-file", "keys.tar", "-listen", ":8080"},
 	} {
 		if _, err := parseArgs(args, io.Discard); err == nil || errors.Is(err, flag.ErrHelp) {
 			t.Errorf("parseArgs(%q) error = %v, want a usage error", args, err)

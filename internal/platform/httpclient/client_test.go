@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -282,5 +283,23 @@ func TestNewRejectsInvalidConfig(t *testing.T) {
 				t.Errorf("New() error = %v, want ErrInvalidConfig", err)
 			}
 		})
+	}
+}
+
+// A presigned URL carries its credential in the query: Get's errors name
+// the URL without it.
+func TestGetErrorLeavesTheQueryOut(t *testing.T) {
+	t.Parallel()
+	srv, _ := newServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	c := newClient(t, srv, httpclient.Config{Attempts: 1})
+
+	_, err := c.Get(t.Context(), srv.URL+"/restore/keys.tar.age?X-Amz-Signature=s3cr3t#frag")
+	if err == nil {
+		t.Fatal("Get() error = nil, want a status error")
+	}
+	if msg := err.Error(); strings.Contains(msg, "s3cr3t") || strings.Contains(msg, "frag") || !strings.Contains(msg, "/restore/keys.tar.age") {
+		t.Errorf("Get() error = %q, want the path without the query", msg)
 	}
 }

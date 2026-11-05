@@ -2,7 +2,8 @@
 
 // Package backupseal encrypts the backups of the key store with age
 // (filippo.io/age), for the public key of the owner (#75): the process
-// that seals a backup cannot open it.
+// that seals a backup cannot open it. It also opens a dump sealed for a
+// key drawn for one restore in production (#297).
 package backupseal
 
 import (

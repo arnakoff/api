@@ -90,7 +90,8 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 // Get fetches rawURL and returns its body. It returns ErrURLNotAllowed
 // without sending anything when rawURL is not HTTPS on an allowed host,
 // ErrBodyTooLarge, a *StatusError for a non-2xx answer, or the error of the
-// transport or of ctx.
+// transport or of ctx. Its errors name the URL without its query, which may
+// carry a credential, such as a presigned URL.
 func (c *Client) Get(ctx context.Context, rawURL string) ([]byte, error) {
 	u, err := c.parse(rawURL)
 	if err != nil {
@@ -98,7 +99,7 @@ func (c *Client) Get(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	body, err := c.send(ctx, request{method: http.MethodGet, url: u})
 	if err != nil {
-		return nil, fmt.Errorf("get %s: %w", u, err)
+		return nil, fmt.Errorf("get %s: %w", withoutQuery(u), err)
 	}
 	return body, nil
 }
@@ -181,6 +182,13 @@ func (c *Client) attempt(ctx context.Context, r request) ([]byte, error) {
 		return nil, c.statusError(resp)
 	}
 	return readBody(resp, c.maxBody)
+}
+
+// withoutQuery returns u without its query and fragment.
+func withoutQuery(u *url.URL) *url.URL {
+	bare := *u
+	bare.RawQuery, bare.ForceQuery, bare.Fragment, bare.RawFragment = "", false, "", ""
+	return &bare
 }
 
 // withoutURL drops the URL a *url.Error quotes, keeping its cause.

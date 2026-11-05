@@ -243,7 +243,41 @@ docker rm -f restore && rm keys.tar "<date>.tar.age"
 **En production** :
 
 - base perdue ou abîmée depuis moins de 7 jours : la sauvegarde gérée de Scaleway suffit (console → Managed Database → Backups → Restore), sans la copie AWS ;
-- Scaleway perdu, ou sauvegarde gérée inutilisable : nouvelle base, puis `admin restore -file keys.tar` avec le rôle des migrations, lancé d'un hôte qui joint la base. La base de production n'ayant pas de point d'accès public, il faut un hôte sur le réseau privé : procédure à écrire et à exercer (#297). `ARNAKOFF_API_KEY_SECRET` n'est pas dans la sauvegarde (ADR 0004) : sans lui, les empreintes restaurées ne vérifient plus aucune clé ; il se garde aussi dans le gestionnaire de mots de passe du propriétaire.
+- Scaleway perdu, ou sauvegarde gérée inutilisable : nouvelle base, puis la copie AWS chargée par le conteneur `restore`, ci-dessous. `ARNAKOFF_API_KEY_SECRET` n'est pas dans la sauvegarde (ADR 0004) : sans lui, les empreintes restaurées ne vérifient plus aucune clé ; il se garde aussi dans le gestionnaire de mots de passe du propriétaire.
+
+#### Restaurer depuis le réseau privé (#297)
+
+La base n'a pas de point d'accès public : le dump est chargé par le conteneur temporaire `restore` (`deploy/tofu/restore.tf`), sur le réseau privé, comme les migrations. La clé age des sauvegardes ne quitte pas la machine du propriétaire : le dump y est rechiffré pour une clé tirée pour cette seule restauration, puis déposé sous `restore/` dans le bucket. Le conteneur le lit par une URL pré-signée, sans clé AWS, le déchiffre en mémoire, le charge avec le rôle des migrations et répond 200 sur `/readyz`. Aucun dump en clair n'est écrit sur disque, ni chez le propriétaire (le déchiffrement et le rechiffrement se font dans un tube), ni chez Scaleway, ni chez Amazon.
+
+Il faut une image qui contient `admin restore -listen` : la première version publiée avec #297, ou une plus récente.
+
+```sh
+aws sso login --profile arnakoff-production
+export AWS_PROFILE=arnakoff-production
+backup="keys/<date>.tar.age"                       # aws s3 ls s3://arnakoff-key-backups/keys/
+age-keygen -pq -o restore-key.txt                  # clé jetable
+aws s3 cp "s3://arnakoff-key-backups/$backup" - \
+  | age -d -i ~/.arnakoff/backup-age-key.txt \
+  | age -r "$(age-keygen -y restore-key.txt)" \
+  | aws s3 cp - s3://arnakoff-key-backups/restore/keys.tar.age
+cd deploy/tofu                                     # variables habituelles de l'étape 4
+export TF_VAR_restore_log_key="$(openssl rand -hex 32)"
+export TF_VAR_restore_identity="$(grep '^AGE-SECRET-KEY' ../../restore-key.txt)"
+export TF_VAR_restore_url="$(aws s3 presign s3://arnakoff-key-backups/restore/keys.tar.age --region eu-west-3 --expires-in 3600)"
+tofu apply -var restore=true                       # exercice : ajouter -var restore_database=arnakoff_drill
+scw container container get "$(tofu output -raw restore_container_id)" | grep '^Status'   # ready : dump restauré
+tofu apply                                         # sans restore : retire le conteneur, ses secrets et la base d'exercice
+aws s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ \
+  --query 'Versions[].[Key,VersionId]' --output text \
+  | while read -r key version; do aws s3api delete-object --bucket arnakoff-key-backups --key "$key" --version-id "$version"; done
+rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity TF_VAR_restore_url
+```
+
+- **Contrôle** : le conteneur passe `ready`, et ses journaux (`scw container container logs "$(tofu output -raw restore_container_id)"`, ou Cockpit) montrent `step done` avec `step=restore`. Un échec laisse le conteneur non prêt et journalise `step failed` avec la cause : URL expirée ou refusée (`unexpected HTTP status 403 Forbidden`), mauvaise clé (`age: identity did not match any of the recipients`), base non vide (`restore target is not an empty key store`). Après correction, `tofu apply -var restore=true` avec les nouvelles valeurs relance le conteneur.
+- **Base visée** : `restore_database`, `arnakoff` par défaut, la base de l'API. Avec un autre nom, une base d'exercice est créée à côté, avec les droits du rôle des migrations, et supprimée par le `tofu apply` sans `restore`. La restauration refuse une base qui contient déjà des clés : un exercice sur `arnakoff` en service échoue sans rien toucher.
+- **Après une vraie restauration** (Scaleway perdu) : étapes 1 à 5 sur le nouveau projet, puis cette procédure à la place de l'étape 6 (elle applique les migrations), le `tofu apply` sans `restore` qui étend les droits des rôles `arnakoff_api` et `arnakoff_backup` aux tables restaurées, puis l'étape 7, avec l'ancien `ARNAKOFF_API_KEY_SECRET`.
+- **Secrets** : l'URL pré-signée et la clé jetable passent par l'état OpenTofu, chiffré, et restent dans son historique. Elles ne valent plus rien après coup : l'URL expire dans l'heure (plus tôt si la session SSO expire avant), et la clé n'ouvre que l'objet `restore/`, supprimé avec toutes ses versions à la fin. Un objet oublié expire au bout d'un jour, et sa version le lendemain (règle `expire-restores`, `deploy/tofu-aws/bucket.tf`).
+- **Exercice** : une fois après la mise en place de #297, puis avec l'exercice trimestriel, sur `arnakoff_drill`.
 
 ## Observabilité et alertes
 
