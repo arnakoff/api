@@ -251,27 +251,28 @@ La base n'a pas de point d'accès public : le dump est chargé par le conteneur 
 
 Il faut une image qui contient `admin restore -listen` : la première version publiée avec #297, ou une plus récente.
 
+Dans le terminal d'OpenTofu (variables de l'étape 4, `TF_VAR_image` sur cette version). Ses `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont les clés Scaleway de l'état et passeraient avant le profil SSO : la CLI AWS tourne donc sans elles, par `awsp`. Sous Git Bash, elle termine ses lignes par `\r` : `tr -d '\r'` les retire.
+
 ```sh
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN   # sinon elles passent avant le profil SSO
-aws sso login --profile arnakoff-production
-export AWS_PROFILE=arnakoff-production
-backup="keys/<date>.tar.age"                       # aws s3 ls s3://arnakoff-key-backups/keys/
+awsp() { env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN aws --profile arnakoff-production --region eu-west-3 "$@"; }
+awsp sso login
+backup="keys/$(awsp s3 ls s3://arnakoff-key-backups/keys/ | tr -d '\r' | sort | tail -1 | awk '{print $4}')"   # la plus récente
 age-keygen -pq -o restore-key.txt                  # clé jetable
-aws s3 cp "s3://arnakoff-key-backups/$backup" - \
+awsp s3 cp "s3://arnakoff-key-backups/$backup" - \
   | age -d -i ~/.arnakoff/backup-age-key.txt \
   | age -r "$(age-keygen -y restore-key.txt)" \
-  | aws s3 cp - s3://arnakoff-key-backups/restore/keys.tar.age
-cd deploy/tofu                                     # variables habituelles de l'étape 4
+  | awsp s3 cp - s3://arnakoff-key-backups/restore/keys.tar.age
+cd deploy/tofu
 export TF_VAR_restore_log_key="$(openssl rand -hex 32)"
 export TF_VAR_restore_identity="$(grep '^AGE-SECRET-KEY' ../../restore-key.txt)"
-export TF_VAR_restore_url="$(aws s3 presign s3://arnakoff-key-backups/restore/keys.tar.age --region eu-west-3 --expires-in 3600)"
+export TF_VAR_restore_url="$(awsp s3 presign s3://arnakoff-key-backups/restore/keys.tar.age --expires-in 3600 | tr -d '\r')"
 tofu apply -var restore=true                       # exercice : ajouter -var restore_database=arnakoff_drill
 scw container container get "$(tofu output -raw restore_container_id)" | grep '^Status'   # ready : dump restauré
 tofu apply                                         # sans restore : retire le conteneur, ses secrets et la base d'exercice
-aws s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ \
+awsp s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ \
   --query 'Versions[].[Key,VersionId]' --output text | tr -d '\r' \
-  | while read -r key version; do [ "$key" = None ] || aws s3api delete-object --bucket arnakoff-key-backups --key "$key" --version-id "$version"; done
-aws s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ --query 'length(Versions || `[]`)'   # 0
+  | while read -r key version; do [ "$key" = None ] || awsp s3api delete-object --bucket arnakoff-key-backups --key "$key" --version-id "$version"; done
+awsp s3api list-object-versions --bucket arnakoff-key-backups --prefix restore/ --query 'length(Versions || `[]`)'   # 0
 rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity TF_VAR_restore_url
 ```
 
