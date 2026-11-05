@@ -21,10 +21,14 @@ const (
 	createdApp = "fe101044-4da6-4bdd-b133-fc9745b47b87" // iam-create-api-key.json, iam-get-api-key.json
 	otherApp   = "0b8cc93b-dfd2-4427-b674-8d27affb0334"
 	projectID  = "105bdce1-64c0-48ab-899d-868455867ecf"
+	orgID      = "11111111-1111-1111-1111-111111111111" // the organization of the recorded list request
 )
 
+// scope is the organization and project of the tests.
+var scope = scaleway.Scope{OrganizationID: orgID, ProjectID: projectID}
+
 func newCredentials(f *fakeAPI) *scaleway.Credentials {
-	return scaleway.NewCredentials(f.client(), projectID, []string{listedApp, createdApp})
+	return scaleway.NewCredentials(f.client(), scope, []string{listedApp, createdApp})
 }
 
 func TestListCredentialsListsTheKeysOfTheApplication(t *testing.T) {
@@ -46,6 +50,11 @@ func TestListCredentialsListsTheKeysOfTheApplication(t *testing.T) {
 	if q.Get("bearer_id") != listedApp || q.Get("bearer_type") != "application" {
 		t.Errorf("query %q, want the keys of the application only", f.recorded()[0].query)
 	}
+	// The API refuses a list without it: « organization_id is required »
+	// (first run in production, 05/11/2026).
+	if q.Get("organization_id") != orgID {
+		t.Errorf("query %q, want the organization", f.recorded()[0].query)
+	}
 	if f.recorded()[0].auth != secretKey {
 		t.Error("request not authenticated with the rotator key")
 	}
@@ -56,7 +65,7 @@ func TestListCredentialsRefusesAKeyOfAnotherApplication(t *testing.T) {
 	f := newFakeAPI(t, map[string][]answer{
 		"GET /iam/v1alpha1/api-keys": {{http.StatusOK, "iam-list-api-keys.json"}},
 	})
-	c := scaleway.NewCredentials(f.client(), projectID, []string{createdApp})
+	c := scaleway.NewCredentials(f.client(), scope, []string{createdApp})
 
 	_, err := c.ListCredentials(context.Background(), createdApp)
 

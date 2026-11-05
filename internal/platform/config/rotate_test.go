@@ -22,6 +22,7 @@ func rotateVars() map[string]string {
 		"ARNAKOFF_LOG_KEY":                      validKey,
 		"ARNAKOFF_ROTATE_ACCESS_KEY":            "SCWROTATORXXXXXXXXXX",
 		"ARNAKOFF_ROTATE_SECRET_KEY":            rotateSecretKey,
+		"ARNAKOFF_ROTATE_ORGANIZATION_ID":       "cccccccc-cccc-cccc-cccc-cccccccccccc",
 		"ARNAKOFF_ROTATE_PROJECT_ID":            "11111111-1111-1111-1111-111111111111",
 		"ARNAKOFF_ROTATE_BUCKET":                "arnakoff-snapshots",
 		"ARNAKOFF_ROTATE_APP_API":               "22222222-2222-2222-2222-222222222222",
@@ -51,7 +52,7 @@ func TestLoadReadsTheRotation(t *testing.T) {
 	r := cfg.Rotate
 	if r.AccessKey != "SCWROTATORXXXXXXXXXX" || string(r.SecretKey.Bytes()) != rotateSecretKey ||
 		r.Apps.CI != "55555555-5555-5555-5555-555555555555" || r.GitHubApp.InstallationID != 4242 ||
-		string(r.GitHubApp.PrivateKey.Bytes()) != rotateAppPEMBody || r.Bucket != "arnakoff-snapshots" {
+		string(r.GitHubApp.PrivateKey.Bytes()) != rotateAppPEMBody || r.Bucket != "arnakoff-snapshots" || r.OrganizationID != "cccccccc-cccc-cccc-cccc-cccccccccccc" {
 		t.Errorf("Rotate = %+v", r)
 	}
 	if s := fmt.Sprintf("%v %+v", r, cfg); strings.Contains(s, rotateSecretKey) || strings.Contains(s, "TESTPEM") {

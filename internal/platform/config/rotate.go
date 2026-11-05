@@ -14,6 +14,7 @@ import (
 const (
 	EnvRotateAccessKey         = "ARNAKOFF_ROTATE_ACCESS_KEY"
 	EnvRotateSecretKey         = "ARNAKOFF_ROTATE_SECRET_KEY"
+	EnvRotateOrganizationID    = "ARNAKOFF_ROTATE_ORGANIZATION_ID"
 	EnvRotateProjectID         = "ARNAKOFF_ROTATE_PROJECT_ID"
 	EnvRotateBucket            = "ARNAKOFF_ROTATE_BUCKET"
 	EnvRotateAppAPI            = "ARNAKOFF_ROTATE_APP_API"
@@ -39,8 +40,11 @@ type Rotate struct {
 	AccessKey string
 	SecretKey Secret
 
-	// ProjectID is the default project of the keys it creates.
-	ProjectID string
+	// OrganizationID is the organization of the applications, which the
+	// API requires to list their keys; ProjectID is the default project of
+	// the keys it creates.
+	OrganizationID string
+	ProjectID      string
 
 	// Bucket is the snapshot bucket a new key of api or sync must read.
 	Bucket string
@@ -118,6 +122,7 @@ type idVar struct {
 // ids are the variables of r that hold a UUID.
 func (r *Rotate) ids() []idVar {
 	return []idVar{
+		{EnvRotateOrganizationID, &r.OrganizationID},
 		{EnvRotateProjectID, &r.ProjectID},
 		{EnvRotateAppAPI, &r.Apps.API},
 		{EnvRotateAppSync, &r.Apps.Sync},

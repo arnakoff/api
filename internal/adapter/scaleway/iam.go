@@ -25,19 +25,26 @@ var ErrApplicationNotAllowed = errors.New("application not in the list of the ro
 // Credentials creates, lists and deletes the API keys of a closed list of
 // IAM applications. It implements app.CredentialIssuer.
 type Credentials struct {
-	api       *iam.API
-	projectID string
-	allowed   map[string]bool
+	api     *iam.API
+	scope   Scope
+	allowed map[string]bool
+}
+
+// Scope is where the keys are: the organization of the applications, which
+// the API requires to list keys, and the default project of a new key.
+type Scope struct {
+	OrganizationID string
+	ProjectID      string
 }
 
 // NewCredentials returns Credentials through client, for the applications
-// allowed only; a new key gets projectID as its default project.
-func NewCredentials(client *scw.Client, projectID string, allowed []string) *Credentials {
+// allowed only, in scope.
+func NewCredentials(client *scw.Client, scope Scope, allowed []string) *Credentials {
 	set := make(map[string]bool, len(allowed))
 	for _, a := range allowed {
 		set[a] = true
 	}
-	return &Credentials{api: iam.NewAPI(client), projectID: projectID, allowed: set}
+	return &Credentials{api: iam.NewAPI(client), scope: scope, allowed: set}
 }
 
 // ListCredentials returns the keys of application.
@@ -46,8 +53,9 @@ func (c *Credentials) ListCredentials(ctx context.Context, application string) (
 		return nil, err
 	}
 	resp, err := c.api.ListAPIKeys(&iam.ListAPIKeysRequest{
-		BearerID:   &application,
-		BearerType: iam.BearerTypeApplication,
+		OrganizationID: &c.scope.OrganizationID,
+		BearerID:       &application,
+		BearerType:     iam.BearerTypeApplication,
 	}, scw.WithContext(ctx), scw.WithAllPages())
 	if err != nil {
 		return nil, fmt.Errorf("list the keys of %s: %w", application, err)
@@ -70,7 +78,7 @@ func (c *Credentials) CreateCredential(ctx context.Context, application string, 
 	k, err := c.api.CreateAPIKey(&iam.CreateAPIKeyRequest{
 		ApplicationID:    &application,
 		ExpiresAt:        &expiresAt,
-		DefaultProjectID: &c.projectID,
+		DefaultProjectID: &c.scope.ProjectID,
 		Description:      keyDescription,
 	}, scw.WithContext(ctx))
 	if err != nil {
