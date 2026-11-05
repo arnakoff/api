@@ -17,6 +17,7 @@ const (
 	actionCreate  = "key create"
 	actionList    = "key list"
 	actionRevoke  = "key revoke"
+	actionErase   = "account erase"
 )
 
 // command is the action asked on the command line and its flags. An empty
@@ -41,7 +42,8 @@ const usage = `usage:
   admin restore -file <dump> | -listen <address>
   admin key create -label <holder> [-env live|test]
   admin key list
-  admin key revoke -id <id>`
+  admin key revoke -id <id>
+  admin account erase [-listen <address>]`
 
 // parseArgs reads args, writing usage and errors to w. It returns
 // flag.ErrHelp for -h.
@@ -67,6 +69,8 @@ func parseArgs(args []string, w io.Writer) (command, error) {
 	case actionRestore:
 		fs.StringVar(&cmd.file, "file", "", "the dump to restore, decrypted with age -d")
 		fs.StringVar(&cmd.listen, "listen", "", "restore the sealed dump of ARNAKOFF_RESTORE_URL and serve /healthz and /readyz on this address until stopped, /readyz answering 200 once it is restored")
+	case actionErase:
+		fs.StringVar(&cmd.listen, "listen", "", "erase the account of ARNAKOFF_ERASE_EMAIL and serve /healthz and /readyz on this address until stopped, /readyz answering 200 once it is erased")
 	case actionList:
 	default:
 		return command{}, misuse(w, "unknown action")
@@ -85,8 +89,8 @@ func actionOf(args []string) (string, []string) {
 	switch {
 	case len(args) >= 1 && (args[0] == actionMigrate || args[0] == actionBackup || args[0] == actionRestore):
 		return args[0], args[1:]
-	case len(args) >= 2 && args[0] == "key":
-		return "key " + args[1], args[2:]
+	case len(args) >= 2 && (args[0] == "key" || args[0] == "account"):
+		return args[0] + " " + args[1], args[2:]
 	default:
 		return "", nil
 	}

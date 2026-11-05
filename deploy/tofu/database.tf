@@ -39,6 +39,9 @@ locals {
   # With IPAM the endpoint has an address and no host name; the instance
   # certificate covers that address (SAN IP Address), so verify-full holds.
   database_private_host = coalesce(scaleway_rdb_instance.main.private_network[0].hostname, scaleway_rdb_instance.main.private_network[0].ip)
+  # The administrator on the Private Network, which the temporary admin
+  # containers (migrate, restore, erase) follow with "/<database>?sslmode=verify-full".
+  admin_database_server = "postgres://${scaleway_rdb_instance.main.user_name}:${urlencode(var.db_admin_password)}@${local.database_private_host}:${scaleway_rdb_instance.main.private_network[0].port}"
 }
 
 resource "scaleway_rdb_database" "api" {

@@ -138,6 +138,36 @@ variable "restore_identity" {
   }
 }
 
+variable "erase" {
+  description = "Run the erase container, which deletes the API keys and login requests of the account of erase_email from the Private Network with image (docs/deploy.md, #304). Apply without it afterwards: the container is removed."
+  type        = bool
+  default     = false
+}
+
+variable "erase_email" {
+  description = "Address of the account to erase, as the holder gives it, whatever its case; required with erase. Personal data: kept in the encrypted state history only."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.erase || strcontains(var.erase_email, "@")
+    error_message = "erase_email must be an email address when erase is set."
+  }
+}
+
+variable "erase_log_key" {
+  description = "ARNAKOFF_LOG_KEY of the erase container, 64 hex characters (openssl rand -hex 32); required with erase."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.erase || can(regex("^[0-9a-f]{64}$", var.erase_log_key))
+    error_message = "erase_log_key must be 64 lower-case hex characters when erase is set."
+  }
+}
+
 variable "image" {
   description = "Image the container and the job are created with, in Container Registry. The deploy workflow replaces it afterwards."
   type        = string

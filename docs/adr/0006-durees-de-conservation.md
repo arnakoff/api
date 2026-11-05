@@ -35,5 +35,6 @@ Le propriétaire fixe les durées suivantes.
 - #59 garde l'adresse du compte avec sa clé, la supprime avec elle, et ajoute la purge des demandes de lien après 24 heures.
 - #72 règle à 6 mois la rétention des journaux chez Scaleway.
 - Une ligne supprimée reste dans les sauvegardes jusqu'à leur propre expiration : 7 jours pour la sauvegarde automatique de la base (ADR 0005). La copie hors de Scaleway la garde 30 jours de plus (#75), soit au plus 365 + 31 jours pour une clé révoquée.
+- Une demande d'effacement (RGPD, article 17) supprime aussitôt les clés du compte, actives ou révoquées, et ses demandes de lien, sans attendre ces durées (`admin account erase`, #304, `docs/deploy.md`). Les lignes effacées restent dans les sauvegardes jusqu'à leur expiration : au plus 7 jours chez Scaleway et 30 jours sur Amazon S3. La politique de confidentialité (arnakoff/web#32) le dit.
 - #74 reprend ces durées dans le registre des traitements.
 - Une nouvelle donnée personnelle conservée demande de modifier cette ADR avant d'être stockée.

@@ -26,7 +26,7 @@ type KeyPurger interface {
 	PurgeLoginRequests(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
-// PurgeCount is what a purge deleted.
+// PurgeCount is what a purge, or the erasure of an account, deleted.
 type PurgeCount struct {
 	Keys          int64
 	LoginRequests int64

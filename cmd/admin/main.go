@@ -47,6 +47,8 @@ func run(ctx context.Context, cfg config.Config, cmd command) error {
 		return runBackup(ctx, cfg, cmd.listen)
 	case actionRestore:
 		return runRestore(ctx, cfg, cmd.file, cmd.listen)
+	case actionErase:
+		return runErase(ctx, cfg, cmd.listen)
 	}
 	if err := cfg.RequireKeyStore(); err != nil {
 		return err

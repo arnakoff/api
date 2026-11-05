@@ -171,6 +171,9 @@ type Config struct {
 
 	// Rotate configures the key rotation job (ADR 0007).
 	Rotate Rotate
+
+	// Erase is the account admin account erase erases (#304).
+	Erase Erase
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -209,6 +212,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parseBackup(lookup, &cfg.Backup),
 		parseRestore(lookup, &cfg.Restore),
 		parseRotate(lookup, &cfg.Rotate),
+		parseErase(lookup, &cfg.Erase),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err
