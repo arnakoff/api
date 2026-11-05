@@ -252,6 +252,7 @@ La base n'a pas de point d'accès public : le dump est chargé par le conteneur 
 Il faut une image qui contient `admin restore -listen` : la première version publiée avec #297, ou une plus récente.
 
 ```sh
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN   # sinon elles passent avant le profil SSO
 aws sso login --profile arnakoff-production
 export AWS_PROFILE=arnakoff-production
 backup="keys/<date>.tar.age"                       # aws s3 ls s3://arnakoff-key-backups/keys/
@@ -278,6 +279,7 @@ rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity
 - **Après une vraie restauration** (Scaleway perdu) : étapes 1 à 5 sur le nouveau projet, puis cette procédure à la place de l'étape 6 (elle applique les migrations), le `tofu apply` sans `restore` qui étend les droits des rôles `arnakoff_api` et `arnakoff_backup` aux tables restaurées, puis l'étape 7, avec l'ancien `ARNAKOFF_API_KEY_SECRET`.
 - **Secrets** : l'URL pré-signée et la clé jetable passent par l'état OpenTofu, chiffré, et restent dans son historique. Elles ne valent plus rien après coup : l'URL expire dans l'heure (plus tôt si la session SSO expire avant), et la clé n'ouvre que l'objet `restore/`, supprimé avec toutes ses versions à la fin. Un objet oublié expire au bout d'un jour, et sa version le lendemain (règle `expire-restores`, `deploy/tofu-aws/bucket.tf`).
 - **Exercice** : une fois après la mise en place de #297, puis avec l'exercice trimestriel, sur `arnakoff_drill`.
+- **Essai local**, avant une version qui l'apporte : la même chaîne, sans Scaleway, avec `go run ./cmd/admin restore -listen 127.0.0.1:8099` sur une base Postgres locale, `ARNAKOFF_RESTORE_URL` et `ARNAKOFF_RESTORE_IDENTITY` exportées. Fait le 05/11/2026 : URL pré-signée en style hôte virtuel, dump `keys/` déchiffré, rechiffré et restauré (`step done`, 0 clé, comme le manifeste du dump).
 
 ## Observabilité et alertes
 
