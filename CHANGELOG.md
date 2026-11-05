@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.58.0](https://github.com/arnakoff/api/compare/v0.57.0...v0.58.0) (2026-11-05)
+
+
+### Features
+
+* **app:** restore the api keys in production from their amazon s3 copy ([#301](https://github.com/arnakoff/api/issues/301)) ([d593399](https://github.com/arnakoff/api/commit/d5933997902985824a2d67ac485702dea453bfaf)), closes [#297](https://github.com/arnakoff/api/issues/297)
+* **ci:** alert on a 5xx rate of the api and on a failed backup ([#299](https://github.com/arnakoff/api/issues/299)) ([9ffb898](https://github.com/arnakoff/api/commit/9ffb898649797f310b58554ab5572b640f1f4b8b)), closes [#270](https://github.com/arnakoff/api/issues/270)
+
 ## [0.57.0](https://github.com/arnakoff/api/compare/v0.56.2...v0.57.0) (2026-11-05)
 
 
