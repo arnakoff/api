@@ -28,6 +28,11 @@ output "container_host" {
   value       = local.container_host
 }
 
+output "backup_container_id" {
+  description = "GitHub variable SCW_BACKUP_CONTAINER_ID of the environment production: the backup container's UUID."
+  value       = split("/", scaleway_container.backup.id)[1]
+}
+
 output "job_definition_id" {
   description = "GitHub variable SCW_JOB_DEFINITION_ID of the environment production: the job definition's UUID."
   value       = split("/", scaleway_job_definition.sync.id)[1]

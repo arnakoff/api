@@ -54,6 +54,12 @@ func writeProbe(w http.ResponseWriter, status int, body string) {
 // NewProbeHandler serves only the liveness and readiness probes, for a
 // process that answers nothing else, such as `admin migrate -listen`.
 func NewProbeHandler(ready Readiness) http.Handler {
+	return probeMux(ready)
+}
+
+// probeMux routes the liveness and readiness probes, for a process to add
+// its own routes to.
+func probeMux(ready Readiness) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET "+healthzPath, healthz())
 	mux.Handle("GET "+readyzPath, readyz(ready))

@@ -27,6 +27,13 @@ const (
 	Region = "fr-par"
 )
 
+// Amazon S3 in Paris, where the backups of the key store go, out of
+// Scaleway (#75).
+const (
+	AWSParisHost   = "s3.eu-west-3.amazonaws.com"
+	AWSParisRegion = "eu-west-3"
+)
+
 // DefaultAttempts is the number of tries of a request the bucket answers
 // with a 5xx, a throttle or a network error, the first one included.
 const DefaultAttempts = 3
@@ -43,7 +50,7 @@ type Options struct {
 	// Region signs the requests; Region when empty.
 	Region string
 
-	// Bucket holds the snapshots. Required.
+	// Bucket holds the objects. Required.
 	Bucket string
 
 	// AccessKey and SecretKey are the credentials of the bucket. Required.
@@ -77,12 +84,21 @@ type seenObject struct {
 
 // New returns a Store for opts, or ErrInvalidOptions.
 func New(opts Options) (*Store, error) {
+	client, err := newClient(opts)
+	if err != nil {
+		return nil, err
+	}
+	return &Store{client: client, bucket: opts.Bucket, seen: map[domain.Source]seenObject{}}, nil
+}
+
+// newClient returns the S3 client of opts, or ErrInvalidOptions.
+func newClient(opts Options) (*s3.Client, error) {
 	opts, err := opts.withDefaults()
 	if err != nil {
 		return nil, err
 	}
 	secret := opts.SecretKey
-	client := s3.New(s3.Options{
+	return s3.New(s3.Options{
 		BaseEndpoint: aws.String(opts.Endpoint),
 		Region:       opts.Region,
 		UsePathStyle: true,
@@ -96,8 +112,7 @@ func New(opts Options) (*Store, error) {
 		// compatible stores do not all support them.
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
-	})
-	return &Store{client: client, bucket: opts.Bucket, seen: map[domain.Source]seenObject{}}, nil
+	}), nil
 }
 
 // withDefaults returns opts with its defaults, or ErrInvalidOptions. Its

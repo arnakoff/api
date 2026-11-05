@@ -27,7 +27,12 @@ var created = time.Date(2026, 11, 2, 10, 30, 0, 123456000, time.UTC)
 // openKeys migrates a schema of its own for t and opens the store on it.
 func openKeys(t *testing.T) *postgres.Keys {
 	t.Helper()
-	conn := testDatabase(t)
+	return openKeysAt(t, testDatabase(t))
+}
+
+// openKeysAt migrates the database of conn and opens the store on it.
+func openKeysAt(t *testing.T, conn string) *postgres.Keys {
+	t.Helper()
 	if err := postgres.Migrate(context.Background(), conn); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}

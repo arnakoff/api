@@ -50,6 +50,19 @@ variable "db_api_password_version" {
   default     = 1
 }
 
+variable "db_backup_password" {
+  description = "Password of arnakoff_backup, the role of the backup container, which may only read the tables (#75). Write-only: never stored in the state."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+}
+
+variable "db_backup_password_version" {
+  description = "Increment to send a new db_backup_password."
+  type        = number
+  default     = 1
+}
+
 variable "migrate" {
   description = "Run the migrate container, which applies the migrations from the Private Network with image (docs/deploy.md). Apply without it afterwards: the container is removed."
   type        = bool
@@ -106,4 +119,25 @@ variable "demo_origin" {
   description = "Origin of the site, the only one CORS allows on the demo and key request routes."
   type        = string
   default     = "https://arnakoff.com"
+}
+
+variable "backup_bucket" {
+  description = "Amazon S3 bucket of the backups, the backup_bucket output of deploy/tofu-aws (#75)."
+  type        = string
+}
+
+variable "backup_recipient" {
+  description = "age public key the backups are sealed for: the owner's, from age-keygen -pq (docs/deploy.md). The private key never leaves the owner."
+  type        = string
+
+  validation {
+    condition     = can(regex("^age1[0-9a-z]+$", var.backup_recipient))
+    error_message = "backup_recipient must be an age public key, age1…, never the private AGE-SECRET-KEY-…."
+  }
+}
+
+variable "backup_schedule" {
+  description = "Cron schedule of the backup, Europe/Paris time (#75)."
+  type        = string
+  default     = "40 3 * * *"
 }

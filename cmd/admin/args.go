@@ -12,6 +12,8 @@ import (
 // The actions of the command; see the package doc.
 const (
 	actionMigrate = "migrate"
+	actionBackup  = "backup"
+	actionRestore = "restore"
 	actionCreate  = "key create"
 	actionList    = "key list"
 	actionRevoke  = "key revoke"
@@ -19,12 +21,13 @@ const (
 
 // command is the action asked on the command line and its flags. An empty
 // env means the configured ARNAKOFF_API_KEY_ENV; an empty listen, a
-// migration that exits once done.
+// migration or a backup that exits once done.
 type command struct {
 	action string
 	label  string
 	env    string
 	listen string
+	file   string
 	id     int64
 }
 
@@ -34,6 +37,8 @@ var errUsage = errors.New("usage")
 // usage is printed with every misuse.
 const usage = `usage:
   admin migrate [-listen <address>]
+  admin backup [-listen <address>]
+  admin restore -file <dump>
   admin key create -label <holder> [-env live|test]
   admin key list
   admin key revoke -id <id>`
@@ -57,6 +62,10 @@ func parseArgs(args []string, w io.Writer) (command, error) {
 		fs.Int64Var(&cmd.id, "id", 0, "identifier of the key, from key list")
 	case actionMigrate:
 		fs.StringVar(&cmd.listen, "listen", "", "serve /healthz and /readyz on this address until stopped, /readyz answering 200 once the migrations are applied")
+	case actionBackup:
+		fs.StringVar(&cmd.listen, "listen", "", "serve /healthz, /readyz and POST /backup on this address until stopped")
+	case actionRestore:
+		fs.StringVar(&cmd.file, "file", "", "the dump to restore, decrypted with age -d")
 	case actionList:
 	default:
 		return command{}, misuse(w, "unknown action")
@@ -73,8 +82,8 @@ func parseArgs(args []string, w io.Writer) (command, error) {
 // actionOf returns the action args start with and the arguments after it.
 func actionOf(args []string) (string, []string) {
 	switch {
-	case len(args) >= 1 && args[0] == actionMigrate:
-		return actionMigrate, args[1:]
+	case len(args) >= 1 && (args[0] == actionMigrate || args[0] == actionBackup || args[0] == actionRestore):
+		return args[0], args[1:]
 	case len(args) >= 2 && args[0] == "key":
 		return "key " + args[1], args[2:]
 	default:
@@ -90,6 +99,8 @@ func validate(cmd command, extra int) error {
 		return errors.New("no argument expected after the flags")
 	case cmd.action == actionCreate && cmd.label == "":
 		return errors.New("-label is required")
+	case cmd.action == actionRestore && cmd.file == "":
+		return errors.New("-file is required")
 	case cmd.action == actionRevoke && cmd.id <= 0:
 		return errors.New("-id must be a key identifier, from key list")
 	}

@@ -3,6 +3,8 @@
 // Command admin administers the API key store (ADR 0004).
 //
 //	admin migrate [-listen <address>]
+//	admin backup [-listen <address>]
+//	admin restore -file <dump>
 //	admin key create -label <holder> [-env live|test]
 //	admin key list
 //	admin key revoke -id <id>
@@ -14,6 +16,18 @@
 // and /readyz on that address until it is stopped, /readyz answering 200
 // once the migrations are applied and 503 before or after a failure: the
 // form a Serverless Container inside the private network runs (#259).
+//
+// backup copies the API keys, read in one read-only transaction, sealed
+// with age for ARNAKOFF_BACKUP_RECIPIENT, to ARNAKOFF_BACKUP_BUCKET on
+// Amazon S3 in eu-west-3 (#75): run it with a role that may only read the
+// tables. The login requests are left out. With -listen, it serves
+// /healthz, /readyz and POST /backup, which runs one backup: the form a
+// private Serverless Container runs, woken by a cron trigger.
+//
+// restore loads a dump, decrypted with age -d, into an empty store: it
+// migrates the schema up to the dump's version, loads the rows in one
+// transaction, then applies the later migrations, and refuses a database
+// that holds keys. Run it with the role of the migrations.
 //
 // key create draws a key, "ark_live_…" or "ark_test_…", stores its keyed
 // digest and prints the key once on standard output: it is never stored and

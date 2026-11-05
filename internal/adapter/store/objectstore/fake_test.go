@@ -23,6 +23,7 @@ type fakeS3 struct {
 	downloads int               // GetObject answered with a body.
 	notMod    int               // GetObject answered 304.
 	lastAuth  string            // Authorization field of the last request.
+	lastINM   string            // If-None-Match field of the last request.
 	failWith  int               // When not 0, the status of every answer.
 }
 
@@ -36,6 +37,7 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lastAuth = r.Header.Get("Authorization")
+	f.lastINM = r.Header.Get("If-None-Match")
 	if f.failWith != 0 {
 		w.WriteHeader(f.failWith)
 		return
@@ -99,6 +101,12 @@ func (f *fakeS3) auth() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.lastAuth
+}
+
+func (f *fakeS3) lastIfNoneMatch() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastINM
 }
 
 func (f *fakeS3) fail(status int) {

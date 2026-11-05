@@ -161,6 +161,10 @@ type Config struct {
 	// SnapshotBucket is the bucket the snapshots are stored in instead of
 	// SnapshotDir, when it is enabled.
 	SnapshotBucket SnapshotBucket
+
+	// Backup is where admin backup keeps the sealed copies of the key
+	// store.
+	Backup Backup
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -196,6 +200,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parseDemo(lookup, &cfg.Demo),
 		parseKeyRequest(lookup, &cfg.KeyRequest, &cfg.Demo),
 		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
+		parseBackup(lookup, &cfg.Backup),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err

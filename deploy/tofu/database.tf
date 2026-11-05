@@ -19,7 +19,8 @@ resource "scaleway_rdb_instance" "main" {
   password_wo         = var.db_admin_password
   password_wo_version = var.db_admin_password_version
 
-  # Daily backup kept 7 days (ADR 0005); the copy out of Scaleway is #75.
+  # Daily backup kept 7 days (ADR 0005); the copy out of Scaleway is
+  # backup.tf (#75).
   disable_backup            = false
   backup_schedule_frequency = 24
   backup_schedule_retention = 7
@@ -73,4 +74,22 @@ resource "scaleway_rdb_privilege" "api" {
   database_name = scaleway_rdb_database.api.name
   user_name     = scaleway_rdb_user.api.name
   permission    = "readwrite"
+}
+
+# The role of the backup container (backup.tf, #75): it may only read.
+# readonly covers the tables that exist when it is applied, as readwrite
+# above: apply again after a migration that adds a table.
+resource "scaleway_rdb_user" "backup" {
+  instance_id         = scaleway_rdb_instance.main.id
+  name                = "arnakoff_backup"
+  password_wo         = var.db_backup_password
+  password_wo_version = var.db_backup_password_version
+  is_admin            = false
+}
+
+resource "scaleway_rdb_privilege" "backup" {
+  instance_id   = scaleway_rdb_instance.main.id
+  database_name = scaleway_rdb_database.api.name
+  user_name     = scaleway_rdb_user.backup.name
+  permission    = "readonly"
 }

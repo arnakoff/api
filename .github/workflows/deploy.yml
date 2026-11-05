@@ -154,6 +154,29 @@ jobs:
             fi
           done
           scw container container update "$CONTAINER_ID" image="${TARGET}@${AMD64}" "${args[@]}" --wait -o json > /dev/null
+      # The backup container (deploy/tofu/backup.tf, #75), once
+      # SCW_BACKUP_CONTAINER_ID is set: the backup_container_id output of
+      # deploy/tofu. Its database URL is that of arnakoff_backup, which may
+      # only read; its bucket keys may only add objects (deploy/tofu-aws).
+      - name: Deploy the backup container
+        if: vars.SCW_BACKUP_CONTAINER_ID != ''
+        env:
+          CONTAINER_ID: ${{ vars.SCW_BACKUP_CONTAINER_ID }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+          ARNAKOFF_LOG_KEY: ${{ secrets.ARNAKOFF_LOG_KEY }}
+          ARNAKOFF_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY: ${{ secrets.BACKUP_BUCKET_ACCESS_KEY }}
+          ARNAKOFF_BACKUP_BUCKET_SECRET_KEY: ${{ secrets.BACKUP_BUCKET_SECRET_KEY }}
+        run: |
+          args=()
+          for name in ARNAKOFF_LOG_KEY ARNAKOFF_DATABASE_URL ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY ARNAKOFF_BACKUP_BUCKET_SECRET_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} of the backup container is not set"
+              exit 1
+            fi
+            args+=("secret-environment-variables.${name}=${!name}")
+          done
+          scw container container update "$CONTAINER_ID" image="${TARGET}@${AMD64}" "${args[@]}" --wait -o json > /dev/null
       # SCW_CONTAINER_ENDPOINT is the container_endpoint output of deploy/tofu.
       - name: Check the deployed API
         env:

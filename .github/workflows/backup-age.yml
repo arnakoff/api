@@ -1,0 +1,59 @@
+# Checks every day that the backup of the API keys ran (#75). A failed run is
+# the alert, as for the Probe workflow: GitHub notifies the user who created
+# the workflow, or last changed its cron, of a failed scheduled run.
+#
+# The backup container runs at 03:40 Europe/Paris (deploy/tofu,
+# backup_schedule). This job fails when the newest object under keys/ of the
+# bucket is older than MAX_AGE_HOURS, a day and a margin, or when there is
+# none. It assumes, through the OIDC token of its job on main, a role that
+# may only list the bucket (deploy/tofu-aws/iam.tf): no stored key, and no
+# right to read a backup, which is sealed anyway.
+#
+# Actions are pinned by full commit SHA (docs/standards.md).
+name: Backup age
+
+on:
+  schedule:
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: backup-age
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the age of the last backup
+    # Until the owner sets them up (docs/deploy.md), the variables are empty.
+    if: vars.AWS_BACKUP_CHECK_ROLE_ARN != '' && vars.AWS_BACKUP_BUCKET != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # The OIDC token the role trusts.
+      id-token: write
+    env:
+      BUCKET: ${{ vars.AWS_BACKUP_BUCKET }}
+      MAX_AGE_HOURS: "26"
+    steps:
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_BACKUP_CHECK_ROLE_ARN }}
+          aws-region: eu-west-3
+          role-session-name: backup-age
+          mask-aws-account-id: true
+      - name: Age of the newest backup
+        run: |
+          newest="$(aws s3api list-objects-v2 --bucket "$BUCKET" --prefix keys/ \
+            --query 'max_by(Contents, &LastModified).LastModified' --output text)"
+          if [ -z "$newest" ] || [ "$newest" = "None" ]; then
+            echo "::error::no backup under keys/ in $BUCKET"
+            exit 1
+          fi
+          age=$(( $(date +%s) - $(date -d "$newest" +%s) ))
+          echo "newest backup: $newest, $((age / 3600)) h ago"
+          if [ "$age" -gt $((MAX_AGE_HOURS * 3600)) ]; then
+            echo "::error::the newest backup is older than ${MAX_AGE_HOURS} h: $newest"
+            exit 1
+          fi
