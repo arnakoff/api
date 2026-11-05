@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Alert rules evaluated by the Scaleway Logs data source of the project
+# (#270), on the JSON logs of the containers: Cockpit has no preconfigured
+# alert for Serverless Containers, and the requests_per_second metric reads
+# 0 at the traffic of the API (observed on 05/11/2026), so the rules count log
+# lines instead. A firing alert goes to the Scaleway alert manager, which
+# emails the contacts of deploy/tofu/observability.tf. OpenTofu has no
+# resource for these rules: they are sent by hand, docs/deploy.md.
+#
+# Each line is {"message": "<the JSON line of slog>", …}: the first json
+# stage reads message, line_format makes it the line, the second json stage
+# reads the fields of slog (msg, status, error).
+name: arnakoff
+interval: 1m
+rules:
+  # More than 5 % of the requests of the last 10 minutes answered 5xx, with
+  # at least 30 of them (0.05 requests a second), decided by the owner: a
+  # single error among a few requests does not fire. Probes that pass are not
+  # logged (httpapi.passingProbe), so they do not dilute the share.
+  - alert: ApiHigh5xxRate
+    expr: |
+      (
+        sum(count_over_time({resource_name=~".+-api"} | json | line_format "{{.message}}" | json | msg="request" | status >= 500 [10m]))
+        /
+        sum(count_over_time({resource_name=~".+-api"} | json | line_format "{{.message}}" | json | msg="request" [10m]))
+      ) > 0.05
+      and
+      sum(count_over_time({resource_name=~".+-api"} | json | line_format "{{.message}}" | json | msg="request" [10m])) >= 30
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: "api : plus de 5 % de réponses 5xx sur 10 minutes"
+      description: "Part de réponses 5xx de l'API sur les 10 dernières minutes : {{ $value }} (1 = 100 %). Journaux : Cockpit, conteneur api, msg=request, status >= 500."
+
+  # A backup that failed (500 on POST /backup) or a backup container that
+  # cannot start, from its configuration or its secrets: either way tonight's
+  # copy is missing. The Backup age workflow would only notice it the next
+  # morning.
+  - alert: BackupFailed
+    expr: |
+      sum(count_over_time({resource_name=~".+-backup"} | json | line_format "{{.message}}" | json | msg=~"backup failed|cannot start" [15m])) > 0
+    for: 0m
+    labels:
+      severity: critical
+    annotations:
+      summary: "backup : la sauvegarde des clés a échoué"
+      description: "Le conteneur backup a journalisé « backup failed » ou « cannot start » dans les 15 dernières minutes. Journaux : Cockpit, conteneur backup."
