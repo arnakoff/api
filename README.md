@@ -76,7 +76,7 @@ Architecture propre ([ADR 0002](docs/adr/0002-architecture-propre.md)) : les dé
 
 ## Documentation
 
-- Décisions d'architecture : [0001 — Socle technique](docs/adr/0001-socle-technique.md), [0002 — Architecture propre](docs/adr/0002-architecture-propre.md), [0003 — Licences](docs/adr/0003-licences.md), [0004 — Stockage des clés et des quotas](docs/adr/0004-stockage-des-cles-et-des-quotas.md), [0005 — Hébergement de production](docs/adr/0005-hebergement.md), [0006 — Durées de conservation](docs/adr/0006-durees-de-conservation.md).
+- Décisions d'architecture : [0001 — Socle technique](docs/adr/0001-socle-technique.md), [0002 — Architecture propre](docs/adr/0002-architecture-propre.md), [0003 — Licences](docs/adr/0003-licences.md), [0004 — Stockage des clés et des quotas](docs/adr/0004-stockage-des-cles-et-des-quotas.md), [0005 — Hébergement de production](docs/adr/0005-hebergement.md), [0006 — Durées de conservation](docs/adr/0006-durees-de-conservation.md), [0007 — Rotation automatique des clés](docs/adr/0007-rotation-automatique-des-cles.md).
 - [Standards et versions](docs/standards.md), [sources](docs/sources.md), [signaux](docs/signals.md).
 - Le site et la documentation publique de l'API sont dans [`arnakoff/web`](https://github.com/arnakoff/web).
 
