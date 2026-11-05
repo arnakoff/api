@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.57.0](https://github.com/arnakoff/api/compare/v0.56.2...v0.57.0) (2026-11-05)
+
+
+### Features
+
+* **app:** back up the api keys daily out of scaleway, sealed with age ([#294](https://github.com/arnakoff/api/issues/294)) ([81cae86](https://github.com/arnakoff/api/commit/81cae86fff38c862abb4acc019c1022dfc6e8bcd)), closes [#75](https://github.com/arnakoff/api/issues/75)
+
 ## [0.56.2](https://github.com/arnakoff/api/compare/v0.56.1...v0.56.2) (2026-11-04)
 
 
