@@ -11,6 +11,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/arnakoff/api/internal/adapter/assembly"
+	"github.com/arnakoff/api/internal/adapter/httpapi"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
 	"github.com/arnakoff/api/internal/app"
 	"github.com/arnakoff/api/internal/domain"
@@ -38,8 +40,13 @@ func main() {
 // run is the work of the command, once its configuration is loaded and the
 // redacting logger is the slog default.
 func run(ctx context.Context, cfg config.Config, cmd command) error {
-	if cmd.action == actionMigrate {
+	switch cmd.action {
+	case actionMigrate:
 		return runMigrate(ctx, cfg, cmd.listen)
+	case actionBackup:
+		return runBackup(ctx, cfg, cmd.listen)
+	case actionRestore:
+		return runRestore(ctx, cfg, cmd.file)
 	}
 	if err := cfg.RequireKeyStore(); err != nil {
 		return err
@@ -70,6 +77,48 @@ func runMigrate(ctx context.Context, cfg config.Config, listen string) error {
 		return err
 	}
 	return serveMigration(ctx, ln, app.NewMigration(migrate), slog.Default())
+}
+
+// runBackup copies the key store, sealed, to its bucket, then exits, or
+// serves POST /backup on listen when it is set.
+func runBackup(ctx context.Context, cfg config.Config, listen string) error {
+	backup, closeBackup, err := assembly.Backup(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeBackup()
+	if listen == "" {
+		name, err := backup.Run(ctx)
+		if err != nil {
+			return err
+		}
+		slog.InfoContext(ctx, "backup kept", "object", name)
+		return nil
+	}
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", listen)
+	if err != nil {
+		return err
+	}
+	srv := httpapi.NewServer(httpapi.NewBackupHandler(backup, slog.Default()), slog.Default())
+	return httpapi.Serve(ctx, srv, ln)
+}
+
+// runRestore loads the decrypted dump in file into the configured
+// database.
+func runRestore(ctx context.Context, cfg config.Config, file string) error {
+	if err := cfg.RequireDatabase(); err != nil {
+		return err
+	}
+	f, err := os.Open(file) //nolint:gosec // G304: the dump the operator names.
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }() // Read only.
+	if err := postgres.Restore(ctx, string(cfg.DatabaseURL.Bytes()), f, postgres.WithCA([]byte(cfg.DatabaseCA))); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "dump restored and schema migrated")
+	return nil
 }
 
 // runKey runs a key action with admin, writing to standard output.

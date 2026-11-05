@@ -43,18 +43,25 @@ func (b SnapshotBucket) Enabled() bool {
 // parseSnapshotBucket sets *b from the variables of the bucket, read with
 // lookup. The name and the two keys are set together or not at all.
 func parseSnapshotBucket(lookup func(string) (string, bool), b *SnapshotBucket) error {
+	return parseBucket(lookup, [3]string{EnvSnapshotBucket, EnvSnapshotBucketAccessKey, EnvSnapshotBucketSecretKey},
+		&b.Name, &b.AccessKey, &b.SecretKey)
+}
+
+// parseBucket sets *name, *access and *secret from the variables vars, a
+// bucket name and its two keys, read with lookup: set together or not at
+// all.
+func parseBucket(lookup func(string) (string, bool), vars [3]string, name *string, access, secret *Secret) error {
 	err := errors.Join(
-		parse(lookup, EnvSnapshotBucket, "", &b.Name, parseBucketName),
-		parse(lookup, EnvSnapshotBucketAccessKey, "", &b.AccessKey, parseOptionalSecret),
-		parse(lookup, EnvSnapshotBucketSecretKey, "", &b.SecretKey, parseOptionalSecret),
+		parse(lookup, vars[0], "", name, parseBucketName),
+		parse(lookup, vars[1], "", access, parseOptionalSecret),
+		parse(lookup, vars[2], "", secret, parseOptionalSecret),
 	)
 	if err != nil {
 		return err
 	}
-	set := b.Name != ""
-	if set != (b.AccessKey != nil) || set != (b.SecretKey != nil) {
-		return fmt.Errorf("%w: %s, %s and %s: set all three to store the snapshots in a bucket, or none",
-			ErrInvalid, EnvSnapshotBucket, EnvSnapshotBucketAccessKey, EnvSnapshotBucketSecretKey)
+	set := *name != ""
+	if set != (*access != nil) || set != (*secret != nil) {
+		return fmt.Errorf("%w: %s, %s and %s: set all three, or none", ErrInvalid, vars[0], vars[1], vars[2])
 	}
 	return nil
 }

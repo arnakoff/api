@@ -64,6 +64,14 @@ Au premier déploiement, le point d'accès public de la base (`51.159.27.181:316
 - Les identifiants du rôle administrateur viennent d'OpenTofu au moment de l'`apply` : le mot de passe est dans l'état, chiffré sur la machine du propriétaire, tant que le conteneur existe, et n'est jamais dans la CI.
 - Les migrations restent un geste du propriétaire, avant le déploiement de la version qui les apporte.
 
+## Sauvegarde des clés hors de Scaleway (#75, 05/11/2026)
+
+Les sauvegardes automatiques de la base sont des instantanés, que l'on ne télécharge pas, et créer ou exporter une sauvegarde logique demande `RelationalDatabasesFullAccess`, qui permet aussi de supprimer la base. Décision du propriétaire, avec le moins de droits possible :
+
+- Un conteneur Serverless privé `backup`, sur le réseau privé, lancé chaque jour par un déclencheur cron, lit `api_keys` avec un rôle `readonly` (`admin backup -listen`). Aucune clé d'API Scaleway n'intervient.
+- Le dump est chiffré avec age pour la clé publique du propriétaire, puis ajouté dans un bucket Amazon S3 à Paris (`eu-west-3`, `deploy/tofu-aws`), par une clé qui ne peut qu'ajouter un objet nouveau. La copie est gardée 30 jours (ADR 0006).
+- AWS est un second hébergeur, américain : il ne reçoit que du chiffré, et ce transfert va au registre des traitements (#74).
+
 ## Conséquences
 
 - Coût estimé : Managed Database ≈ 11,40 € (0,0136 + 0,002 €/h) ; conteneur `api` toujours actif, 0,25 vCPU et 512 Mo, ≈ 6,40 € après l'offre gratuite mensuelle (200 000 vCPU-s et 400 000 Go-s), ≈ 13 € avec 0,5 vCPU ; Job, Object Storage et Container Registry de l'ordre de quelques euros, à vérifier.

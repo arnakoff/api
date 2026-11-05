@@ -2,7 +2,7 @@
 
 Procédure d'exploitation de l'API chez Scaleway, région fr-par (ADR 0005, #71). Trois acteurs :
 
-- **OpenTofu** (`deploy/tofu/`), lancé par le propriétaire depuis sa machine, crée et règle l'infrastructure : base, bucket, réseau privé, conteneur `api`, job `sync`, clés et politiques IAM. La CI ne le lance jamais.
+- **OpenTofu** (`deploy/tofu/`, et `deploy/tofu-aws/` pour le bucket des sauvegardes chez Amazon S3), lancé par le propriétaire depuis sa machine, crée et règle l'infrastructure : base, bucket, réseau privé, conteneurs `api` et `backup`, job `sync`, clés et politiques IAM. La CI ne le lance jamais.
 - **Le workflow Deploy** (`.github/workflows/deploy.yml`), dans l'environnement GitHub `production` qui exige la revue du propriétaire : il vérifie la signature de l'image, la copie dans Container Registry, recopie les secrets de l'environnement et déploie le digest.
 - **Le propriétaire**, à la main : les migrations (`admin migrate`), l'enregistrement DNS et la rotation des secrets.
 
@@ -146,6 +146,101 @@ Ensuite, chaque version publiée par release-please déclenche Deploy après le 
 
 Le domaine est protégé par `prevent_destroy` (#273) : un plan qui le détruirait ou le remplacerait échoue (`has prevent_destroy set, but the plan calls for it to be destroyed`) au lieu de le proposer. Ce message veut presque toujours dire qu'une variable manque à la commande. Pour retirer ou changer le domaine volontairement : enlever le bloc `lifecycle` de `scaleway_container_domain.api` dans une PR, appliquer, puis le remettre.
 
+## Sauvegarde des clés hors de Scaleway (#75)
+
+Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_keys`, chiffrée, dans un bucket Amazon S3 à Paris (`eu-west-3`), gardée 30 jours, avec le moins de droits possible.
+
+- **Pourquoi pas la sauvegarde gérée** : Scaleway crée ses sauvegardes automatiques au format instantané (`managed-databases-for-postgresql-and-mysql/how-to/manage-snapshots`), et créer ou exporter une sauvegarde logique demande `RelationalDatabasesFullAccess`, qui permet aussi de supprimer la base : il n'existe rien entre `RelationalDatabasesReadOnly` et `FullAccess` (`iam/policies-permissions/permission-sets`). Aucune clé d'API Scaleway ne sert donc à la sauvegarde.
+- **Comment** : le conteneur privé `backup` (`deploy/tofu/backup.tf`), sur le réseau privé, sans point d'accès, démarre au déclencheur cron de 03:40 (Europe/Paris), qui poste sur `/backup`, puis s'arrête (`min_scale = 0`). Il lance `admin backup -listen` avec le rôle `arnakoff_backup`, qui ne peut que lire (`readonly`). Le dump (archive tar : `manifest.json` et `api_keys.csv`, lus dans une seule transaction en lecture seule) est chiffré avec age pour la clé publique du propriétaire, puis ajouté sous `keys/<date UTC>.tar.age`. Les demandes de lien de connexion n'y sont pas copiées.
+- **Droits côté AWS** (`deploy/tofu-aws`) : la clé du conteneur ne peut que `s3:PutObject` sous `keys/`, et seulement avec `If-None-Match: *` ; elle ne lit, ne liste, ne remplace ni ne supprime rien. Le workflow `Backup age` liste le bucket avec le jeton OIDC de son job sur `main`, sans clé stockée, et ne peut lire aucune sauvegarde. Bucket privé, versionné, chiffré côté serveur, TLS imposé.
+- **Durée** : une sauvegarde expire au bout de 30 jours et sa version est supprimée le lendemain (ADR 0006).
+- **Surveillance** : `.github/workflows/backup-age.yml` échoue chaque matin si la sauvegarde la plus récente a plus de 26 heures, ou s'il n'y en a aucune ; GitHub prévient par e-mail comme pour la sonde. Un échec du conteneur se lit dans Cockpit (journaux du conteneur `backup`, message `backup failed`).
+- **Données personnelles** : la copie contient les adresses e-mail des titulaires de compte. Amazon n'en reçoit que le chiffré ; la clé privée age ne quitte jamais le propriétaire. Ce transfert à un sous-traitant américain, même en région Paris, est à inscrire au registre des traitements (#74), avec sa base légale (certification d'AWS au EU-US Data Privacy Framework « à vérifier »).
+
+### Mise en place (une fois)
+
+1. **Clé age**, sur la machine du propriétaire, avec age 1.3.2 ou plus récent :
+
+   ```sh
+   age-keygen -pq -o ~/.arnakoff/backup-age-key.txt   # clé privée : gestionnaire de mots de passe et copie hors ligne
+   age-keygen -y ~/.arnakoff/backup-age-key.txt       # clé publique age1pq1…, TF_VAR_backup_recipient
+   ```
+
+   Perdre la clé privée, c'est perdre toutes les sauvegardes.
+
+2. **Compte AWS** : l'organisation AWS `arnakoff` a deux comptes, `arnakoff-production`, qui porte le bucket, et `arnakoff-val`, que cette configuration ne touche pas. Le propriétaire s'y connecte par IAM Identity Center, avec l'accès administrateur sur `arnakoff-production`, sans clé d'accès longue durée. Profil SSO `arnakoff-production` dans `~/.aws/config`, créé une fois :
+
+   ```sh
+   aws configure sso --profile arnakoff-production   # SSO region : celle d'IAM Identity Center ; compte arnakoff-production, rôle administrateur ; Default client Region : eu-west-3
+   aws sso login --profile arnakoff-production       # avant chaque session : les identifiants SSO expirent
+   aws sts get-caller-identity --profile arnakoff-production --query Account --output text   # TF_VAR_aws_account_id
+   ```
+
+   `allowed_account_ids` fait échouer OpenTofu avant tout changement si le profil pointe sur un autre compte. Les clés Scaleway de l'état vont dans le profil `scaleway-arnakoff` de `~/.aws/credentials`, pour que le fournisseur AWS ne les prenne jamais :
+
+   ```ini
+   [scaleway-arnakoff]
+   aws_access_key_id = <access key Scaleway du profil arnakoff>
+   aws_secret_access_key = <secret key Scaleway du profil arnakoff>
+   ```
+
+3. **Bucket et identités AWS**, dans un terminal **sans** `AWS_ACCESS_KEY_ID` ni `AWS_SECRET_ACCESS_KEY` :
+
+   ```sh
+   unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+   cd deploy/tofu-aws
+   read -rs TF_VAR_state_passphrase && export TF_VAR_state_passphrase
+   export TF_VAR_aws_account_id=<ID du compte arnakoff-production>
+   aws sso login --profile arnakoff-production
+   tofu init && tofu apply
+   gh variable set AWS_BACKUP_BUCKET --body "$(tofu output -raw backup_bucket)"
+   gh variable set AWS_BACKUP_CHECK_ROLE_ARN --body "$(tofu output -raw backup_check_role_arn)"
+   tofu output -raw backup_access_key | gh secret set BACKUP_BUCKET_ACCESS_KEY --env production
+   tofu output -raw backup_secret_key | gh secret set BACKUP_BUCKET_SECRET_KEY --env production
+   ```
+
+   Les deux variables sont des variables de dépôt : le workflow `Backup age` ne tourne pas dans l'environnement `production`. Le `sub` attendu (`github_subject`) porte les identifiants immuables du dépôt, créé après le 15/07/2026 ; « à vérifier » au premier lancement de `Backup age` : un refus `Not authorized to perform sts:AssumeRoleWithWebIdentity` veut dire que le `sub` diffère.
+
+4. **Conteneur et rôle**, dans `deploy/tofu`, avec les variables habituelles de l'étape 4 et :
+
+   ```sh
+   read -rs TF_VAR_db_backup_password && export TF_VAR_db_backup_password   # sans espace, gestionnaire de mots de passe
+   export TF_VAR_backup_bucket=arnakoff-key-backups
+   export TF_VAR_backup_recipient=<clé publique age1pq1…>
+   tofu apply
+   gh variable set SCW_BACKUP_CONTAINER_ID --env production --body "$(tofu output -raw backup_container_id)"
+   printf 'postgres://arnakoff_backup:%s@%s:%s/arnakoff?sslmode=verify-full' \
+     "$(printf %s "$TF_VAR_db_backup_password" | jq -sRj @uri)" \
+     "$(tofu output -raw database_private_host)" "$(tofu output -raw database_private_port)" \
+     | gh secret set BACKUP_DATABASE_URL --env production
+   ```
+
+5. **Déploiement** : le workflow Deploy suivant donne au conteneur son image et ses secrets. La première sauvegarde a lieu à 03:40 ; le matin même, Actions → Backup age doit passer. « À vérifier » au premier usage : qu'un conteneur privé à `min_scale = 0` démarre bien à son déclencheur cron.
+
+### Restauration
+
+`admin restore` charge un dump dans une base **vide** : il migre le schéma jusqu'à la version du dump, charge les lignes en une seule transaction, recale la séquence des identifiants, puis applique les migrations suivantes ; il refuse une base qui contient déjà des clés ou un schéma plus récent que le dump.
+
+**Exercice, sur la machine du propriétaire**, après la mise en place puis une fois par trimestre :
+
+```sh
+aws sso login --profile arnakoff-production
+aws s3 cp "s3://arnakoff-key-backups/keys/<date>.tar.age" . --profile arnakoff-production
+age -d -i ~/.arnakoff/backup-age-key.txt -o keys.tar "<date>.tar.age"
+docker run -d --name restore -e POSTGRES_PASSWORD=test -p 127.0.0.1:5433:5432 postgres:17.11
+export ARNAKOFF_LOG_KEY="$(openssl rand -hex 32)" ARNAKOFF_API_KEY_SECRET="$(openssl rand -hex 32)"
+export ARNAKOFF_DATABASE_URL='postgres://postgres:test@127.0.0.1:5433/postgres?sslmode=disable'
+go run ./cmd/admin restore -file keys.tar && go run ./cmd/admin key list
+docker rm -f restore && rm keys.tar "<date>.tar.age"
+```
+
+`key list` doit montrer les clés de la production à la date du dump. `keys.tar` est en clair : il contient des adresses e-mail, ne quitte pas la machine et se supprime aussitôt.
+
+**En production** :
+
+- base perdue ou abîmée depuis moins de 7 jours : la sauvegarde gérée de Scaleway suffit (console → Managed Database → Backups → Restore), sans la copie AWS ;
+- Scaleway perdu, ou sauvegarde gérée inutilisable : nouvelle base, puis `admin restore -file keys.tar` avec le rôle des migrations, lancé d'un hôte qui joint la base. La base de production n'ayant pas de point d'accès public, il faut un hôte sur le réseau privé : procédure à écrire et à exercer (issue de suivi). `ARNAKOFF_API_KEY_SECRET` n'est pas dans la sauvegarde (ADR 0004) : sans lui, les empreintes restaurées ne vérifient plus aucune clé ; il se garde aussi dans le gestionnaire de mots de passe du propriétaire.
+
 ## Observabilité et alertes
 
 Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Cockpit collecte seul, des alertes par e-mail, une sonde externe dans GitHub Actions. L'application n'envoie rien à Cockpit.
@@ -177,10 +272,11 @@ Le registre garde chaque version publiée et refuse de la modifier : le job s'ar
 ## Opérations courantes
 
 - **Retour arrière** : Actions → Deploy → Run workflow avec la version précédente. Une migration n'est jamais annulée par un retour arrière : une migration doit rester compatible avec la version précédente du code.
-- **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 avec cette version (`migrate=true`, attendre `ready`, puis `tofu apply` sans `migrate`, qui retire le conteneur et étend les droits).
+- **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 avec cette version (`migrate=true`, attendre `ready`, puis `tofu apply` sans `migrate`, qui retire le conteneur et étend les droits, `readonly` du rôle `arnakoff_backup` compris). Une migration qui ajoute une table dit si la sauvegarde la copie (`backedUp` ou `leftOut`, `internal/adapter/store/postgres/backup.go`) : un test l'exige.
 - **Rotation** :
   - clés du bucket : nouvelle `key_expiry`, `tofu apply` (les clés sont recréées), puis l'étape 5 pour les clés et un déploiement ;
-  - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL`, déploiement ;
+  - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`, `db_backup_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL` (ou `BACKUP_DATABASE_URL`), déploiement ;
+  - clé AWS du conteneur `backup` : `tofu apply -replace=aws_iam_access_key.backup` dans `deploy/tofu-aws`, nouveaux `BACKUP_BUCKET_ACCESS_KEY` et `BACKUP_BUCKET_SECRET_KEY`, déploiement ;
   - clé de la CI `ci-deploy` : 30 jours, manuelle (#238).
   - clé du registre MCP : nouvelle paire Ed25519, nouveau TXT à l'apex de `arnakoff.com` (Cloudflare) **et suppression de l'ancien**, que le registre essaie en premier, puis nouveau secret `MCP_PRIVATE_KEY`.
 - **Secrets du job `sync`** : réécrits à chaque déploiement dans Secret Manager (`disable-previous=true`).

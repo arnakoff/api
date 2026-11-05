@@ -21,6 +21,9 @@ func TestParseArgs(t *testing.T) {
 		{"create", []string{"key", "create", "-label", "Bot Discord"}, command{action: actionCreate, label: "Bot Discord"}},
 		{"create for test", []string{"key", "create", "-env", "test", "-label", "x"}, command{action: actionCreate, label: "x", env: "test"}},
 		{"list", []string{"key", "list"}, command{action: actionList}},
+		{"backup", []string{"backup"}, command{action: actionBackup}},
+		{"backup listening", []string{"backup", "-listen", ":8080"}, command{action: actionBackup, listen: ":8080"}},
+		{"restore", []string{"restore", "-file", "keys.tar"}, command{action: actionRestore, file: "keys.tar"}},
 		{"revoke", []string{"key", "revoke", "-id", "42"}, command{action: actionRevoke, id: 42}},
 	}
 	for _, tt := range tests {
@@ -49,6 +52,10 @@ func TestParseArgsRejectsMisuse(t *testing.T) {
 		{"key", "revoke"},
 		{"key", "revoke", "-id", "0"},
 		{"key", "revoke", "-id", "abc"},
+		{"backup", "now"},
+		{"backup", "-file", "keys.tar"},
+		{"restore"},
+		{"restore", "-listen", ":8080"},
 	} {
 		if _, err := parseArgs(args, io.Discard); err == nil || errors.Is(err, flag.ErrHelp) {
 			t.Errorf("parseArgs(%q) error = %v, want a usage error", args, err)
