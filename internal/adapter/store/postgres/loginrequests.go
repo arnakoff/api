@@ -20,8 +20,8 @@ func (k *Keys) CreateLoginRequest(ctx context.Context, r domain.LoginRequest) er
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 	_, err := k.pool.Exec(ctx,
-		`INSERT INTO login_requests (token_digest, email, created_at, expires_at) VALUES ($1, $2, $3, $4)`,
-		r.Digest[:], r.Email.String(), r.CreatedAt, r.ExpiresAt)
+		`INSERT INTO login_requests (token_digest, email, account, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)`,
+		r.Digest[:], r.Email.String(), r.Email.Account(), r.CreatedAt, r.ExpiresAt)
 	if err != nil {
 		return fmt.Errorf("insert login request: %w", err)
 	}
@@ -74,8 +74,8 @@ func (k *Keys) ReplaceAccountKey(ctx context.Context, r domain.KeyRecord) (domai
 	defer cancel()
 	err := pgx.BeginFunc(ctx, k.pool, func(tx pgx.Tx) error {
 		account := r.Email.Account()
-		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", account); err != nil {
-			return fmt.Errorf("lock account: %w", err)
+		if err := lockAccount(ctx, tx, account); err != nil {
+			return err
 		}
 		if _, err := tx.Exec(ctx,
 			// GREATEST: the clocks of two instances may differ.

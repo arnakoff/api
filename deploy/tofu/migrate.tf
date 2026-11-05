@@ -56,7 +56,7 @@ resource "scaleway_container" "migrate" {
     ARNAKOFF_DATABASE_CA = scaleway_rdb_instance.main.certificate
   }
   secret_environment_variables = {
-    ARNAKOFF_DATABASE_URL = "postgres://${scaleway_rdb_instance.main.user_name}:${urlencode(var.db_admin_password)}@${local.database_private_host}:${scaleway_rdb_instance.main.private_network[0].port}/${scaleway_rdb_database.api.name}?sslmode=verify-full"
+    ARNAKOFF_DATABASE_URL = "${local.admin_database_server}/${scaleway_rdb_database.api.name}?sslmode=verify-full"
     ARNAKOFF_LOG_KEY      = var.migrate_log_key
   }
 }

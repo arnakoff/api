@@ -8,6 +8,7 @@
 //	admin key create -label <holder> [-env live|test]
 //	admin key list
 //	admin key revoke -id <id>
+//	admin account erase [-listen <address>]
 //
 // migrate applies the embedded SQL migrations not yet applied, under an
 // advisory lock: run it with a role that may change the schema, distinct
@@ -41,6 +42,18 @@
 // characters), its dates and its label, never the key. key revoke revokes a
 // key in the store at once; revoking it again keeps the first date. A
 // running API is notified of the revocation and refuses the key at once.
+//
+// account erase answers a request for erasure (RGPD, article 17, #304): it
+// deletes, in one transaction, every key of the account of
+// ARNAKOFF_ERASE_EMAIL, active or revoked, and every login request to it,
+// whatever case the address is typed in, and logs how many of each, the
+// address as its pseudonym only. A running API is notified of each deleted
+// key and refuses it at once, as a revoked one. Erasing again deletes
+// nothing more. The address is read from the environment, never from the
+// command line, which shells and process listings keep. With -listen, it
+// serves /healthz and /readyz until it is stopped, /readyz answering 200
+// once the account is erased: the form a Serverless Container inside the
+// private network runs.
 //
 // The database is ARNAKOFF_DATABASE_URL, which must use
 // sslmode=verify-full beyond the local machine, verified against the PEM

@@ -391,6 +391,40 @@ openssl pkey -in ~/.arnakoff/mcp-registry-key.pem -noout -text | grep -A3 "priv:
 
 Le registre garde chaque version publiée et refuse de la modifier : le job s'arrête avant la connexion si la version de `server.json` n'est pas celle du tag, et relancer le job d'une version déjà publiée échoue. Publication à la main : `mcp-publisher login dns`, puis `mcp-publisher publish` (#66).
 
+## Effacement d'un compte (droit à l'effacement, #304)
+
+Une personne peut demander l'effacement de son compte (RGPD, article 17) : son adresse e-mail, ses clés et leurs libellés, ses demandes de lien de connexion. Le conteneur temporaire `erase` (`deploy/tofu/erase.tf`), sur le réseau privé comme `restore`, lance `admin account erase -listen` : il supprime en une transaction toutes les clés du compte, actives ou révoquées, et ses demandes de lien, quelle que soit la casse de l'adresse, puis répond 200 sur `/readyz`. Chaque clé supprimée est notifiée aux instances de l'API, qui la refusent aussitôt (401), comme une clé révoquée.
+
+- **Délai** : répondre dans le mois qui suit la réception de la demande (RGPD, article 12, paragraphe 3).
+- **Identité** : n'effacer qu'à la demande de la personne qui reçoit les e-mails de l'adresse, par exemple une demande envoyée depuis cette adresse, ou confirmée en réponse à un message envoyé à cette adresse.
+- **Image** : il faut une image qui contient `admin account erase`, la première version publiée avec #304 ou une plus récente. Sa migration 0004 (étape 6, « Nouvelle migration ») range chaque demande de lien sous son compte ; celles d'avant n'en ont pas et l'effacement ne les voit pas : ne pas effacer dans les 25 heures qui suivent la migration, le temps que la purge les supprime (lien valable 15 minutes, puis 24 heures de conservation).
+
+Dans le terminal d'OpenTofu (variables de l'étape 4, `TF_VAR_image` sur cette version, dont `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY`, les clés Scaleway de l'état). L'adresse se saisit sans écho : elle n'apparaît ni dans l'historique du shell ni à l'écran.
+
+```sh
+cd deploy/tofu
+scws3() { aws --endpoint-url https://s3.fr-par.scw.cloud --region fr-par "$@"; }
+versions() { scws3 s3api list-object-versions --bucket arnakoff-tofu-state --prefix production.tfstate   --query 'Versions[?Key==`production.tfstate`].[VersionId,IsLatest]' --output text | tr -d '
+'; }
+versions | awk '{print $1}' > ../../state-before.txt   # versions de l'état avant l'effacement
+read -rs TF_VAR_erase_email && export TF_VAR_erase_email
+export TF_VAR_erase_log_key="$(openssl rand -hex 32)"
+tofu apply -var erase=true
+scw container container get "$(tofu output -raw erase_container_id)" | grep '^Status'   # ready : compte effacé
+tofu apply                                         # sans erase : retire le conteneur et ses secrets
+versions | while read -r version latest; do
+  grep -qx "$version" ../../state-before.txt || [ "$latest" = True ]     || scws3 s3api delete-object --bucket arnakoff-tofu-state --key production.tfstate --version-id "$version"
+done
+versions | awk '{print $1}' | grep -cvxFf ../../state-before.txt   # 1 : seule la version courante, sans l'adresse, est nouvelle
+rm ../../state-before.txt && unset TF_VAR_erase_email TF_VAR_erase_log_key
+```
+
+- **Contrôle** : le conteneur passe `ready`, et ses journaux (`scw container container logs "$(tofu output -raw erase_container_id)"`, ou Cockpit) montrent `account erased` avec le nombre de clés (`keys`) et de demandes de lien (`login_requests`) supprimées, l'adresse sous forme masquée (`***@exemple.fr`) et pseudonyme. `keys=0 login_requests=0` : aucun compte à cette adresse, ou déjà effacé ; l'effacement peut être relancé sans risque. Un échec laisse le conteneur non prêt et journalise `step failed` avec la cause ; après correction, `tofu apply -var erase=true` le relance.
+- **État OpenTofu** : l'adresse passe par l'état, chiffré (le fournisseur `scaleway/scaleway` 2.89.0 n'a pas d'attribut en écriture seule pour les secrets d'un conteneur). Les versions de l'état écrites pendant l'effacement la contiennent : la boucle ci-dessus les supprime et ne garde que la version courante, écrite par le `tofu apply` sans `erase`, qui ne la contient plus.
+- **Sauvegardes** : les lignes effacées restent dans les sauvegardes jusqu'à leur expiration, au plus 7 jours pour la sauvegarde automatique de la base chez Scaleway et 30 jours pour la copie sur Amazon S3 (ADR 0006). Une restauration d'une sauvegarde antérieure à un effacement ramène le compte : refaire alors les effacements des 30 derniers jours, d'après les demandes reçues.
+- **Exercice** : à faire une fois avec la première version publiée avec #304, sur une adresse de test dont on a demandé une clé ; procédure non encore exécutée en production (« à vérifier »).
+- **Réponse** : confirmer l'effacement à la personne, avec la durée de conservation dans les sauvegardes ci-dessus.
+
 ## Opérations courantes
 
 - **Retour arrière** : Actions → Deploy → Run workflow avec la version précédente. Une migration n'est jamais annulée par un retour arrière : une migration doit rester compatible avec la version précédente du code.

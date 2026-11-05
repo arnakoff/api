@@ -80,7 +80,7 @@ resource "scaleway_container" "restore" {
     ARNAKOFF_DATABASE_CA = scaleway_rdb_instance.main.certificate
   }
   secret_environment_variables = {
-    ARNAKOFF_DATABASE_URL     = "postgres://${scaleway_rdb_instance.main.user_name}:${urlencode(var.db_admin_password)}@${local.database_private_host}:${scaleway_rdb_instance.main.private_network[0].port}/${local.restore_database}?sslmode=verify-full"
+    ARNAKOFF_DATABASE_URL     = "${local.admin_database_server}/${local.restore_database}?sslmode=verify-full"
     ARNAKOFF_LOG_KEY          = var.restore_log_key
     ARNAKOFF_RESTORE_URL      = var.restore_url
     ARNAKOFF_RESTORE_IDENTITY = var.restore_identity
