@@ -52,9 +52,15 @@ terraform {
   }
 }
 
+# The account arnakoff-production of the organisation arnakoff, through the
+# IAM Identity Center profile arnakoff-production (`aws sso login`): the
+# provider reads SSO profiles from the shared configuration file (AWS SDK
+# for Go v2, service/sso in its go.mod). allowed_account_ids stops a run
+# against arnakoff-val or any other account before it changes anything.
 provider "aws" {
-  region  = "eu-west-3"
-  profile = "arnakoff"
+  region              = "eu-west-3"
+  profile             = "arnakoff-production"
+  allowed_account_ids = [var.aws_account_id]
 
   default_tags {
     tags = {

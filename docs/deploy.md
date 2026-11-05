@@ -168,7 +168,15 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
 
    Perdre la clé privée, c'est perdre toutes les sauvegardes.
 
-2. **Compte AWS** : un utilisateur IAM du propriétaire, avec MFA, dans le profil `arnakoff` de `~/.aws/credentials`. Les clés Scaleway de l'état vont dans le profil `scaleway-arnakoff` du même fichier, pour que le fournisseur AWS ne les prenne jamais :
+2. **Compte AWS** : l'organisation AWS `arnakoff` a deux comptes, `arnakoff-production`, qui porte le bucket, et `arnakoff-val`, que cette configuration ne touche pas. Le propriétaire s'y connecte par IAM Identity Center, avec l'accès administrateur sur `arnakoff-production`, sans clé d'accès longue durée. Profil SSO `arnakoff-production` dans `~/.aws/config`, créé une fois :
+
+   ```sh
+   aws configure sso --profile arnakoff-production   # compte arnakoff-production, rôle administrateur, région eu-west-3
+   aws sso login --profile arnakoff-production       # avant chaque session : les identifiants SSO expirent
+   aws sts get-caller-identity --profile arnakoff-production --query Account --output text   # TF_VAR_aws_account_id
+   ```
+
+   `allowed_account_ids` fait échouer OpenTofu avant tout changement si le profil pointe sur un autre compte. Les clés Scaleway de l'état vont dans le profil `scaleway-arnakoff` de `~/.aws/credentials`, pour que le fournisseur AWS ne les prenne jamais :
 
    ```ini
    [scaleway-arnakoff]
@@ -182,6 +190,8 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
    cd deploy/tofu-aws
    read -rs TF_VAR_state_passphrase && export TF_VAR_state_passphrase
+   export TF_VAR_aws_account_id=<ID du compte arnakoff-production>
+   aws sso login --profile arnakoff-production
    tofu init && tofu apply
    gh variable set AWS_BACKUP_BUCKET --body "$(tofu output -raw backup_bucket)"
    gh variable set AWS_BACKUP_CHECK_ROLE_ARN --body "$(tofu output -raw backup_check_role_arn)"
@@ -214,7 +224,8 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
 **Exercice, sur la machine du propriétaire**, après la mise en place puis une fois par trimestre :
 
 ```sh
-aws s3 cp "s3://arnakoff-key-backups/keys/<date>.tar.age" . --profile arnakoff
+aws sso login --profile arnakoff-production
+aws s3 cp "s3://arnakoff-key-backups/keys/<date>.tar.age" . --profile arnakoff-production
 age -d -i ~/.arnakoff/backup-age-key.txt -o keys.tar "<date>.tar.age"
 docker run -d --name restore -e POSTGRES_PASSWORD=test -p 127.0.0.1:5433:5432 postgres:17.11
 export ARNAKOFF_LOG_KEY="$(openssl rand -hex 32)" ARNAKOFF_API_KEY_SECRET="$(openssl rand -hex 32)"

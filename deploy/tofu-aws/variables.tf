@@ -6,6 +6,16 @@ variable "state_passphrase" {
   sensitive   = true
 }
 
+variable "aws_account_id" {
+  description = "ID of the account arnakoff-production, the only one this configuration may change: `aws sts get-caller-identity --profile arnakoff-production --query Account`."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must be a 12-digit AWS account ID."
+  }
+}
+
 variable "bucket_name" {
   description = "Name of the bucket of the backups, unique across Amazon S3."
   type        = string
