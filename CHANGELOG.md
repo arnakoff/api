@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.0](https://github.com/arnakoff/api/compare/v0.59.1...v0.60.0) (2026-11-05)
+
+
+### Features
+
+* **app:** erase an account on request ([#319](https://github.com/arnakoff/api/issues/319)) ([b3ee3f0](https://github.com/arnakoff/api/commit/b3ee3f09f4833bab1d7126744372513c80bd9d74)), closes [#304](https://github.com/arnakoff/api/issues/304)
+
 ## [0.59.1](https://github.com/arnakoff/api/compare/v0.59.0...v0.59.1) (2026-11-05)
 
 
