@@ -32,7 +32,7 @@ const timeout = 15 * time.Second
 // Config configures a Sender.
 type Config struct {
 	// Addr is the host and port of the server, which speaks TLS at once,
-	// such as "smtp.mail.ovh.net:465".
+	// such as "smtp.tem.scaleway.com:465".
 	Addr string
 	// Username and Password authenticate with AUTH PLAIN, sent over TLS
 	// only.
@@ -96,8 +96,15 @@ func (s *Sender) Send(ctx context.Context, to domain.Email, subject, body string
 // dial connects to the server over TLS, verifying its certificate, and
 // returns a client bound by the deadline of ctx.
 func (s *Sender) dial(ctx context.Context) (*smtp.Client, error) {
-	d := &tls.Dialer{Config: &tls.Config{ServerName: s.host, RootCAs: s.cfg.RootCAs, MinVersion: tls.VersionTLS12}}
-	conn, err := d.DialContext(ctx, "tcp", s.cfg.Addr)
+	return dialTLS(ctx, s.cfg.Addr, s.host, s.cfg.RootCAs)
+}
+
+// dialTLS connects to the server addr of name host over TLS, verifying its
+// certificate against roots, those of the system when nil, and returns a
+// client bound by the deadline of ctx.
+func dialTLS(ctx context.Context, addr, host string, roots *x509.CertPool) (*smtp.Client, error) {
+	d := &tls.Dialer{Config: &tls.Config{ServerName: host, RootCAs: roots, MinVersion: tls.VersionTLS12}}
+	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("smtp connect: %w", err)
 	}
@@ -106,7 +113,7 @@ func (s *Sender) dial(ctx context.Context) (*smtp.Client, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("smtp deadline: %w", err)
 	}
-	c, err := smtp.NewClient(conn, s.host)
+	c, err := smtp.NewClient(conn, host)
 	if err != nil {
 		_ = conn.Close()
 		return nil, replyError("greeting", err)

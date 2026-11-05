@@ -28,7 +28,8 @@ type ContainerSecretsOptions struct {
 	ContainerID string
 
 	// AccessVar and SecretVar are its secret environment variables that
-	// hold the access key and the secret key.
+	// hold the access key and the secret key. AccessVar is empty for a
+	// consumer of the secret key alone, such as an SMTP password (#295).
 	AccessVar, SecretVar string
 
 	// Timeout bounds the wait for the container to be ready again, 10
@@ -37,7 +38,7 @@ type ContainerSecretsOptions struct {
 	Timeout, Interval time.Duration
 }
 
-// ContainerSecrets sets a key in two secret environment variables of a
+// ContainerSecrets sets a key in the secret environment variables of a
 // Serverless Container. It implements app.CredentialInstaller.
 type ContainerSecrets struct {
 	api  *container.API
@@ -54,26 +55,22 @@ func NewContainerSecrets(client *scw.Client, opts ContainerSecretsOptions) (*Con
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("%w: %w", ErrInvalidOptions, err)
-	case opts.ContainerID == "" || opts.AccessVar == "" || opts.SecretVar == "":
-		return nil, fmt.Errorf("%w: a container and two variables are required", ErrInvalidOptions)
+	case opts.ContainerID == "" || opts.SecretVar == "":
+		return nil, fmt.Errorf("%w: a container and the variable of the secret key are required", ErrInvalidOptions)
 	}
 	return &ContainerSecrets{api: container.NewAPI(client), opts: opts}, nil
 }
 
-// InstallCredential sets c in the two variables and waits until the
+// InstallCredential sets c in the variables and waits until the
 // container, redeployed with them, is ready. It goes through the
 // containers/v1beta1 API, which keeps the secrets it is not given; the
 // traffic moves to the new version once it is ready (ADR 0007).
 func (s *ContainerSecrets) InstallCredential(ctx context.Context, c app.Credential) error {
-	accessKey, secretKey := c.AccessKey, string(c.SecretKey)
 	//nolint:staticcheck // SA1019: ADR 0007 keeps v1beta1, which keeps the secrets it is not given; v1 takes a whole table (#308).
 	_, err := s.api.UpdateContainer(&container.UpdateContainerRequest{
-		Region:      region,
-		ContainerID: s.opts.ContainerID,
-		SecretEnvironmentVariables: []*container.Secret{
-			{Key: s.opts.AccessVar, Value: &accessKey},
-			{Key: s.opts.SecretVar, Value: &secretKey},
-		},
+		Region:                     region,
+		ContainerID:                s.opts.ContainerID,
+		SecretEnvironmentVariables: s.secrets(c),
 	}, scw.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("set the key in the secrets of the container %s: %w", s.opts.ContainerID, err)
@@ -91,6 +88,18 @@ func (s *ContainerSecrets) InstallCredential(ctx context.Context, c app.Credenti
 		return fmt.Errorf("container %s is %s after its update: %s", s.opts.ContainerID, ready.Status, message(ready.ErrorMessage))
 	}
 	return nil
+}
+
+// secrets are the variables that receive c: its access key, unless
+// AccessVar is empty, then its secret key.
+func (s *ContainerSecrets) secrets(c app.Credential) []*container.Secret {
+	secretKey := string(c.SecretKey)
+	vars := []*container.Secret{{Key: s.opts.SecretVar, Value: &secretKey}}
+	if s.opts.AccessVar == "" {
+		return vars
+	}
+	accessKey := c.AccessKey
+	return append([]*container.Secret{{Key: s.opts.AccessVar, Value: &accessKey}}, vars...)
 }
 
 // message returns *m, or "no message".

@@ -29,6 +29,9 @@ func rotateVars() map[string]string {
 		"ARNAKOFF_ROTATE_APP_SYNC":              "33333333-3333-3333-3333-333333333333",
 		"ARNAKOFF_ROTATE_APP_CI":                "55555555-5555-5555-5555-555555555555",
 		"ARNAKOFF_ROTATE_APP_SELF":              "66666666-6666-6666-6666-666666666666",
+		"ARNAKOFF_ROTATE_APP_MAIL":              "dddddddd-dddd-dddd-dddd-dddddddddddd",
+		"ARNAKOFF_ROTATE_SMTP_ADDR":             "smtp.tem.scaleway.com:465",
+		"ARNAKOFF_ROTATE_SMTP_USERNAME":         "11111111-1111-1111-1111-111111111111",
 		"ARNAKOFF_ROTATE_API_CONTAINER_ID":      "77777777-7777-7777-7777-777777777777",
 		"ARNAKOFF_ROTATE_SYNC_ACCESS_SECRET_ID": "88888888-8888-8888-8888-888888888888",
 		"ARNAKOFF_ROTATE_SYNC_SECRET_SECRET_ID": "99999999-9999-9999-9999-999999999999",
@@ -52,7 +55,9 @@ func TestLoadReadsTheRotation(t *testing.T) {
 	r := cfg.Rotate
 	if r.AccessKey != "SCWROTATORXXXXXXXXXX" || string(r.SecretKey.Bytes()) != rotateSecretKey ||
 		r.Apps.CI != "55555555-5555-5555-5555-555555555555" || r.GitHubApp.InstallationID != 4242 ||
-		string(r.GitHubApp.PrivateKey.Bytes()) != rotateAppPEMBody || r.Bucket != "arnakoff-snapshots" || r.OrganizationID != "cccccccc-cccc-cccc-cccc-cccccccccccc" {
+		string(r.GitHubApp.PrivateKey.Bytes()) != rotateAppPEMBody || r.Bucket != "arnakoff-snapshots" || r.OrganizationID != "cccccccc-cccc-cccc-cccc-cccccccccccc" ||
+		r.Apps.Mail != "dddddddd-dddd-dddd-dddd-dddddddddddd" || r.SMTP.Addr != "smtp.tem.scaleway.com:465" ||
+		r.SMTP.Username != "11111111-1111-1111-1111-111111111111" {
 		t.Errorf("Rotate = %+v", r)
 	}
 	if s := fmt.Sprintf("%v %+v", r, cfg); strings.Contains(s, rotateSecretKey) || strings.Contains(s, "TESTPEM") {

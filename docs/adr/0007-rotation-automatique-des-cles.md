@@ -52,11 +52,15 @@ Pour chaque application dont la clé doit changer, dans cet ordre :
    - il écrit celle de `sync` dans Secret Manager, en désactivant la version précédente ;
    - il met à jour les deux secrets du bucket du conteneur `api` par l'API `containers/v1beta1`, qui laisse les autres secrets intacts, puis attend que le conteneur soit prêt ;
    - il supprime l'ancienne clé de chaque application.
-2. **`ci-deploy`** :
+2. **`arnakoff-mail`** (ajoutée par #295, le 05/11/2026) :
+   - le job crée la nouvelle clé et vérifie qu'elle s'authentifie auprès du serveur SMTP de Scaleway Transactional Email (`EHLO`, `AUTH PLAIN`, `QUIT`, sans envoyer de courrier) ;
+   - il l'écrit dans le secret `ARNAKOFF_SMTP_PASSWORD` du conteneur `api` par l'API `containers/v1beta1`, puis attend que le conteneur soit prêt. L'identifiant SMTP, le projet, ne change pas ;
+   - il supprime l'ancienne clé.
+3. **`ci-deploy`** :
    - le job crée la nouvelle clé ;
    - il l'écrit dans `SCW_ACCESS_KEY` et `SCW_SECRET_KEY` de l'environnement GitHub `production`, par la GitHub App ;
    - il supprime l'ancienne clé. Un déploiement en cours à ce moment échoue et se relance.
-3. **Sa propre clé** :
+4. **Sa propre clé** :
    - le job lit sa clé dans Secret Manager, en crée une nouvelle et l'écrit comme nouvelle version de son secret, en désactivant la précédente ;
    - il supprime l'ancienne clé en tout dernier.
 
@@ -64,7 +68,7 @@ Une ancienne clé n'est supprimée qu'après que la nouvelle est en place et vé
 
 ### Liste fermée
 
-Les identifiants des quatre applications sont une liste fermée, fixée par la configuration du job et vérifiée par le code. Le job refuse toute autre application, et refuse de toucher une clé dont l'application n'est pas dans la liste.
+Les identifiants des cinq applications sont une liste fermée, fixée par la configuration du job et vérifiée par le code. Le job refuse toute autre application, et refuse de toucher une clé dont l'application n'est pas dans la liste.
 
 ### Exception au moindre privilège
 

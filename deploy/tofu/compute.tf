@@ -60,8 +60,8 @@ resource "scaleway_container" "api" {
     ARNAKOFF_DATABASE_CA      = scaleway_rdb_instance.main.certificate
     ARNAKOFF_DEMO_ORIGIN      = var.demo_origin
     ARNAKOFF_SNAPSHOT_BUCKET  = scaleway_object_bucket.snapshots.name
-    ARNAKOFF_SMTP_ADDR        = "smtp.mail.ovh.net:465"
-    ARNAKOFF_SMTP_USERNAME    = "contact@arnakoff.com"
+    ARNAKOFF_SMTP_ADDR        = local.smtp_addr
+    ARNAKOFF_SMTP_USERNAME    = local.smtp_username
   }
 
   lifecycle {

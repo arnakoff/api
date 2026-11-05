@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -22,9 +23,15 @@ const (
 )
 
 func newContainerSecrets(f *fakeAPI) *scaleway.ContainerSecrets {
+	return newContainerSecretsOf(f, accessVar)
+}
+
+// newContainerSecretsOf returns the ContainerSecrets of the variable
+// access, none when empty, and secretVar.
+func newContainerSecretsOf(f *fakeAPI, access string) *scaleway.ContainerSecrets {
 	s, err := scaleway.NewContainerSecrets(f.client(), scaleway.ContainerSecretsOptions{
 		ContainerID: containerID,
-		AccessVar:   accessVar,
+		AccessVar:   access,
 		SecretVar:   secretVar,
 		Timeout:     time.Second,
 		Interval:    time.Millisecond,
@@ -39,9 +46,9 @@ func TestNewContainerSecretsRefusesBadOptions(t *testing.T) {
 	t.Parallel()
 	f := newFakeAPI(t, nil)
 	cases := map[string]scaleway.ContainerSecretsOptions{
-		"no container":     {AccessVar: accessVar, SecretVar: secretVar},
-		"no variable":      {ContainerID: containerID, AccessVar: accessVar},
-		"negative timeout": {ContainerID: containerID, AccessVar: accessVar, SecretVar: secretVar, Timeout: -time.Second},
+		"no container":       {AccessVar: accessVar, SecretVar: secretVar},
+		"no secret variable": {ContainerID: containerID, AccessVar: accessVar},
+		"negative timeout":   {ContainerID: containerID, AccessVar: accessVar, SecretVar: secretVar, Timeout: -time.Second},
 	}
 	for name, opts := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -55,36 +62,58 @@ func TestNewContainerSecretsRefusesBadOptions(t *testing.T) {
 
 func TestContainerSecretsSetsTheKeyThenWaitsUntilReady(t *testing.T) {
 	t.Parallel()
-	f := newFakeAPI(t, map[string][]answer{
-		"PATCH " + containerPath: {{http.StatusOK, "container-update.json"}},
-		"GET " + containerPath:   {{http.StatusOK, "container-update.json"}, {http.StatusOK, "container-ready.json"}},
-	})
-
-	if err := newContainerSecrets(f).InstallCredential(context.Background(), newKey); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name   string
+		access string
+		want   []secretVarValue
+	}{
+		{"both halves", accessVar, []secretVarValue{{accessVar, newKey.AccessKey}, {secretVar, string(newKey.SecretKey)}}},
+		{"secret half only", "", []secretVarValue{{secretVar, string(newKey.SecretKey)}}},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			f := newFakeAPI(t, map[string][]answer{
+				"PATCH " + containerPath: {{http.StatusOK, "container-update.json"}},
+				"GET " + containerPath:   {{http.StatusOK, "container-update.json"}, {http.StatusOK, "container-ready.json"}},
+			})
 
-	calls := f.recorded()
-	if calls[0].method != http.MethodPatch || calls[len(calls)-1].method != http.MethodGet || len(calls) != 3 {
-		t.Fatalf("calls %+v, want a PATCH then GETs until ready", calls)
+			if err := newContainerSecretsOf(f, tt.access).InstallCredential(context.Background(), newKey); err != nil {
+				t.Fatal(err)
+			}
+
+			calls := f.recorded()
+			if calls[0].method != http.MethodPatch || calls[len(calls)-1].method != http.MethodGet || len(calls) != 3 {
+				t.Fatalf("calls %+v, want a PATCH then GETs until ready", calls)
+			}
+			if got := sentSecrets(t, calls[0].body); !slices.Equal(got, tt.want) {
+				t.Errorf("secrets %+v, want %+v only", got, tt.want)
+			}
+		})
 	}
+}
+
+// secretVarValue is a secret environment variable sent to the API.
+type secretVarValue struct{ Key, Value string }
+
+// sentSecrets returns the secrets of the PATCH body, failing t when it
+// sets anything else.
+func sentSecrets(t *testing.T, body string) []secretVarValue {
+	t.Helper()
 	var sent map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(calls[0].body), &sent); err != nil {
+	if err := json.Unmarshal([]byte(body), &sent); err != nil {
 		t.Fatal(err)
 	}
-	var secrets []struct{ Key, Value string }
+	var secrets []secretVarValue
 	if err := json.Unmarshal(sent["secret_environment_variables"], &secrets); err != nil {
 		t.Fatal(err)
-	}
-	want := []struct{ Key, Value string }{{accessVar, newKey.AccessKey}, {secretVar, string(newKey.SecretKey)}}
-	if len(secrets) != 2 || secrets[0] != want[0] || secrets[1] != want[1] {
-		t.Errorf("secrets %+v, want the two halves of the key only", secrets)
 	}
 	for field := range sent {
 		if field != "secret_environment_variables" && !strings.HasPrefix(string(sent[field]), `"unknown_`) {
 			t.Errorf("field %s = %s sent, want the secrets only", field, sent[field])
 		}
 	}
+	return secrets
 }
 
 func TestContainerSecretsFailsWhenTheContainerDoesNotGetReady(t *testing.T) {

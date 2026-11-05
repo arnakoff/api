@@ -21,6 +21,9 @@ const (
 	EnvRotateAppSync           = "ARNAKOFF_ROTATE_APP_SYNC"
 	EnvRotateAppCI             = "ARNAKOFF_ROTATE_APP_CI"
 	EnvRotateAppSelf           = "ARNAKOFF_ROTATE_APP_SELF"
+	EnvRotateAppMail           = "ARNAKOFF_ROTATE_APP_MAIL"
+	EnvRotateSMTPAddr          = "ARNAKOFF_ROTATE_SMTP_ADDR"
+	EnvRotateSMTPUsername      = "ARNAKOFF_ROTATE_SMTP_USERNAME"
 	EnvRotateAPIContainerID    = "ARNAKOFF_ROTATE_API_CONTAINER_ID"
 	EnvRotateSyncAccessSecret  = "ARNAKOFF_ROTATE_SYNC_ACCESS_SECRET_ID"
 	EnvRotateSyncSecretSecret  = "ARNAKOFF_ROTATE_SYNC_SECRET_SECRET_ID"
@@ -61,11 +64,21 @@ type Rotate struct {
 
 	// GitHubApp writes the key of ci-deploy to the GitHub environment.
 	GitHubApp GitHubApp
+
+	// SMTP is the server a new key of mail must authenticate with.
+	SMTP RotateSMTP
+}
+
+// RotateSMTP is the SMTP server of the mail application (#295): its
+// "host:port", which speaks TLS at once, and the username its keys
+// authenticate as.
+type RotateSMTP struct {
+	Addr, Username string
 }
 
 // RotateApps are the IAM applications whose keys the job rotates.
 type RotateApps struct {
-	API, Sync, CI, Self string
+	API, Sync, CI, Self, Mail string
 }
 
 // SecretIDs are the two secrets of a key: its access key and its secret
@@ -90,6 +103,8 @@ func (c Config) RequireRotate() error {
 		{EnvRotateAccessKey, r.AccessKey != ""},
 		{EnvRotateSecretKey, len(r.SecretKey) != 0},
 		{EnvRotateBucket, r.Bucket != ""},
+		{EnvRotateSMTPAddr, r.SMTP.Addr != ""},
+		{EnvRotateSMTPUsername, r.SMTP.Username != ""},
 		{EnvGitHubAppClientID, r.GitHubApp.ClientID != ""},
 		{EnvGitHubAppInstallationID, r.GitHubApp.InstallationID != 0},
 		{EnvGitHubAppPrivateKey, len(r.GitHubApp.PrivateKey) != 0},
@@ -128,6 +143,7 @@ func (r *Rotate) ids() []idVar {
 		{EnvRotateAppSync, &r.Apps.Sync},
 		{EnvRotateAppCI, &r.Apps.CI},
 		{EnvRotateAppSelf, &r.Apps.Self},
+		{EnvRotateAppMail, &r.Apps.Mail},
 		{EnvRotateAPIContainerID, &r.APIContainerID},
 		{EnvRotateSyncAccessSecret, &r.SyncSecrets.Access},
 		{EnvRotateSyncSecretSecret, &r.SyncSecrets.Secret},
@@ -143,6 +159,8 @@ func parseRotate(lookup func(string) (string, bool), r *Rotate) error {
 		parse(lookup, EnvRotateAccessKey, "", &r.AccessKey, parseAny),
 		parse(lookup, EnvRotateSecretKey, "", &r.SecretKey, parseOptionalSecret),
 		parse(lookup, EnvRotateBucket, "", &r.Bucket, parseBucketName),
+		parse(lookup, EnvRotateSMTPAddr, "", &r.SMTP.Addr, parseHostPort),
+		parse(lookup, EnvRotateSMTPUsername, "", &r.SMTP.Username, parseAny),
 		parse(lookup, EnvGitHubAppClientID, "", &r.GitHubApp.ClientID, parseAny),
 		parse(lookup, EnvGitHubAppInstallationID, "", &r.GitHubApp.InstallationID, parseOptionalID),
 		parse(lookup, EnvGitHubAppPrivateKey, "", &r.GitHubApp.PrivateKey, parseOptionalSecret),
