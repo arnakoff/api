@@ -1,0 +1,51 @@
+{
+  "args": [],
+  "command": [],
+  "cpu_limit": 1000,
+  "created_at": "2025-08-27T15:05:54.308425Z",
+  "description": "",
+  "domain_name": "tfnsepiccurransflacvv1-tf-co-confident-tu.functions.fnc.fr-par.scw.cloud",
+  "environment_variables": {
+    "foo": "bar"
+  },
+  "error_message": "Image was not found in container registry.",
+  "health_check": {
+    "failure_threshold": 30,
+    "interval": "10s",
+    "tcp": {}
+  },
+  "http_option": "enabled",
+  "id": "0b6ea900-e5ac-4145-947b-785fe8f7143b",
+  "local_storage_limit": 1000,
+  "max_concurrency": 50,
+  "max_scale": 5,
+  "memory_limit": 2048,
+  "min_scale": 0,
+  "name": "tf-co-confident-tu",
+  "namespace_id": "97c8830e-6d1b-42c0-8ce3-7230e241dd40",
+  "port": 8080,
+  "privacy": "public",
+  "private_network_id": null,
+  "protocol": "http1",
+  "ready_at": null,
+  "region": "fr-par",
+  "registry_image": "rg.fr-par.scw.cloud/funcscwtfnsepiccurransflacvv1/tf-co-confident-tu:latest",
+  "sandbox": "v2",
+  "scaling_option": {
+    "concurrent_requests_threshold": 50
+  },
+  "secret_environment_variables": [
+    {
+      "hashed_value": "$argon2id$v=19$m=65536,t=1,p=2$aYkTZQirbRRHPceslkMOlQ$lm53jRjaxGV4wvQb8ab5FfS+UaZEoTiFZAaa21naUPY",
+      "key": "test_secret"
+    },
+    {
+      "hashed_value": "$argon2id$v=19$m=65536,t=1,p=2$xsL2VAueqzHwRHxiJv52uw$lNn6qqCg9nHl3iq/nwppRhUHKX45fmpmCq2irxfvAcg",
+      "key": "foo_secret"
+    }
+  ],
+  "status": "error",
+  "tags": [],
+  "timeout": "300s",
+  "updated_at": "2025-08-27T15:06:25.107484Z"
+}

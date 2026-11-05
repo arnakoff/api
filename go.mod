@@ -24,7 +24,9 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	github.com/oapi-codegen/oapi-codegen/v2 v2.8.1
+	github.com/scaleway/scaleway-sdk-go v1.39.0
 	go.mau.fi/util v0.11.0
+	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.43.0
@@ -74,7 +76,6 @@ require (
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/perf v0.0.0-20261009192801-be2c69fb417e // indirect
@@ -83,6 +84,7 @@ require (
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/vuln v1.9.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mvdan.cc/gofumpt v0.12.0 // indirect
 )

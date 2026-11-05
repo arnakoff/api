@@ -25,6 +25,8 @@ type fakeS3 struct {
 	lastAuth  string            // Authorization field of the last request.
 	lastINM   string            // If-None-Match field of the last request.
 	failWith  int               // When not 0, the status of every answer.
+	failCount int               // When positive, the number of answers failWith still applies to.
+	lists     int               // ListObjectsV2 answered.
 }
 
 func newFakeS3(t *testing.T) *fakeS3 {
@@ -40,6 +42,11 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.lastINM = r.Header.Get("If-None-Match")
 	if f.failWith != 0 {
 		w.WriteHeader(f.failWith)
+		if f.failCount > 0 {
+			if f.failCount--; f.failCount == 0 {
+				f.failWith = 0
+			}
+		}
 		return
 	}
 	switch r.Method {
@@ -59,6 +66,12 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *fakeS3) get(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("list-type") == "2" {
+		f.lists++
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>`+bucket+`</Name><KeyCount>0</KeyCount><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>`)
+		return
+	}
 	b, ok := f.objects[r.URL.Path]
 	if !ok {
 		w.Header().Set("Content-Type", "application/xml")
@@ -110,9 +123,21 @@ func (f *fakeS3) lastIfNoneMatch() string {
 }
 
 func (f *fakeS3) fail(status int) {
+	f.failFor(status, 0)
+}
+
+// failFor answers status to the next n requests, or to every request when
+// n is 0.
+func (f *fakeS3) failFor(status, n int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.failWith = status
+	f.failWith, f.failCount = status, n
+}
+
+func (f *fakeS3) listed() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lists
 }
 
 // etag is a quoted entity tag of b.

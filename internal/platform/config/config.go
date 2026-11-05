@@ -168,6 +168,9 @@ type Config struct {
 
 	// Restore is the dump admin restore -listen loads in production.
 	Restore Restore
+
+	// Rotate configures the key rotation job (ADR 0007).
+	Rotate Rotate
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -205,6 +208,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
 		parseBackup(lookup, &cfg.Backup),
 		parseRestore(lookup, &cfg.Restore),
+		parseRotate(lookup, &cfg.Rotate),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err

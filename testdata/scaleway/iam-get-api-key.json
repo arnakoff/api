@@ -1,0 +1,15 @@
+{
+  "srn": "srn://iam.scw.eu/api-keys/SCWRAK6TQ7RPYWBTS2EH",
+  "access_key": "SCWXXXXXXXXXXXXXXXXX",
+  "secret_key": null,
+  "description": "tf_tests_expires",
+  "created_at": "2026-10-19T15:26:43.860844Z",
+  "updated_at": "2026-10-19T15:26:43.860844Z",
+  "expires_at": "2035-07-06T09:00:00Z",
+  "default_project_id": "105bdce1-64c0-48ab-899d-868455867ecf",
+  "editable": true,
+  "deletable": true,
+  "managed": false,
+  "creation_ip": "51.159.73.145",
+  "application_id": "fe101044-4da6-4bdd-b133-fc9745b47b87"
+}

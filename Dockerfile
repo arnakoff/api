@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
       -ldflags="-s -w -X github.com/arnakoff/api/internal/platform/buildinfo.version=${VERSION}" \
-      -o /out/bin/ ./cmd/api ./cmd/sync ./cmd/admin \
+      -o /out/bin/ ./cmd/api ./cmd/sync ./cmd/admin ./cmd/rotate \
  && mkdir -p /out/data/snapshots
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:25ac8f0c3b2334a9eb05452266bd4697864a8c8ef0ef71e5e6480d7f92868329
