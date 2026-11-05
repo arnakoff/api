@@ -87,6 +87,7 @@ resource "scaleway_job_definition" "rotate" {
   }
 
   env = {
+    ARNAKOFF_ROTATE_ORGANIZATION_ID       = data.scaleway_account_project.current.organization_id
     ARNAKOFF_ROTATE_PROJECT_ID            = data.scaleway_account_project.current.id
     ARNAKOFF_ROTATE_BUCKET                = scaleway_object_bucket.snapshots.name
     ARNAKOFF_ROTATE_APP_API               = scaleway_iam_application.api.id

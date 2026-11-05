@@ -31,10 +31,11 @@ func TestNewRotationWiresEveryTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Rotate{
-		AccessKey: "SCWROTATORXXXXXXXXXX",
-		SecretKey: config.Secret("44444444-4444-4444-4444-444444444444"),
-		ProjectID: "11111111-1111-1111-1111-111111111111",
-		Bucket:    "arnakoff-snapshots",
+		AccessKey:      "SCWROTATORXXXXXXXXXX",
+		SecretKey:      config.Secret("44444444-4444-4444-4444-444444444444"),
+		OrganizationID: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+		ProjectID:      "11111111-1111-1111-1111-111111111111",
+		Bucket:         "arnakoff-snapshots",
 		Apps: config.RotateApps{
 			API:  "22222222-2222-2222-2222-222222222222",
 			Sync: "33333333-3333-3333-3333-333333333333",

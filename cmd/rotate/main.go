@@ -77,7 +77,7 @@ func newRotation(cfg config.Rotate) (*app.RotateCredentials, error) {
 	for _, t := range targets {
 		allowed = append(allowed, t.Application)
 	}
-	issuer := scaleway.NewCredentials(cloud, cfg.ProjectID, allowed)
+	issuer := scaleway.NewCredentials(cloud, scaleway.Scope{OrganizationID: cfg.OrganizationID, ProjectID: cfg.ProjectID}, allowed)
 	return app.NewRotateCredentials(issuer, clock.System{}, targets, self)
 }
 
