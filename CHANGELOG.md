@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.1](https://github.com/arnakoff/api/compare/v0.60.0...v0.60.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ci:** send the login links through scaleway transactional email ([#322](https://github.com/arnakoff/api/issues/322)) ([b4a3f9a](https://github.com/arnakoff/api/commit/b4a3f9a5582b37622544effd14ef85388272b256)), closes [#295](https://github.com/arnakoff/api/issues/295)
+
 ## [0.60.0](https://github.com/arnakoff/api/compare/v0.59.1...v0.60.0) (2026-11-05)
 
 
