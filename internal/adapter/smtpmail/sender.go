@@ -32,7 +32,7 @@ const timeout = 15 * time.Second
 // Config configures a Sender.
 type Config struct {
 	// Addr is the host and port of the server, which speaks TLS at once,
-	// such as "smtp.tem.scaleway.com:465".
+	// such as "smtp.tem.scw.cloud:465".
 	Addr string
 	// Username and Password authenticate with AUTH PLAIN, sent over TLS
 	// only.

@@ -17,8 +17,9 @@ import (
 )
 
 // Defaults of AuthCheckOptions. How long a new key of Scaleway IAM takes to
-// work on Transactional Email is not documented (« à vérifier »): as for
-// the bucket (ADR 0007), six tries a minute apart leave it five minutes.
+// work on Transactional Email is not documented: the first key, on
+// 05/11/2026, worked at the first try. As for the bucket (ADR 0007), six
+// tries a minute apart leave it five minutes.
 const (
 	defaultAuthCheckAttempts = 6
 	defaultAuthCheckPause    = time.Minute
@@ -27,7 +28,7 @@ const (
 // AuthCheckOptions configures an AuthCheck.
 type AuthCheckOptions struct {
 	// Addr is the host and port of the server, which speaks TLS at once,
-	// such as "smtp.tem.scaleway.com:465"; Username is the user a key
+	// such as "smtp.tem.scw.cloud:465"; Username is the user a key
 	// authenticates as, its secret key being the password.
 	Addr, Username string
 	// HelloName is the domain sent with EHLO, such as "arnakoff.com".
