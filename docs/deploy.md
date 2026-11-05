@@ -199,14 +199,14 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
    tofu output -raw backup_secret_key | gh secret set BACKUP_BUCKET_SECRET_KEY --env production
    ```
 
-   Les deux variables sont des variables de dépôt : le workflow `Backup age` ne tourne pas dans l'environnement `production`. Le `sub` attendu (`github_subject`) porte les identifiants immuables du dépôt, créé après le 15/07/2026 ; « à vérifier » au premier lancement de `Backup age` : un refus `Not authorized to perform sts:AssumeRoleWithWebIdentity` veut dire que le `sub` diffère.
+   Les deux variables sont des variables de dépôt : le workflow `Backup age` ne tourne pas dans l'environnement `production`. Le `sub` attendu (`github_subject`) porte les identifiants immuables du dépôt, créé après le 15/07/2026 : vérifié le 05/11/2026, le rôle accepte le jeton du job sur `main`. Un refus `Not authorized to perform sts:AssumeRoleWithWebIdentity` voudrait dire que le `sub` a changé.
 
 4. **Conteneur et rôle**, dans `deploy/tofu`, avec les variables habituelles de l'étape 4 et :
 
    ```sh
    read -rs TF_VAR_db_backup_password && export TF_VAR_db_backup_password   # sans espace, gestionnaire de mots de passe
    export TF_VAR_backup_bucket=arnakoff-key-backups
-   export TF_VAR_backup_recipient=<clé publique age1pq1…>
+   export TF_VAR_backup_recipient="$(age-keygen -y ~/.arnakoff/backup-age-key.txt)"   # clé publique age1pq1…
    tofu apply
    gh variable set SCW_BACKUP_CONTAINER_ID --env production --body "$(tofu output -raw backup_container_id)"
    printf 'postgres://arnakoff_backup:%s@%s:%s/arnakoff?sslmode=verify-full' \
@@ -215,7 +215,11 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
      | gh secret set BACKUP_DATABASE_URL --env production
    ```
 
-5. **Déploiement** : le workflow Deploy suivant donne au conteneur son image et ses secrets. La première sauvegarde a lieu à 03:40 ; le matin même, Actions → Backup age doit passer. « À vérifier » au premier usage : qu'un conteneur privé à `min_scale = 0` démarre bien à son déclencheur cron.
+   `TF_VAR_image` doit contenir `admin backup` : la version 0.57.0 ou une plus récente, copiée dans Container Registry par un premier déploiement.
+
+5. **Déploiement** : un lancement de Deploy après l'étape 4 (Actions → Deploy → Run workflow) donne au conteneur son image et ses secrets ; avant `SCW_BACKUP_CONTAINER_ID`, l'étape du conteneur `backup` est sautée. La première sauvegarde a lieu à 03:40 ; le matin même, Actions → Backup age doit passer. Vérifié le 05/11/2026 : le conteneur privé à `min_scale = 0` démarre à son déclencheur et la sauvegarde arrive dans le bucket dans la seconde (`keys/2026-11-05T090500Z.tar.age`, 4 731 octets).
+
+   Pour un essai sans attendre la nuit : `tofu apply -var backup_schedule="<minute> <heure> * * *"` (heure de Paris), puis `tofu apply` sans cette variable pour revenir à 03:40.
 
 ### Restauration
 
@@ -239,7 +243,7 @@ docker rm -f restore && rm keys.tar "<date>.tar.age"
 **En production** :
 
 - base perdue ou abîmée depuis moins de 7 jours : la sauvegarde gérée de Scaleway suffit (console → Managed Database → Backups → Restore), sans la copie AWS ;
-- Scaleway perdu, ou sauvegarde gérée inutilisable : nouvelle base, puis `admin restore -file keys.tar` avec le rôle des migrations, lancé d'un hôte qui joint la base. La base de production n'ayant pas de point d'accès public, il faut un hôte sur le réseau privé : procédure à écrire et à exercer (issue de suivi). `ARNAKOFF_API_KEY_SECRET` n'est pas dans la sauvegarde (ADR 0004) : sans lui, les empreintes restaurées ne vérifient plus aucune clé ; il se garde aussi dans le gestionnaire de mots de passe du propriétaire.
+- Scaleway perdu, ou sauvegarde gérée inutilisable : nouvelle base, puis `admin restore -file keys.tar` avec le rôle des migrations, lancé d'un hôte qui joint la base. La base de production n'ayant pas de point d'accès public, il faut un hôte sur le réseau privé : procédure à écrire et à exercer (#297). `ARNAKOFF_API_KEY_SECRET` n'est pas dans la sauvegarde (ADR 0004) : sans lui, les empreintes restaurées ne vérifient plus aucune clé ; il se garde aussi dans le gestionnaire de mots de passe du propriétaire.
 
 ## Observabilité et alertes
 
