@@ -149,9 +149,26 @@ variable "api_hostname" {
   default     = "api.arnakoff.com"
 }
 
-variable "key_expiry" {
-  description = "Expiry date of the bucket keys of api and sync, RFC 3339, within the organisation's maximum key lifetime. Changing it recreates the keys."
+# The GitHub App that writes the key of ci-deploy to the environment
+# production (ADR 0007), created by the owner: not secrets.
+variable "github_app_client_id" {
+  description = "Client ID of the GitHub App of the rotate job (App settings, « Client ID »)."
   type        = string
+
+  validation {
+    condition     = length(var.github_app_client_id) > 0
+    error_message = "github_app_client_id is required: create the GitHub App first (docs/deploy.md)."
+  }
+}
+
+variable "github_app_installation_id" {
+  description = "ID of the installation of the GitHub App on arnakoff/api: the number at the end of its configuration URL."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.github_app_installation_id))
+    error_message = "github_app_installation_id must be a positive integer."
+  }
 }
 
 variable "sync_schedule" {

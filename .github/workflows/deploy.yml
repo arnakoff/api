@@ -6,9 +6,10 @@
 # - Verifies the cosign signature of the image published on GHCR, then copies
 #   its linux/amd64 image, by digest, to Scaleway Container Registry: Scaleway
 #   containers accept linux/amd64 only and discourage external registries.
-# - Writes every secret of the environment into the container and into the
+# - Writes the secrets of the environment into the container and into the
 #   Secret Manager versions of the sync job (ADR 0005, Secrets), then deploys
-#   the digest. OpenTofu (deploy/tofu) owns everything else.
+#   the digest. The bucket keys are the rotate job's, never written here
+#   (ADR 0007). OpenTofu (deploy/tofu) owns everything else.
 # - The scw CLI is a pinned release binary checked against its SHA256SUMS.
 #
 # Actions are pinned by full commit SHA (docs/standards.md).
@@ -115,16 +116,20 @@ jobs:
           echo "${SCW_CLI_SHA256}  scw" | sha256sum --check --strict
           install -m 0755 scw /usr/local/bin/scw
           rm scw
+      # The bucket keys of the sync job are the rotate job's (ADR 0007,
+      # #308): the deploy writes its log key only.
       - name: Write the secrets of the sync job
         env:
           SECRET_IDS: ${{ vars.SCW_SYNC_SECRET_IDS }}
           ARNAKOFF_LOG_KEY: ${{ secrets.ARNAKOFF_LOG_KEY }}
-          ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY: ${{ secrets.SYNC_SNAPSHOT_BUCKET_ACCESS_KEY }}
-          ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY: ${{ secrets.SYNC_SNAPSHOT_BUCKET_SECRET_KEY }}
         run: |
           umask 077
-          for name in $(jq -r 'keys[]' <<< "$SECRET_IDS"); do
-            id="$(jq -r --arg n "$name" '.[$n]' <<< "$SECRET_IDS")"
+          for name in ARNAKOFF_LOG_KEY; do
+            id="$(jq -er --arg n "$name" '.[$n]' <<< "$SECRET_IDS")"
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} of the sync job is not set"
+              exit 1
+            fi
             printf '%s' "${!name}" > "$RUNNER_TEMP/secret"
             scw secret version create secret-id="$id" data=@"$RUNNER_TEMP/secret" disable-previous=true -o json > /dev/null
           done
@@ -134,6 +139,24 @@ jobs:
           JOB_ID: ${{ vars.SCW_JOB_DEFINITION_ID }}
           AMD64: ${{ steps.image.outputs.amd64 }}
         run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
+      # The rotate job (deploy/tofu/rotate.tf, ADR 0007), once
+      # SCW_ROTATE_JOB_DEFINITION_ID is set: the rotate_job_definition_id
+      # output of deploy/tofu.
+      - name: Deploy the rotate job
+        if: vars.SCW_ROTATE_JOB_DEFINITION_ID != ''
+        env:
+          JOB_ID: ${{ vars.SCW_ROTATE_JOB_DEFINITION_ID }}
+          AMD64: ${{ steps.image.outputs.amd64 }}
+        run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
+      # The bucket keys of the container are the rotate job's (ADR 0007,
+      # #308): this update must keep them. The containers/v1 API of the scw
+      # CLI replaces the whole table of secrets (in the cassettes of the
+      # Terraform provider v2.91.0, a PATCH without a secret drops it,
+      # container-env). containers/v1beta1 keeps the secrets it is not
+      # given (scaleway-sdk-go v1.39.0, UpdateContainerRequest) and the CLI
+      # has no command for it: one PATCH sets the image and these secrets,
+      # through a file, then the step waits until the container is ready,
+      # 12 min 30 s at most as --wait did (CLI containerDeployTimeout).
       - name: Deploy the api container
         env:
           CONTAINER_ID: ${{ vars.SCW_CONTAINER_ID }}
@@ -143,17 +166,30 @@ jobs:
           ARNAKOFF_DATABASE_URL: ${{ secrets.ARNAKOFF_DATABASE_URL }}
           ARNAKOFF_TURNSTILE_SECRET: ${{ secrets.ARNAKOFF_TURNSTILE_SECRET }}
           ARNAKOFF_SMTP_PASSWORD: ${{ secrets.ARNAKOFF_SMTP_PASSWORD }}
-          ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY: ${{ secrets.API_SNAPSHOT_BUCKET_ACCESS_KEY }}
-          ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY: ${{ secrets.API_SNAPSHOT_BUCKET_SECRET_KEY }}
         run: |
-          args=()
-          for name in ARNAKOFF_LOG_KEY ARNAKOFF_API_KEY_SECRET ARNAKOFF_DATABASE_URL ARNAKOFF_TURNSTILE_SECRET \
-            ARNAKOFF_SMTP_PASSWORD ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY; do
-            if [ -n "${!name}" ]; then
-              args+=("secret-environment-variables.${name}=${!name}")
-            fi
+          umask 077
+          url="https://api.scaleway.com/containers/v1beta1/regions/${SCW_DEFAULT_REGION}/containers/${CONTAINER_ID}"
+          jq -n --arg image "${TARGET}@${AMD64}" '{registry_image: $image, secret_environment_variables: [
+              $ENV | to_entries[]
+              | select(.key | IN("ARNAKOFF_LOG_KEY", "ARNAKOFF_API_KEY_SECRET", "ARNAKOFF_DATABASE_URL",
+                  "ARNAKOFF_TURNSTILE_SECRET", "ARNAKOFF_SMTP_PASSWORD"))
+              | select(.value != "") | {key, value}]}' > "$RUNNER_TEMP/update.json"
+          curl -fsS --max-time 30 -X PATCH -H "X-Auth-Token: ${SCW_SECRET_KEY}" -H "Content-Type: application/json" \
+            --data @"$RUNNER_TEMP/update.json" "$url" > /dev/null
+          rm -f "$RUNNER_TEMP/update.json"
+          for _ in $(seq 75); do
+            sleep 10
+            container="$(curl -fsS --max-time 30 -H "X-Auth-Token: ${SCW_SECRET_KEY}" "$url")"
+            case "$(jq -r .status <<< "$container")" in
+              ready) exit 0 ;;
+              error | locked)
+                echo "::error::api container $(jq -r '.status + ": " + (.error_message // "no message")' <<< "$container")"
+                exit 1
+                ;;
+            esac
           done
-          scw container container update "$CONTAINER_ID" image="${TARGET}@${AMD64}" "${args[@]}" --wait -o json > /dev/null
+          echo "::error::api container not ready after 12 min 30 s"
+          exit 1
       # The backup container (deploy/tofu/backup.tf, #75), once
       # SCW_BACKUP_CONTAINER_ID is set: the backup_container_id output of
       # deploy/tofu. Its database URL is that of arnakoff_backup, which may
