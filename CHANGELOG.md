@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.59.1](https://github.com/arnakoff/api/compare/v0.59.0...v0.59.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **registry:** send the organization when the rotation job lists keys ([#316](https://github.com/arnakoff/api/issues/316)) ([0990fa5](https://github.com/arnakoff/api/commit/0990fa5fba7a8ade963ad0bd3227f73f46d7bcf2)), closes [#308](https://github.com/arnakoff/api/issues/308)
+
 ## [0.59.0](https://github.com/arnakoff/api/compare/v0.58.0...v0.59.0) (2026-11-05)
 
 
