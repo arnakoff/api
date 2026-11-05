@@ -171,7 +171,7 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
 2. **Compte AWS** : l'organisation AWS `arnakoff` a deux comptes, `arnakoff-production`, qui porte le bucket, et `arnakoff-val`, que cette configuration ne touche pas. Le propriétaire s'y connecte par IAM Identity Center, avec l'accès administrateur sur `arnakoff-production`, sans clé d'accès longue durée. Profil SSO `arnakoff-production` dans `~/.aws/config`, créé une fois :
 
    ```sh
-   aws configure sso --profile arnakoff-production   # compte arnakoff-production, rôle administrateur, région eu-west-3
+   aws configure sso --profile arnakoff-production   # SSO region : celle d'IAM Identity Center ; compte arnakoff-production, rôle administrateur ; Default client Region : eu-west-3
    aws sso login --profile arnakoff-production       # avant chaque session : les identifiants SSO expirent
    aws sts get-caller-identity --profile arnakoff-production --query Account --output text   # TF_VAR_aws_account_id
    ```
