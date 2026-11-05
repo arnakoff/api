@@ -41,7 +41,9 @@ func TestNewRotationWiresEveryTarget(t *testing.T) {
 			Sync: "33333333-3333-3333-3333-333333333333",
 			CI:   "55555555-5555-5555-5555-555555555555",
 			Self: "66666666-6666-6666-6666-666666666666",
+			Mail: "dddddddd-dddd-dddd-dddd-dddddddddddd",
 		},
+		SMTP:           config.RotateSMTP{Addr: "smtp.tem.scaleway.com:465", Username: "11111111-1111-1111-1111-111111111111"},
 		APIContainerID: "77777777-7777-7777-7777-777777777777",
 		SyncSecrets:    config.SecretIDs{Access: "88888888-8888-8888-8888-888888888888", Secret: "99999999-9999-9999-9999-999999999999"},
 		SelfSecrets:    config.SecretIDs{Access: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", Secret: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
@@ -54,6 +56,12 @@ func TestNewRotationWiresEveryTarget(t *testing.T) {
 
 	if _, err := newRotation(cfg); err != nil {
 		t.Errorf("newRotation() = %v", err)
+	}
+
+	noMail := cfg
+	noMail.Apps.Mail = ""
+	if _, err := newRotation(noMail); err == nil {
+		t.Error("a rotation without the mail application accepted")
 	}
 
 	cfg.Apps.Self = cfg.Apps.API

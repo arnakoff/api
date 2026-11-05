@@ -9,7 +9,7 @@
 
 resource "scaleway_iam_application" "rotate" {
   name        = "arnakoff-rotate"
-  description = "rotate job: replaces the keys of api, sync, ci-deploy and its own (ADR 0007)"
+  description = "rotate job: replaces the keys of api, sync, mail, ci-deploy and its own (ADR 0007)"
 }
 
 # The exception to least privilege that ADR 0007 accepts: no narrower right
@@ -94,6 +94,9 @@ resource "scaleway_job_definition" "rotate" {
     ARNAKOFF_ROTATE_APP_SYNC              = scaleway_iam_application.sync.id
     ARNAKOFF_ROTATE_APP_CI                = data.scaleway_iam_application.ci_deploy.id
     ARNAKOFF_ROTATE_APP_SELF              = scaleway_iam_application.rotate.id
+    ARNAKOFF_ROTATE_APP_MAIL              = scaleway_iam_application.mail.id
+    ARNAKOFF_ROTATE_SMTP_ADDR             = local.smtp_addr
+    ARNAKOFF_ROTATE_SMTP_USERNAME         = local.smtp_username
     ARNAKOFF_ROTATE_API_CONTAINER_ID      = split("/", scaleway_container.api.id)[1]
     ARNAKOFF_ROTATE_SYNC_ACCESS_SECRET_ID = local.sync_secret_ids["ARNAKOFF_SNAPSHOT_BUCKET_ACCESS_KEY"]
     ARNAKOFF_ROTATE_SYNC_SECRET_SECRET_ID = local.sync_secret_ids["ARNAKOFF_SNAPSHOT_BUCKET_SECRET_KEY"]

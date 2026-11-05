@@ -148,8 +148,8 @@ jobs:
           JOB_ID: ${{ vars.SCW_ROTATE_JOB_DEFINITION_ID }}
           AMD64: ${{ steps.image.outputs.amd64 }}
         run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
-      # The bucket keys of the container are the rotate job's (ADR 0007,
-      # #308): this update must keep them. The containers/v1 API of the scw
+      # The bucket keys and the SMTP password of the container are the
+      # rotate job's (ADR 0007, #308, #295): this update must keep them. The containers/v1 API of the scw
       # CLI replaces the whole table of secrets (in the cassettes of the
       # Terraform provider v2.91.0, a PATCH without a secret drops it,
       # container-env). containers/v1beta1 keeps the secrets it is not
@@ -165,14 +165,13 @@ jobs:
           ARNAKOFF_API_KEY_SECRET: ${{ secrets.ARNAKOFF_API_KEY_SECRET }}
           ARNAKOFF_DATABASE_URL: ${{ secrets.ARNAKOFF_DATABASE_URL }}
           ARNAKOFF_TURNSTILE_SECRET: ${{ secrets.ARNAKOFF_TURNSTILE_SECRET }}
-          ARNAKOFF_SMTP_PASSWORD: ${{ secrets.ARNAKOFF_SMTP_PASSWORD }}
         run: |
           umask 077
           url="https://api.scaleway.com/containers/v1beta1/regions/${SCW_DEFAULT_REGION}/containers/${CONTAINER_ID}"
           jq -n --arg image "${TARGET}@${AMD64}" '{registry_image: $image, secret_environment_variables: [
               $ENV | to_entries[]
               | select(.key | IN("ARNAKOFF_LOG_KEY", "ARNAKOFF_API_KEY_SECRET", "ARNAKOFF_DATABASE_URL",
-                  "ARNAKOFF_TURNSTILE_SECRET", "ARNAKOFF_SMTP_PASSWORD"))
+                  "ARNAKOFF_TURNSTILE_SECRET"))
               | select(.value != "") | {key, value}]}' > "$RUNNER_TEMP/update.json"
           curl -fsS --max-time 30 -X PATCH -H "X-Auth-Token: ${SCW_SECRET_KEY}" -H "Content-Type: application/json" \
             --data @"$RUNNER_TEMP/update.json" "$url" > /dev/null

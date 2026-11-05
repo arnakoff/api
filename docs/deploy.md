@@ -47,7 +47,6 @@ L'état est chiffré sur la machine avant l'écriture (chiffrement d'état d'Ope
 ```sh
 openssl rand -hex 32 | gh secret set ARNAKOFF_LOG_KEY --env production
 openssl rand -hex 32 | gh secret set ARNAKOFF_API_KEY_SECRET --env production
-gh secret set ARNAKOFF_SMTP_PASSWORD --env production        # mot de passe de contact@arnakoff.com
 # ARNAKOFF_TURNSTILE_SECRET est déjà dans l'environnement.
 ```
 
@@ -281,9 +280,18 @@ rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity
 - **Exercice** : une fois après la mise en place de #297, puis avec l'exercice trimestriel, sur `arnakoff_drill`. Fait le 05/11/2026 avec 0.58.0 (#302) : plan de 3 ressources ajoutées sans autre changement, conteneur `ready` et `step done` (`step=restore`) dès le premier contrôle, base `arnakoff_drill` restaurée (dump de 0 clé, schéma migré), puis 3 ressources détruites et aucune version restante sous `restore/`. Pièges rencontrés et corrigés ci-dessus : les clés Scaleway de l'état dans `AWS_ACCESS_KEY_ID` (refus `InvalidAccessKeyId` de la CLI AWS) et, à l'inverse, un `AWS_PROFILE` resté exporté sans ces clés (refus `403` à la lecture de l'état) ; les `\r` de la CLI AWS sous Git Bash.
 - **Essai local**, avant une version qui l'apporte : la même chaîne, sans Scaleway, avec `go run ./cmd/admin restore -listen 127.0.0.1:8099` sur une base Postgres locale, `ARNAKOFF_RESTORE_URL` et `ARNAKOFF_RESTORE_IDENTITY` exportées. Fait le 05/11/2026 : URL de `aws s3 presign --region eu-west-3` acceptée, dump `keys/` déchiffré, rechiffré et restauré (`step done`, 0 clé, comme le manifeste du dump).
 
+## Envoi des e-mails par Scaleway Transactional Email (#295)
+
+Les liens de connexion des clés gratuites partent par Scaleway Transactional Email (TEM), en TLS implicite sur `smtp.tem.scaleway.com:465`, de `contact@arnakoff.com`. Serverless Containers bloque le trafic sortant sur les ports 25 et 465, sauf vers TEM (`scaleway/docs-content`, `serverless-containers/reference-content/containers-limitations.mdx`, « Blocked ports ») : la boîte d'OVH ne peut pas servir à envoyer. Elle reçoit toujours le courrier de `contact@arnakoff.com` (les MX restent ceux d'OVH).
+
+- **Domaine** (`deploy/tofu/mail.tf`) : `arnakoff.com`, créé à la main le 05/11/2026 et importé, jamais recréé (une autre clé DKIM). `prevent_destroy`. Enregistrements dans Cloudflare, à la main : SPF `v=spf1 include:mx.ovh.com include:_spf.tem.scaleway.com -all`, DKIM `<projet>._domainkey`. `tofu output tem_dns_records` donne les valeurs attendues et le statut (`checked`). Le MX `blackhole.tem.scaleway.com` proposé par TEM n'est pas ajouté : il prendrait une partie du courrier entrant.
+- **Identifiants** : l'utilisateur SMTP est le projet (`smtps_auth_user`) ; le mot de passe est la clé secrète de l'application `arnakoff-mail`, qui n'a que `TransactionalEmailEmailSmtpCreate` sur le projet. Le job `rotate` crée et remplace sa clé (ADR 0007), vérifie qu'elle s'authentifie auprès de TEM, puis l'écrit dans `ARNAKOFF_SMTP_PASSWORD` du conteneur `api`. Le workflow Deploy n'envoie plus ce secret.
+- **Mise en service** (une fois, avec la première version qui l'apporte) : `tofu apply` (le plan importe le domaine, crée l'application et sa politique, change `ARNAKOFF_SMTP_ADDR` et `ARNAKOFF_SMTP_USERNAME` du conteneur `api` et l'environnement du job `rotate`), approuver le déploiement, puis lancer le job : `scw jobs definition start "$(tofu output -raw rotate_job_definition_id)"`. Son journal montre `key rotation` avec `target=mail` et `rotated=true`. Supprimer ensuite le secret devenu inutile : `gh secret delete ARNAKOFF_SMTP_PASSWORD --env production`.
+- **Contrôle** : une demande de clé (`POST /v1/keys/request`) répond `202` et le lien arrive ; les envois se lisent dans la console, Transactional Email → Emails.
+
 ## Rotation automatique des clés (ADR 0007, #308)
 
-Le job `rotate` (`cmd/rotate`, `deploy/tofu/rotate.tf`) remplace chaque jour à 03:10 les clés Scaleway de `arnakoff-api`, `arnakoff-sync`, `ci-deploy` et la sienne, dès que l'une d'elles a plus de 30 jours. Ordre et garde-fous : ADR 0007. Le propriétaire n'agit qu'une fois, ici, puis seulement sur alerte.
+Le job `rotate` (`cmd/rotate`, `deploy/tofu/rotate.tf`) remplace chaque jour à 03:10 les clés Scaleway de `arnakoff-api`, `arnakoff-sync`, `arnakoff-mail`, `ci-deploy` et la sienne, dès que l'une d'elles a plus de 30 jours. Ordre et garde-fous : ADR 0007. Le propriétaire n'agit qu'une fois, ici, puis seulement sur alerte.
 
 ### 1. GitHub App (une fois)
 
