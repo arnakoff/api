@@ -397,6 +397,16 @@ Le registre garde chaque version publiée et refuse de la modifier : le job s'ar
 - **Nouvelle migration** : avant le déploiement de la version qui l'apporte, refaire l'étape 6 avec cette version (`migrate=true`, attendre `ready`, puis `tofu apply` sans `migrate`, qui retire le conteneur et étend les droits, `readonly` du rôle `arnakoff_backup` compris). Une migration qui ajoute une table dit si la sauvegarde la copie (`backedUp` ou `leftOut`, `internal/adapter/store/postgres/backup.go`) : un test l'exige.
 - **Rotation** :
   - clés des buckets, de la CI `ci-deploy` et du job `rotate` : automatiques (« Rotation automatique des clés ») ;
+  - clé Scaleway du propriétaire (profil `arnakoff`) : à la main, jamais par le job. Elle porte tous les droits du propriétaire, et une clé qui se renouvelle seule n'expire jamais, même volée. Durée de 7 jours, renouvelée quand une opération en a besoin, par une connexion dans le navigateur (`scw login`, `scw` 2.65.2) :
+
+    ```sh
+    export SCW_PROFILE=arnakoff
+    old="$(scw config get access-key | tail -n 1)"
+    scw login -p arnakoff expires-at=+7d   # ouvre la console Scaleway, puis écrit la nouvelle clé dans le profil arnakoff
+    scw iam api-key delete "$old"
+    ```
+
+    Puis recopier la nouvelle clé dans le profil `scaleway-arnakoff` de `~/.aws/credentials` (« Sauvegarde des clés hors de Scaleway », étape 2), que l'état de `deploy/tofu-aws` lit, et rouvrir les terminaux d'OpenTofu : leurs `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` gardent l'ancienne clé.
   - mots de passe de base : incrémenter `db_api_password_version` (ou `db_admin_password_version`, `db_backup_password_version`) avec le nouveau mot de passe, `tofu apply`, nouvelle `ARNAKOFF_DATABASE_URL` (ou `BACKUP_DATABASE_URL`), déploiement ;
   - clé AWS du conteneur `backup` : `tofu apply -replace=aws_iam_access_key.backup` dans `deploy/tofu-aws`, nouveaux `BACKUP_BUCKET_ACCESS_KEY` et `BACKUP_BUCKET_SECRET_KEY`, déploiement ;
   - clé privée de la GitHub App du job `rotate` : elle n'expire pas. Sur fuite, ou pour la changer : en générer une nouvelle dans les réglages de l'App, l'écrire comme à l'amorçage (`ARNAKOFF_GITHUB_APP_PRIVATE_KEY`), puis supprimer l'ancienne dans GitHub.
