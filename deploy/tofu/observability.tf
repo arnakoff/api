@@ -45,3 +45,29 @@ resource "scaleway_cockpit_alert_manager" "main" {
     }
   }
 }
+
+# Retention of the logs Cockpit collects by itself, the source "Scaleway
+# Logs" (ADR 0006, #305): 90 days, the owner's choice of 05/11/2026,
+# instead of the default 7. Beyond 7 days Cockpit bills the volume stored
+# (EUR 0.002 per GB and day, scaleway/docs-content, pages/cockpit/
+# reference-content/cockpit-pricing.mdx); about 0.8 MB a day on 05/11/2026.
+# Cockpit creates this source itself: it is imported, never created, and
+# its name and type must stay those Cockpit gave it, since the provider
+# replaces the source when either changes, which prevent_destroy refuses.
+# The ID is that of arnakoff-production (scw cockpit data-source list
+# origin=scaleway); a new project has another one.
+import {
+  to = scaleway_cockpit_source.scaleway_logs
+  id = "fr-par/980067ee-6daa-46d0-a077-b7c3914e8f7e"
+}
+
+resource "scaleway_cockpit_source" "scaleway_logs" {
+  project_id     = data.scaleway_account_project.current.id
+  name           = "Scaleway Logs"
+  type           = "logs"
+  retention_days = 90
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
