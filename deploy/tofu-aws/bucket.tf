@@ -67,6 +67,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "backups" {
     }
   }
 
+  # A dump resealed for a restore in production (#297) is deleted by the
+  # owner once restored; this rule removes one left behind within two days.
+  rule {
+    id     = "expire-restores"
+    status = "Enabled"
+    filter {
+      prefix = "restore/"
+    }
+    expiration {
+      days = 1
+    }
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+
   rule {
     id     = "clean-up"
     status = "Enabled"

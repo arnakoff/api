@@ -165,6 +165,9 @@ type Config struct {
 	// Backup is where admin backup keeps the sealed copies of the key
 	// store.
 	Backup Backup
+
+	// Restore is the dump admin restore -listen loads in production.
+	Restore Restore
 }
 
 // SnapshotDir is where the validated snapshots of the sources are stored,
@@ -201,6 +204,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parseKeyRequest(lookup, &cfg.KeyRequest, &cfg.Demo),
 		parseSnapshotBucket(lookup, &cfg.SnapshotBucket),
 		parseBackup(lookup, &cfg.Backup),
+		parseRestore(lookup, &cfg.Restore),
 	}
 	if err := errors.Join(errs...); err != nil {
 		return Config{}, err

@@ -81,6 +81,63 @@ variable "migrate_log_key" {
   }
 }
 
+# Not ephemeral, as db_admin_password: the restore container gets them,
+# so they stay in the state history. Each is worthless once the restore is
+# over: the presigned URL expires within the hour and the age key opens
+# only the object the owner deletes after the restore (docs/deploy.md).
+variable "restore" {
+  description = "Run the restore container, which loads a dump of the API keys from the Private Network with image (docs/deploy.md, #297). Apply without it afterwards: the container is removed."
+  type        = bool
+  default     = false
+}
+
+variable "restore_database" {
+  description = "Database the restore container loads the dump into: arnakoff, the API's, or another name for a drill database, created while restore is set."
+  type        = string
+  default     = "arnakoff"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9_]{0,62}$", var.restore_database))
+    error_message = "restore_database must be a lower-case database name."
+  }
+}
+
+variable "restore_log_key" {
+  description = "ARNAKOFF_LOG_KEY of the restore container, 64 hex characters (openssl rand -hex 32); required with restore."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.restore || can(regex("^[0-9a-f]{64}$", var.restore_log_key))
+    error_message = "restore_log_key must be 64 lower-case hex characters when restore is set."
+  }
+}
+
+variable "restore_url" {
+  description = "Presigned URL of the dump sealed for restore_identity, from `aws s3 presign`; required with restore."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.restore || startswith(var.restore_url, "https://")
+    error_message = "restore_url must be the https:// URL printed by aws s3 presign when restore is set."
+  }
+}
+
+variable "restore_identity" {
+  description = "age private key drawn for this restore only (age-keygen -pq), the one the dump at restore_url is sealed for; required with restore."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.restore || startswith(var.restore_identity, "AGE-SECRET-KEY-")
+    error_message = "restore_identity must be an age private key when restore is set."
+  }
+}
+
 variable "image" {
   description = "Image the container and the job are created with, in Container Registry. The deploy workflow replaces it afterwards."
   type        = string

@@ -46,7 +46,7 @@ func run(ctx context.Context, cfg config.Config, cmd command) error {
 	case actionBackup:
 		return runBackup(ctx, cfg, cmd.listen)
 	case actionRestore:
-		return runRestore(ctx, cfg, cmd.file)
+		return runRestore(ctx, cfg, cmd.file, cmd.listen)
 	}
 	if err := cfg.RequireKeyStore(); err != nil {
 		return err
@@ -66,9 +66,9 @@ func runMigrate(ctx context.Context, cfg config.Config, listen string) error {
 	if err := cfg.RequireDatabase(); err != nil {
 		return err
 	}
-	migrate := app.MigrateFunc(func(ctx context.Context) error {
+	migrate := func(ctx context.Context) error {
 		return postgres.Migrate(ctx, string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
-	})
+	}
 	if listen == "" {
 		return migrate(ctx)
 	}
@@ -76,7 +76,7 @@ func runMigrate(ctx context.Context, cfg config.Config, listen string) error {
 	if err != nil {
 		return err
 	}
-	return serveMigration(ctx, ln, app.NewMigration(migrate), slog.Default())
+	return serveOnce(ctx, ln, "migrations", app.NewOnce(migrate), slog.Default())
 }
 
 // runBackup copies the key store, sealed, to its bucket, then exits, or
@@ -104,8 +104,12 @@ func runBackup(ctx context.Context, cfg config.Config, listen string) error {
 }
 
 // runRestore loads the decrypted dump in file into the configured
-// database.
-func runRestore(ctx context.Context, cfg config.Config, file string) error {
+// database, or, with listen, the sealed dump of the configured restore
+// while serving its probes on listen.
+func runRestore(ctx context.Context, cfg config.Config, file, listen string) error {
+	if listen != "" {
+		return serveKeyRestore(ctx, cfg, listen)
+	}
 	if err := cfg.RequireDatabase(); err != nil {
 		return err
 	}
@@ -119,6 +123,20 @@ func runRestore(ctx context.Context, cfg config.Config, file string) error {
 	}
 	slog.InfoContext(ctx, "dump restored and schema migrated")
 	return nil
+}
+
+// serveKeyRestore restores the sealed dump of the configured restore from
+// inside the private network (#297), serving its probes on listen.
+func serveKeyRestore(ctx context.Context, cfg config.Config, listen string) error {
+	restore, err := assembly.KeyRestore(cfg)
+	if err != nil {
+		return err
+	}
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", listen)
+	if err != nil {
+		return err
+	}
+	return serveOnce(ctx, ln, "restore", app.NewOnce(restore.Run), slog.Default())
 }
 
 // runKey runs a key action with admin, writing to standard output.

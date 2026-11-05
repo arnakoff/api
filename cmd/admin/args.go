@@ -21,7 +21,7 @@ const (
 
 // command is the action asked on the command line and its flags. An empty
 // env means the configured ARNAKOFF_API_KEY_ENV; an empty listen, a
-// migration or a backup that exits once done.
+// migration or a backup that exits once done, or a restore of file.
 type command struct {
 	action string
 	label  string
@@ -38,7 +38,7 @@ var errUsage = errors.New("usage")
 const usage = `usage:
   admin migrate [-listen <address>]
   admin backup [-listen <address>]
-  admin restore -file <dump>
+  admin restore -file <dump> | -listen <address>
   admin key create -label <holder> [-env live|test]
   admin key list
   admin key revoke -id <id>`
@@ -66,6 +66,7 @@ func parseArgs(args []string, w io.Writer) (command, error) {
 		fs.StringVar(&cmd.listen, "listen", "", "serve /healthz, /readyz and POST /backup on this address until stopped")
 	case actionRestore:
 		fs.StringVar(&cmd.file, "file", "", "the dump to restore, decrypted with age -d")
+		fs.StringVar(&cmd.listen, "listen", "", "restore the sealed dump of ARNAKOFF_RESTORE_URL and serve /healthz and /readyz on this address until stopped, /readyz answering 200 once it is restored")
 	case actionList:
 	default:
 		return command{}, misuse(w, "unknown action")
@@ -99,8 +100,8 @@ func validate(cmd command, extra int) error {
 		return errors.New("no argument expected after the flags")
 	case cmd.action == actionCreate && cmd.label == "":
 		return errors.New("-label is required")
-	case cmd.action == actionRestore && cmd.file == "":
-		return errors.New("-file is required")
+	case cmd.action == actionRestore && (cmd.file == "") == (cmd.listen == ""):
+		return errors.New("one of -file or -listen is required")
 	case cmd.action == actionRevoke && cmd.id <= 0:
 		return errors.New("-id must be a key identifier, from key list")
 	}
