@@ -12,8 +12,9 @@ import (
 )
 
 // Timing of the rotation, as ADR 0007 decides: the keys of an application
-// are replaced once one of them is older than CredentialMaxAge, by a key
-// valid CredentialLifetime. A failed run leaves the old key in service and
+// are replaced once one of them is older than CredentialMaxAge, or expires
+// within CredentialLifetime - CredentialMaxAge, by a key valid
+// CredentialLifetime. A failed run leaves the old key in service and
 // due, so the next run, the next day, tries again long before it expires.
 const (
 	CredentialMaxAge   = 30 * 24 * time.Hour
@@ -175,14 +176,18 @@ func (r *RotateCredentials) rotate(ctx context.Context, t CredentialTarget) (Cre
 }
 
 // due reports whether keys is empty or holds a key older than
-// CredentialMaxAge. The key in service is the oldest: a key a failed run
-// created is newer and was never put in service everywhere.
+// CredentialMaxAge, or one that expires sooner than a key the job made
+// would at that age, such as a short key made by hand. The key in service
+// is the oldest: a key a failed run created is newer and was never put in
+// service everywhere.
 func due(keys []Credential, now time.Time) bool {
 	if len(keys) == 0 {
 		return true
 	}
 	for _, k := range keys {
-		if now.Sub(k.CreatedAt) >= CredentialMaxAge {
+		old := now.Sub(k.CreatedAt) >= CredentialMaxAge
+		expiring := !k.ExpiresAt.IsZero() && k.ExpiresAt.Sub(now) <= CredentialLifetime-CredentialMaxAge
+		if old || expiring {
 			return true
 		}
 	}

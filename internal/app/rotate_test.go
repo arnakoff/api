@@ -85,6 +85,39 @@ func TestRotateCredentialsRotatesOldKeysInOrder(t *testing.T) {
 	}
 }
 
+// A key made by hand may live shorter than CredentialLifetime, such as the
+// 30-day key of ci-deploy: it is due once it expires sooner than a key the
+// job made would at CredentialMaxAge.
+func TestRotateCredentialsRotatesAKeyCloseToItsExpiry(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		expires time.Time
+		want    bool
+	}{
+		{"expires in 29 days", rotateNow.Add(29 * day), true},
+		{"expires in 59 days", rotateNow.Add(app.CredentialLifetime - app.CredentialMaxAge), true},
+		{"expires in 60 days", rotateNow.Add(60 * day), false},
+		{"never expires", time.Time{}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := newRotation(t)
+			r.age(day)
+			r.iam.keys["ci-app"][0].ExpiresAt = tc.expires
+
+			if _, err := r.rotate.Run(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+
+			if got := slices.Contains(r.log, "create ci-app"); got != tc.want {
+				t.Errorf("ci rotated = %v, want %v (steps %q)", got, tc.want, r.log)
+			}
+		})
+	}
+}
+
 func TestRotateCredentialsKeepsRecentKeys(t *testing.T) {
 	t.Parallel()
 	r := newRotation(t)

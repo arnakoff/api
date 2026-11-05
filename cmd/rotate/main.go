@@ -81,8 +81,10 @@ func newRotation(cfg config.Rotate) (*app.RotateCredentials, error) {
 	return app.NewRotateCredentials(issuer, clock.System{}, targets, self)
 }
 
-// newTargets returns the targets rotated before the job itself: api and
-// sync, whose new key must first read the bucket, then ci-deploy.
+// newTargets returns the targets rotated before the job itself: sync and
+// api, whose new key must first read the bucket, then ci-deploy. sync comes
+// first: on a fresh install, the api container gets ready only once sync
+// has run with its key (docs/deploy.md, step 7).
 func newTargets(cfg config.Rotate, cloud *scw.Client, clients map[string]*httpclient.Client) ([]app.CredentialTarget, error) {
 	bucket, err := objectstore.NewKeyCheck(objectstore.KeyCheckOptions{Bucket: cfg.Bucket, HTTP: clients[objectstore.Host]})
 	if err != nil {
@@ -109,8 +111,8 @@ func newTargets(cfg config.Rotate, cloud *scw.Client, clients map[string]*httpcl
 	}
 	syncSecrets := scaleway.NewSecretPair(cloud, cfg.SyncSecrets.Access, cfg.SyncSecrets.Secret)
 	return []app.CredentialTarget{
-		{Name: "api", Application: cfg.Apps.API, Installers: []app.CredentialInstaller{bucket, apiSecrets}},
 		{Name: "sync", Application: cfg.Apps.Sync, Installers: []app.CredentialInstaller{bucket, syncSecrets}},
+		{Name: "api", Application: cfg.Apps.API, Installers: []app.CredentialInstaller{bucket, apiSecrets}},
 		{Name: "ci-deploy", Application: cfg.Apps.CI, Installers: []app.CredentialInstaller{github}},
 	}, nil
 }
