@@ -124,24 +124,10 @@ jobs:
           echo "${SCW_CLI_SHA256}  scw" | sha256sum --check --strict
           install -m 0755 scw /usr/local/bin/scw
           rm scw
-      # The bucket keys of the sync job are the rotate job's (ADR 0007,
-      # #308): the deploy writes its log key only.
-      - name: Write the secrets of the sync job
-        env:
-          SECRET_IDS: ${{ vars.SCW_SYNC_SECRET_IDS }}
-          ARNAKOFF_LOG_KEY: ${{ secrets.ARNAKOFF_LOG_KEY }}
-        run: |
-          umask 077
-          for name in ARNAKOFF_LOG_KEY; do
-            id="$(jq -er --arg n "$name" '.[$n]' <<< "$SECRET_IDS")"
-            if [ -z "${!name}" ]; then
-              echo "::error::${name} of the sync job is not set"
-              exit 1
-            fi
-            printf '%s' "${!name}" > "$RUNNER_TEMP/secret"
-            scw secret version create secret-id="$id" data=@"$RUNNER_TEMP/secret" disable-previous=true -o json > /dev/null
-          done
-          rm -f "$RUNNER_TEMP/secret"
+      # The deploy writes no Secret Manager version: the bucket keys of the
+      # sync job are the rotate job's (ADR 0007), and its log key changes
+      # only when the owner replaces it (docs/deploy.md). A version per
+      # deploy filled the organization's quota of 20 secret versions.
       - name: Deploy the sync job
         env:
           JOB_ID: ${{ vars.SCW_JOB_DEFINITION_ID }}
