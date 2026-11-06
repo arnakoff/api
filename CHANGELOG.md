@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.64.1](https://github.com/arnakoff/api/compare/v0.64.0...v0.64.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ci:** stop writing a secret manager version of the log key at each deploy ([#361](https://github.com/arnakoff/api/issues/361)) ([dfd6388](https://github.com/arnakoff/api/commit/dfd6388f1a48c822f03faba2b3e038d7b043c77e))
+
 ## [0.64.0](https://github.com/arnakoff/api/compare/v0.63.0...v0.64.0) (2026-11-06)
 
 
