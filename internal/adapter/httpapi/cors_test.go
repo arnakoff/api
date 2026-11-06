@@ -4,6 +4,7 @@ package httpapi_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -12,6 +13,34 @@ import (
 
 func TestDemoAllowsTheSiteOriginOnly(t *testing.T) {
 	t.Parallel()
+	allowsTheSiteOnly(t, func(t *testing.T, origin string) *httptest.ResponseRecorder {
+		opts, _, _ := demoOptions(t)
+		req := demoCall{body: validBody}.request(t)
+		req.Header.Del("Origin")
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		return do(httpapi.NewHandler(opts), req)
+	})
+}
+
+func TestSourcesAllowTheSiteOriginOnly(t *testing.T) {
+	t.Parallel()
+	allowsTheSiteOnly(t, func(t *testing.T, origin string) *httptest.ResponseRecorder {
+		opts, _, _ := demoOptions(t)
+		header := http.Header{}
+		if origin != "" {
+			header.Set("Origin", origin)
+		}
+		return serve(t, httpapi.NewHandler(opts), http.MethodGet, "/v1/sources", header)
+	})
+}
+
+// allowsTheSiteOnly fails t unless the answer send gets from each origin
+// lets a browser read it from the site's origin only, without credentials,
+// and says that it depends on the origin.
+func allowsTheSiteOnly(t *testing.T, send func(t *testing.T, origin string) *httptest.ResponseRecorder) {
+	t.Helper()
 	for _, tt := range []struct {
 		name, origin, want string
 	}{
@@ -22,14 +51,7 @@ func TestDemoAllowsTheSiteOriginOnly(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			opts, _, _ := demoOptions(t)
-			req := demoCall{body: validBody}.request(t)
-			req.Header.Del("Origin")
-			if tt.origin != "" {
-				req.Header.Set("Origin", tt.origin)
-			}
-
-			res := do(httpapi.NewHandler(opts), req)
+			res := send(t, tt.origin)
 			if got := res.Header().Get("Access-Control-Allow-Origin"); got != tt.want {
 				t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, tt.want)
 			}
@@ -101,14 +123,14 @@ func allowsThePost(t *testing.T, h http.Header) {
 	}
 }
 
-func TestCORSIsOnlyOnTheDemo(t *testing.T) {
+func TestCORSIsOnlyOnTheSiteRoutes(t *testing.T) {
 	t.Parallel()
 	opts, _, _ := demoOptions(t)
 	h := httpapi.NewHandler(opts)
 
-	res := serve(t, h, http.MethodGet, "/v1/sources", http.Header{"Origin": {siteOrigin}})
+	res := serve(t, h, http.MethodGet, "/v1/signals", http.Header{"Origin": {siteOrigin}})
 	if got := res.Header().Get("Access-Control-Allow-Origin"); got != "" {
-		t.Errorf("GET /v1/sources: Access-Control-Allow-Origin = %q, want none", got)
+		t.Errorf("GET /v1/signals: Access-Control-Allow-Origin = %q, want none", got)
 	}
 	res = serve(t, h, http.MethodOptions, "/v1/check", http.Header{
 		"Origin": {siteOrigin}, "Access-Control-Request-Method": {http.MethodGet},

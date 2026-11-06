@@ -106,7 +106,7 @@ func NewHandler(opts Options) http.Handler {
 	mux.Handle("POST /v1/demo/check", allowOrigin(opts.Demo.Origin, demo.check(opts.Check)))
 	mux.Handle("OPTIONS /v1/demo/check", preflight(opts.Demo.Origin))
 	newKeyRequestGate(opts, ps, byAddr).routes(mux)
-	mux.Handle("GET /v1/sources", anonymous(sources(opts.Sources)))
+	mux.Handle("GET /v1/sources", allowOrigin(opts.Demo.Origin, anonymous(sources(opts.Sources))))
 	mux.Handle("GET /v1/signals", anonymous(signals()))
 	return wrap(opts, route(ps, mux))
 }

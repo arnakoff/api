@@ -4,7 +4,7 @@ package httpapi
 
 import "net/http"
 
-// CORS fields of the demo route (Fetch Standard, section 3.2.3).
+// CORS fields of the routes the site calls (Fetch Standard, section 3.2.3).
 const (
 	// corsExposed are the response fields the site may read besides the
 	// safelisted ones: the quota, its delay and the request identifier a
@@ -15,7 +15,7 @@ const (
 )
 
 // allowOrigin answers next and lets a browser at origin, and at no other,
-// read the answer. No credential is allowed: the demo needs none.
+// read the answer. No credential is allowed: the site needs none.
 func allowOrigin(origin string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
