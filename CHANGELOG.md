@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.64.0](https://github.com/arnakoff/api/compare/v0.63.0...v0.64.0) (2026-11-06)
+
+
+### Features
+
+* **ci:** run the rotate job in a project of its own, out of reach of ci-deploy ([#358](https://github.com/arnakoff/api/issues/358)) ([9e88784](https://github.com/arnakoff/api/commit/9e887842688d1386472b9ebdd585ad9e9129ee01)), closes [#357](https://github.com/arnakoff/api/issues/357)
+
 ## [0.63.0](https://github.com/arnakoff/api/compare/v0.62.2...v0.63.0) (2026-11-06)
 
 
