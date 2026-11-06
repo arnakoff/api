@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.62.2](https://github.com/arnakoff/api/compare/v0.62.1...v0.62.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ci:** deploy only from the image workflow of this repository on a tag push ([#348](https://github.com/arnakoff/api/issues/348)) ([d5c58a9](https://github.com/arnakoff/api/commit/d5c58a947217bfab7cbe14ae9fe7e340cf05e6b5)), closes [#342](https://github.com/arnakoff/api/issues/342)
+* **deps:** bump pgx to 5.12.0 and oapi-codegen to 2.8.2 ([#347](https://github.com/arnakoff/api/issues/347)) ([1f39444](https://github.com/arnakoff/api/commit/1f39444c83a275c71bbce88907a0e5c170bd5eec)), closes [#341](https://github.com/arnakoff/api/issues/341)
+* **domain:** check the address length after the domain is in a-labels ([#351](https://github.com/arnakoff/api/issues/351)) ([50b8709](https://github.com/arnakoff/api/commit/50b87098cf912a476f303f8e1a13689ad87b841c)), closes [#345](https://github.com/arnakoff/api/issues/345)
+* **httpapi:** share the login-link mail limits among the api instances ([#350](https://github.com/arnakoff/api/issues/350)) ([eb4b00e](https://github.com/arnakoff/api/commit/eb4b00e2ef0a0af4800920ee0cc4571e5588ed32)), closes [#344](https://github.com/arnakoff/api/issues/344)
+* **registry:** send each sirene query once, inside the rate limit ([#349](https://github.com/arnakoff/api/issues/349)) ([04dee15](https://github.com/arnakoff/api/commit/04dee15c0f3c976d942c6aaa0fe0291d4989c2d3)), closes [#343](https://github.com/arnakoff/api/issues/343)
+
 ## [0.62.1](https://github.com/arnakoff/api/compare/v0.62.0...v0.62.1) (2026-11-06)
 
 
