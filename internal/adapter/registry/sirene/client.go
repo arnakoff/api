@@ -14,6 +14,7 @@ import (
 	"github.com/arnakoff/api/internal/domain"
 	"github.com/arnakoff/api/internal/domain/signal"
 	"github.com/arnakoff/api/internal/platform/cache"
+	"github.com/arnakoff/api/internal/platform/httpclient"
 	"github.com/arnakoff/api/internal/platform/throttle"
 )
 
@@ -44,6 +45,15 @@ const perPage = "5"
 // Hosts returns the hosts the client reaches, for its allowlist.
 func Hosts() []string {
 	return []string{"recherche-entreprises.api.gouv.fr"}
+}
+
+// HTTPConfig returns the configuration of the HTTP client a Client needs:
+// its hosts and a single attempt. The request rate and the API's
+// Retry-After are checked once per query, so a retry inside the HTTP
+// client would get past both; a refused query is retried by the next
+// lookup instead (#343).
+func HTTPConfig() httpclient.Config {
+	return httpclient.Config{AllowedHosts: Hosts(), Attempts: 1}
 }
 
 // Getter fetches a URL; *httpclient.Client is one.

@@ -241,3 +241,16 @@ func TestHosts(t *testing.T) {
 		t.Errorf("Hosts() = %v, want [%s]", got, u.Host)
 	}
 }
+
+func TestHTTPConfigTriesOnce(t *testing.T) {
+	t.Parallel()
+	cfg := HTTPConfig()
+	// A retry inside the HTTP client would bypass the request rate and the
+	// Retry-After throttle, both checked once per query (#343).
+	if cfg.Attempts != 1 {
+		t.Errorf("Attempts = %d, want 1", cfg.Attempts)
+	}
+	if !slices.Equal(cfg.AllowedHosts, Hosts()) {
+		t.Errorf("AllowedHosts = %v, want %v", cfg.AllowedHosts, Hosts())
+	}
+}
