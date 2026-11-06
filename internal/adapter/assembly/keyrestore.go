@@ -3,6 +3,9 @@
 package assembly
 
 import (
+	"context"
+	"os"
+
 	"github.com/arnakoff/api/internal/adapter/backupseal"
 	"github.com/arnakoff/api/internal/adapter/store/objectstore"
 	"github.com/arnakoff/api/internal/adapter/store/postgres"
@@ -23,7 +26,11 @@ func KeyRestore(cfg config.Config) (*app.KeyRestore, error) {
 	if err != nil {
 		return nil, err
 	}
-	opener, err := backupseal.NewOpener(string(cfg.Restore.Identity.Bytes()))
+	verifier, err := backupseal.NewVerifier(cfg.Restore.VerifyKey)
+	if err != nil {
+		return nil, err
+	}
+	opener, err := backupseal.NewOpener(string(cfg.Restore.Identity.Bytes()), verifier)
 	if err != nil {
 		return nil, err
 	}
@@ -33,4 +40,28 @@ func KeyRestore(cfg config.Config) (*app.KeyRestore, error) {
 	}
 	loader := postgres.NewRestorer(string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
 	return app.NewKeyRestore(objectstore.NewPresignedObject(u, client), opener, loader), nil
+}
+
+// FileRestore returns the restore of the clear dump in file, which the
+// owner decrypted, into the configured database. Its signature is checked
+// with the configured verify key before anything connects.
+func FileRestore(cfg config.Config, file string) (*app.KeyRestore, error) {
+	if err := cfg.RequireFileRestore(); err != nil {
+		return nil, err
+	}
+	verifier, err := backupseal.NewVerifier(cfg.Restore.VerifyKey)
+	if err != nil {
+		return nil, err
+	}
+	loader := postgres.NewRestorer(string(cfg.DatabaseURL.Bytes()), postgres.WithCA([]byte(cfg.DatabaseCA)))
+	return app.NewKeyRestore(clearDumpFile(file), verifier, loader), nil
+}
+
+// clearDumpFile reads the clear dump the operator names. It implements
+// app.KeyDumpFetcher.
+type clearDumpFile string
+
+// FetchDump returns the content of the file.
+func (f clearDumpFile) FetchDump(context.Context) ([]byte, error) {
+	return os.ReadFile(string(f))
 }

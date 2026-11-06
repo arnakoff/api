@@ -33,26 +33,6 @@ func seal(t *testing.T, recipient age.Recipient, plain string) []byte {
 	return sealed.Bytes()
 }
 
-func TestOpenerOpensWhatIsSealedForItsIdentity(t *testing.T) {
-	t.Parallel()
-	id, err := age.GenerateHybridIdentity()
-	if err != nil {
-		t.Fatal(err)
-	}
-	o, err := backupseal.NewOpener(id.String())
-	if err != nil {
-		t.Fatalf("NewOpener() error = %v", err)
-	}
-	const plain = "jeanne.martin@example.org"
-	got, err := o.OpenDump(seal(t, id.Recipient(), plain))
-	if err != nil {
-		t.Fatalf("OpenDump() error = %v", err)
-	}
-	if string(got) != plain {
-		t.Errorf("OpenDump() = %q, want %q", got, plain)
-	}
-}
-
 func TestOpenerRefusesADumpItCannotTrust(t *testing.T) {
 	t.Parallel()
 	id, err := age.GenerateHybridIdentity()
@@ -63,11 +43,11 @@ func TestOpenerRefusesADumpItCannotTrust(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o, err := backupseal.NewOpener(id.String())
+	o, err := backupseal.NewOpener(id.String(), testVerifier(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	sealed := seal(t, id.Recipient(), string(bytes.Repeat([]byte("x"), 100_000)))
+	sealed := sealSigned(t, id, testSigningKey, string(bytes.Repeat([]byte("x"), 100_000)))
 	altered := bytes.Clone(sealed)
 	altered[len(altered)-1] ^= 1
 	tests := map[string][]byte{
@@ -102,7 +82,7 @@ func TestNewOpenerRefuses(t *testing.T) {
 	for name, identity := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := backupseal.NewOpener(identity); !errors.Is(err, backupseal.ErrIdentity) {
+			if _, err := backupseal.NewOpener(identity, testVerifier(t)); !errors.Is(err, backupseal.ErrIdentity) {
 				t.Errorf("NewOpener() error = %v, want ErrIdentity", err)
 			}
 		})

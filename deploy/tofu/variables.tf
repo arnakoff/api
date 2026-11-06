@@ -240,6 +240,16 @@ variable "backup_recipient" {
   }
 }
 
+variable "backup_verify_key" {
+  description = "Public key that checks the signature of each dump, made by the backup job (#340): the hex of the Ed25519 public key whose private seed is the BACKUP_SIGNING_KEY secret (docs/deploy.md). Public; read by the restore container."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.backup_verify_key))
+    error_message = "backup_verify_key must be 64 lower-case hex digits, the Ed25519 public key, never the private seed."
+  }
+}
+
 variable "backup_schedule" {
   description = "Cron schedule of the backup, Europe/Paris time (#75)."
   type        = string

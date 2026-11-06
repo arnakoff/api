@@ -210,9 +210,12 @@ jobs:
           ARNAKOFF_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
           ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY: ${{ secrets.BACKUP_BUCKET_ACCESS_KEY }}
           ARNAKOFF_BACKUP_BUCKET_SECRET_KEY: ${{ secrets.BACKUP_BUCKET_SECRET_KEY }}
+          # Signs each dump, so that a restore can tell the backup job made it
+          # (#340, point 3).
+          ARNAKOFF_BACKUP_SIGNING_KEY: ${{ secrets.BACKUP_SIGNING_KEY }}
         run: |
           args=()
-          for name in ARNAKOFF_LOG_KEY ARNAKOFF_DATABASE_URL ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY ARNAKOFF_BACKUP_BUCKET_SECRET_KEY; do
+          for name in ARNAKOFF_LOG_KEY ARNAKOFF_DATABASE_URL ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY ARNAKOFF_BACKUP_BUCKET_SECRET_KEY ARNAKOFF_BACKUP_SIGNING_KEY; do
             if [ -z "${!name}" ]; then
               echo "::error::${name} of the backup container is not set"
               exit 1

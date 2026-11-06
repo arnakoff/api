@@ -22,7 +22,7 @@ func TestSealedBackupOpensWithTheIdentityOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := backupseal.New(id.Recipient().String())
+	s, err := backupseal.New(id.Recipient().String(), testSigner(t))
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -46,8 +46,8 @@ func TestSealedBackupOpensWithTheIdentityOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Decrypt() error = %v", err)
 	}
-	if got, _ := io.ReadAll(r); string(got) != plain {
-		t.Errorf("opened %q, want %q", got, plain)
+	if got, _ := io.ReadAll(r); !bytes.HasPrefix(got, []byte(plain)) {
+		t.Errorf("opened %q, want %q then its signature", got, plain)
 	}
 	other, err := age.GenerateHybridIdentity()
 	if err != nil {
@@ -74,7 +74,7 @@ func TestNewRefuses(t *testing.T) {
 	for name, recipient := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := backupseal.New(recipient); !errors.Is(err, backupseal.ErrRecipient) {
+			if _, err := backupseal.New(recipient, testSigner(t)); !errors.Is(err, backupseal.ErrRecipient) {
 				t.Errorf("New() error = %v, want ErrRecipient", err)
 			}
 		})

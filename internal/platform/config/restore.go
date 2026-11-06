@@ -12,6 +12,7 @@ import (
 const (
 	EnvRestoreURL      = "ARNAKOFF_RESTORE_URL"
 	EnvRestoreIdentity = "ARNAKOFF_RESTORE_IDENTITY"
+	EnvRestoreVerify   = "ARNAKOFF_RESTORE_VERIFY_KEY"
 )
 
 // Restore is the dump admin restore -listen loads: a presigned URL of the
@@ -26,6 +27,10 @@ type Restore struct {
 	// Identity is the age private key the dump is sealed for, drawn for
 	// this restore only.
 	Identity Secret
+
+	// VerifyKey is the hex Ed25519 public key that checks the signature of
+	// the dump, made by the backup job. It is public: no Secret.
+	VerifyKey string
 }
 
 // RequireRestore returns an error, wrapping ErrInvalid and naming each
@@ -38,7 +43,22 @@ func (c Config) RequireRestore() error {
 	if len(c.Restore.Identity) == 0 {
 		errs = append(errs, fmt.Errorf("%w: %s: required, the age key the dump is sealed for", ErrInvalid, EnvRestoreIdentity))
 	}
-	return errors.Join(errs...)
+	return errors.Join(append(errs, c.requireVerifyKey())...)
+}
+
+// RequireFileRestore returns an error, wrapping ErrInvalid and naming each
+// missing variable, unless the database and the verify key of a clear
+// dump are configured.
+func (c Config) RequireFileRestore() error {
+	return errors.Join(c.RequireDatabase(), c.requireVerifyKey())
+}
+
+// requireVerifyKey returns an error unless the verify key is set.
+func (c Config) requireVerifyKey() error {
+	if c.Restore.VerifyKey == "" {
+		return fmt.Errorf("%w: %s: required, the public key that checks the dump signature", ErrInvalid, EnvRestoreVerify)
+	}
+	return nil
 }
 
 // parseRestore sets *r from the variables of the restore, read with
@@ -47,5 +67,6 @@ func parseRestore(lookup func(string) (string, bool), r *Restore) error {
 	return errors.Join(
 		parse(lookup, EnvRestoreURL, "", &r.URL, parseOptionalSecret),
 		parse(lookup, EnvRestoreIdentity, "", &r.Identity, parseOptionalSecret),
+		parse(lookup, EnvRestoreVerify, "", &r.VerifyKey, parseAny),
 	)
 }

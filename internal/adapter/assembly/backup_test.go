@@ -20,7 +20,7 @@ func backupConfig(recipient string) config.Config {
 		DatabaseURL: config.Secret("postgres://backup@localhost/arnakoff"),
 		Backup: config.Backup{
 			Bucket: "arnakoff-backups", AccessKey: config.Secret("AKIAXXXXXXXXXXXXXXXX"), SecretKey: config.Secret("s3cr3t"),
-			Recipient: recipient,
+			Recipient: recipient, SigningKey: config.Secret(testSigningKey),
 		},
 	}
 }
@@ -45,6 +45,11 @@ func TestBackupRefuses(t *testing.T) {
 	t.Parallel()
 	if _, _, err := assembly.Backup(t.Context(), backupConfig("not a key")); !errors.Is(err, backupseal.ErrRecipient) {
 		t.Errorf("Backup() with a bad recipient error = %v, want ErrRecipient", err)
+	}
+	unsigned := backupConfig("age1pq1example")
+	unsigned.Backup.SigningKey = config.Secret("zz")
+	if _, _, err := assembly.Backup(t.Context(), unsigned); !errors.Is(err, backupseal.ErrSigningKey) {
+		t.Errorf("Backup() with a bad signing key error = %v, want ErrSigningKey", err)
 	}
 	if _, _, err := assembly.Backup(t.Context(), config.Config{}); !errors.Is(err, config.ErrInvalid) {
 		t.Errorf("Backup() unconfigured error = %v, want ErrInvalid", err)
