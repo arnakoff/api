@@ -29,7 +29,7 @@ Un message cite des textes choisis par des tiers : nom d'entreprise (SIRENE), d'
 
 - **Correspondance** : une entrée de site couvre son hôte et tous ses sous-domaines, jamais le domaine parent (`x.wixsite.com` ne signale pas `wixsite.com`). Une entrée `www.X` couvre le site `X`, sauf si `X` est un suffixe public. Une adresse e-mail est comparée à l'identique, partie locale comprise ; le domaine est normalisé.
 - **Pages** : une entrée qui vise une page précise (`calendly.com/amf-france`) ne signale pas son site ; elle n'est pas lue tant que l'entrée vérifiée ne garde pas le chemin de l'URL.
-- **Formulation** : « Figure sur la liste noire de l'AMF (catégorie Forex) depuis le 08/10/2026. » La catégorie est celle de l'éditeur, les `_` de l'AMF lus comme des espaces ; « catégories A, B » s'il y en a plusieurs, sans parenthèse s'il n'y en a aucune.
+- **Formulation** : AMF « Figure sur la liste noire de l'AMF (catégorie Forex) depuis le 08/10/2026. » ; ACPR « Figure sur la liste noire de l'ACPR (catégories Forex, Usurpation Professionnel) depuis le 12/03/2026. » La catégorie est celle de l'éditeur, les `_` de l'AMF lus comme des espaces ; « catégories A, B » s'il y en a plusieurs, sans parenthèse s'il n'y en a aucune.
 - **Inscriptions multiples** : plusieurs inscriptions dans une même liste donnent un seul signal, avec chaque catégorie une fois et la date la plus ancienne. Une entrée inscrite sur les deux listes donne deux signaux, un par source.
 - **Date d'observation** : `observed_at` est l'heure de téléchargement de l'instantané en service.
 - **Liens** : AMF `https://www.amf-france.org/fr/espace-epargnants/proteger-son-epargne/listes-noires-et-mises-en-garde`, ACPR `https://www.abe-infoservice.fr/liste-noire` (vérifiés le 30/10/2026).
