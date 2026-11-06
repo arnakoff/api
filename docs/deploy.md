@@ -81,7 +81,7 @@ tofu apply \
 
 La base n'a alors aucun point d'accès public : seul le réseau privé y mène. La GitHub App du job `rotate` est créée avant (« Rotation automatique des clés », étape 1).
 
-Le conteneur est créé sans ses secrets, qui viennent au déploiement : il reste en erreur (`ARNAKOFF_LOG_KEY: required`…) jusqu'à l'étape 7, c'est attendu (constaté le 04/11/2026). Les secrets du job `sync` reçoivent une version provisoire que le premier déploiement remplace ; d'ici là, une exécution planifiée du job échoue.
+Le conteneur est créé sans ses secrets, qui viennent au déploiement : il reste en erreur (`ARNAKOFF_LOG_KEY: required`…) jusqu'à l'étape 7, c'est attendu (constaté le 04/11/2026). Les secrets du job `sync` reçoivent une version provisoire : le propriétaire écrit `ARNAKOFF_LOG_KEY` une fois (« Remplacer la clé de journal », plus bas), le job `rotate` les clés du bucket ; d'ici là, une exécution planifiée du job échoue.
 
 ### 5. Valeurs de la CI
 
@@ -400,7 +400,7 @@ Pour un job déjà en service dans le projet de production : l'`apply` de l'éta
 
 Un passage en échec envoie l'e-mail `JobRunFailed`. Il ne supprime rien : l'ancienne clé reste en service, la nouvelle reste inutilisée, et le passage du lendemain recommence puis supprime les deux. Le journal du passage nomme l'étape en cause. Si l'échec dure et qu'une clé approche de son expiration (`scw iam api-key list bearer-type=application`), la remplacer à la main comme avant (#238, #254).
 
-Le déploiement ne réécrit plus les clés des buckets : il met à jour le conteneur `api` par `containers/v1beta1`, qui garde les secrets qu'on ne lui envoie pas, et n'écrit que `ARNAKOFF_LOG_KEY` dans les secrets du job `sync`.
+Le déploiement ne réécrit plus les clés des buckets : il met à jour le conteneur `api` par `containers/v1beta1`, qui garde les secrets qu'on ne lui envoie pas, et n'écrit aucune version dans Secret Manager : une version par déploiement a rempli le quota de 20 versions du secret (06/11/2026).
 
 ## Observabilité et alertes
 
@@ -507,4 +507,6 @@ rm ../../state-before.txt && unset TF_VAR_erase_email TF_VAR_erase_log_key
   - clé AWS du conteneur `backup` : `tofu apply -replace=aws_iam_access_key.backup` dans `deploy/tofu-aws`, nouveaux `BACKUP_BUCKET_ACCESS_KEY` et `BACKUP_BUCKET_SECRET_KEY`, déploiement ;
   - clé privée de la GitHub App du job `rotate` : elle n'expire pas. Sur fuite, ou pour la changer : en générer une nouvelle dans les réglages de l'App, l'écrire comme à l'amorçage (`ARNAKOFF_GITHUB_APP_PRIVATE_KEY`), puis supprimer l'ancienne dans GitHub.
   - clé du registre MCP : nouvelle paire Ed25519, nouveau TXT à l'apex de `arnakoff.com` (Cloudflare) **et suppression de l'ancien**, que le registre essaie en premier, puis nouveau secret `MCP_PRIVATE_KEY`.
-- **Secrets du job `sync`** : `ARNAKOFF_LOG_KEY` réécrit à chaque déploiement dans Secret Manager (`disable-previous=true`) ; les clés du bucket, par le job `rotate`.
+- **Secrets du job `sync`** : `ARNAKOFF_LOG_KEY` écrit par le propriétaire, seulement quand il la remplace ; les clés du bucket, par le job `rotate`.
+- **Quota de Secret Manager** : 20 versions par secret, versions désactivées comprises (relevé le 06/11/2026, refus `SmSecretVersions`). Une version désactivée qui ne sert plus se supprime : `scw secret version list secret-id=<id>`, puis `scw secret version delete secret-id=<id> revision=<n>` pour chaque version `disabled`.
+- **Remplacer la clé de journal** (`ARNAKOFF_LOG_KEY`) : nouvelle valeur dans le secret GitHub (`openssl rand -hex 32 | gh secret set ARNAKOFF_LOG_KEY --env production`, le conteneur `api` la reçoit au déploiement suivant), puis la même valeur en version des secrets `ARNAKOFF_LOG_KEY` du job `sync` (identifiant dans `SCW_SYNC_SECRET_IDS`) et du job `rotate` (`tofu output -raw rotate_secret_ids`), avec `scw secret version create … data=@<fichier> disable-previous=true`, puis suppression des versions désactivées.
