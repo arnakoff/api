@@ -8,7 +8,7 @@ API publique anti-arnaque : pour un site, un e-mail, un numéro de téléphone, 
 
 ## Statut
 
-En construction : aucune version n'est publiée et l'API n'est pas encore en service. Les commandes de `cmd/` ne font encore rien. Suis l'avancement dans la [feuille de route](https://github.com/orgs/arnakoff/projects/1).
+En service depuis le 06/11/2026, version 1.0.0 : `https://api.arnakoff.com`. Le contrat (`api/openapi.yaml`) est stable : un changement cassant passera par une nouvelle version majeure ou par une dépréciation annoncée (`Deprecation`, `Sunset`). La clé est gratuite et s'obtient par un lien de connexion envoyé par e-mail (`POST /v1/keys/request`) ; la page du site qui la demande n'est pas encore en ligne. Suis la suite dans la [feuille de route](https://github.com/orgs/arnakoff/projects/1).
 
 ## Ce que fait l'API
 
