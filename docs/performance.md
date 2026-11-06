@@ -56,6 +56,18 @@ Lecture :
 - Profil CPU à 8 000 requêtes par seconde, sans latence : la recherche de la clé dans PostgreSQL (`Authenticator.Authenticate` → `Keys.FindKey` → `pgxpool`) prend 4,15 s des 4,95 s passées dans le handler, soit 84 % ; la vérification elle-même (`Check.Check`) 0,22 s et l'écriture JSON 0,19 s. Le goulot est l'aller-retour à la base par requête, pas le moteur de signaux. C'est la mesure qu'attendent #198 (cache des clés valides, durée à valider par le propriétaire) et #197 (flot de clés inconnues) ; aucun correctif n'est fait ici.
 - Ces chiffres valent pour cette machine, avec la base et le générateur sur le même hôte. L'hébergeur n'est pas choisi (#70) : le banc est à rejouer sur la machine de production avant le lancement.
 
+## Mesures du 06/11/2026, avant la 1.0.0 (#78)
+
+Machine : Intel Core i9-9900K (8 cœurs, 16 fils), 32 Go, Windows 11, Go 1.27.3 ; PostgreSQL 17.11 en conteneur Docker Desktop sur la même machine ; vegeta sur la même machine. Version de `main` : `dfd6388` (0.64.0). Instantanés AMF, AMF PSAN, AMF biens divers, ARCEP et ACPR présents dans `var/snapshots`. Même déroulé que ci-dessus, attaques de 30 s à débit constant.
+
+| Registres rejoués | Débit demandé | Débit servi | p50 | p90 | p99 | max | Succès |
+|---|---|---|---|---|---|---|---|
+| sans latence | 100/s | 100/s | 0,61 ms | 1,04 ms | 1,21 ms | 24,1 ms | 100 % |
+| sans latence | 1 000/s | 1 000/s | 0,53 ms | 0,62 ms | 0,70 ms | 17,8 ms | 100 % |
+| 200 ms chacun | 100/s | 99/s | 200,8 ms | 201,2 ms | 201,5 ms | 220,9 ms | 100 % |
+
+Lecture : dans le budget ci-dessous. Coût propre à 100 requêtes par seconde : p50 0,61 ms (budget ≤ 5 ms), p99 1,21 ms (≤ 25 ms). De bout en bout avec 200 ms par registre : p50 200,8 ms (≤ 205 ms), p99 201,5 ms (≤ 225 ms). Aucun `429` ni `503`. Le banc n'atteint toujours aucun registre réel : la production n'est pas attaquée, ce qui interrogerait RDAP, SIRENE (7 requêtes par seconde au plus) et BODACC ; leur latence réelle reste à lire dans les journaux de production (#72).
+
 ## Flot de clés inconnues (#197)
 
 Une clé bien formée se fabrique sans rien demander : sa somme de contrôle CRC-32 est publique. Avant #197, chaque clé bien formée mais jamais émise coûtait une recherche dans PostgreSQL. Depuis, chaque adresse cliente (préfixe /64 en IPv6) a un budget de clés refusées, `ARNAKOFF_RATE_LIMIT_AUTH` par minute (30 par défaut). Seule une clé refusée le dépense, une fois refusée (#209) : une clé valide ou une base qui ne répond pas n'y touchent pas, et des clés valides peuvent être recherchées en même temps sans limite de nombre. Des refus arrivés en même temps sont tous comptés : le budget peut devenir négatif, et l'adresse attend alors qu'il soit remboursé au rythme du budget. Le rythme moyen reste donc borné, mais une rafale de clés inconnues envoyées en même temps depuis une adresse au budget non épuisé atteint la base d'un seul coup, avant d'être comptée : le pool de connexions la fait attendre, et l'adresse attend ensuite d'avoir remboursé toute la rafale. Une fois le budget épuisé, les requêtes de cette adresse reçoivent `429` sans recherche.
