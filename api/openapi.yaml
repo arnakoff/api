@@ -209,7 +209,9 @@ paths:
         Envoie à l'adresse donnée un e-mail avec un lien de connexion à usage unique, valable
         15 minutes, vers la page du site qui donne la clé. La réponse est la même que l'adresse ait
         déjà une clé ou non, et qu'un lien lui ait été envoyé récemment ou non : au-delà de quelques
-        liens par heure pour une même adresse, la demande est acceptée sans nouvel envoi.
+        liens par heure pour une même adresse, la demande est acceptée sans nouvel envoi. Au-delà
+        d'un nombre de liens par heure pour toutes les adresses ensemble, chaque demande reçoit
+        `503` (`key_request_unavailable`), quelle que soit l'adresse, tant que le plafond est atteint.
 
         Chaque requête porte un jeton Cloudflare Turnstile obtenu sur le site, valable une fois ; le
         quota est par adresse du client (politique `key_request`). CORS : seule l'origine du site
@@ -560,7 +562,8 @@ components:
     KeyRequestUnavailable:
       description: |
         La demande ne peut pas être traitée pour le moment : envoi d'e-mails ou base des clés
-        indisponible, ou jeton anti-abus impossible à vérifier.
+        indisponible, plafond horaire d'envoi de liens atteint pour toutes les adresses, ou jeton
+        anti-abus impossible à vérifier.
       content:
         application/problem+json:
           schema:

@@ -45,6 +45,10 @@ type KeyRequestOptions struct {
 	// applies config.DefaultRateLimitKeyRequestAddress an hour. Over it, a
 	// request is answered as any other, and no link is mailed.
 	AddressLimit Limiter
+	// GlobalLimit limits the links mailed to every address together; nil
+	// applies config.DefaultRateLimitKeyRequestGlobal an hour. Over it, a
+	// request is answered 503 and a warning is logged for the alert.
+	GlobalLimit Limiter
 }
 
 // keyRequestPolicy is the name of the quota of the key request routes.
@@ -85,19 +89,18 @@ type keyRequestGate struct {
 	ps       problems
 	perAddr  *quota
 	perEmail Limiter
+	global   Limiter
 	clientOf func(*http.Request) string
 }
 
 // newKeyRequestGate returns the gate opts.Keys configures, knowing each
 // client by clientOf.
 func newKeyRequestGate(opts Options, ps problems, clientOf func(*http.Request) string) *keyRequestGate {
-	perEmail := opts.Keys.AddressLimit
-	if perEmail == nil {
-		perEmail = ratelimit.PerHour(config.DefaultRateLimitKeyRequestAddress, time.Now)
-	}
 	return &keyRequestGate{
-		opts: opts.Keys, logger: opts.Logger, ps: ps, clientOf: clientOf, perEmail: perEmail,
-		perAddr: newQuota(limiterOr(opts.Keys.Limit, config.DefaultRateLimitKeyRequest), keyRequestPolicy, ps),
+		opts: opts.Keys, logger: opts.Logger, ps: ps, clientOf: clientOf,
+		perEmail: hourlyOr(opts.Keys.AddressLimit, config.DefaultRateLimitKeyRequestAddress),
+		global:   hourlyOr(opts.Keys.GlobalLimit, config.DefaultRateLimitKeyRequestGlobal),
+		perAddr:  newQuota(limiterOr(opts.Keys.Limit, config.DefaultRateLimitKeyRequest), keyRequestPolicy, ps),
 	}
 }
 
@@ -130,14 +133,39 @@ func (g *keyRequestGate) request(w http.ResponseWriter, r *http.Request) {
 		g.ps.write(w, r, p)
 		return
 	}
-	if g.perEmail.Allow(accountKey(to)).Allowed {
-		if err := g.opts.Requests.RequestLink(r.Context(), to); err != nil {
-			g.logger.ErrorContext(r.Context(), "login link not sent", "error", err.Error())
-			g.ps.write(w, r, keyRequestUnavailable)
-			return
-		}
+	if p, ok := g.mailLink(r.Context(), to); !ok {
+		g.ps.write(w, r, p)
+		return
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// hourlyOr returns l, or a limiter of n an hour when l is nil.
+func hourlyOr(l Limiter, n int) Limiter {
+	if l == nil {
+		return ratelimit.PerHour(n, time.Now)
+	}
+	return l
+}
+
+// mailLink mails a login link to to within the global cap, unless to
+// already had its share, and returns the problem when it cannot. The cap
+// is checked first, so that over it every address gets the same answer;
+// a link held back by the address limit gives its share of the cap back.
+func (g *keyRequestGate) mailLink(ctx context.Context, to domain.Email) (problem, bool) {
+	if !g.global.Allow(everyClient).Allowed {
+		g.logger.WarnContext(ctx, "login link cap reached", "quota", g.global.Policy().Quota)
+		return keyRequestUnavailable, false
+	}
+	if !g.perEmail.Allow(accountKey(to)).Allowed {
+		g.global.Refund(everyClient)
+		return problem{}, true
+	}
+	if err := g.opts.Requests.RequestLink(ctx, to); err != nil {
+		g.logger.ErrorContext(ctx, "login link not sent", "error", err.Error())
+		return keyRequestUnavailable, false
+	}
+	return problem{}, true
 }
 
 // linkRequestOf returns the address and the token the body of r holds, or
