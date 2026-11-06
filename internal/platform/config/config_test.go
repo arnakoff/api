@@ -56,6 +56,9 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.BatchMaxItems != config.DefaultBatchMaxItems {
 		t.Errorf("BatchMaxItems = %d, want %d", cfg.BatchMaxItems, config.DefaultBatchMaxItems)
 	}
+	if cfg.Instances != 1 {
+		t.Errorf("Instances = %d, want 1", cfg.Instances)
+	}
 }
 
 func TestLoadReadsEveryVariable(t *testing.T) {
@@ -70,6 +73,7 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 		"ARNAKOFF_PROBLEM_BASE_URL": "https://staging.arnakoff.com/docs/erreurs/",
 		"ARNAKOFF_BATCH_MAX_ITEMS":  "1000",
 		"ARNAKOFF_RATE_LIMIT_KEY":   "1000",
+		"ARNAKOFF_INSTANCES":        "2",
 	}))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -97,6 +101,9 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if cfg.BatchMaxItems != 1000 {
 		t.Errorf("BatchMaxItems = %d, want 1000", cfg.BatchMaxItems)
+	}
+	if cfg.Instances != 2 {
+		t.Errorf("Instances = %d, want 2", cfg.Instances)
 	}
 }
 
@@ -134,6 +141,10 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"batch max items zero", "ARNAKOFF_BATCH_MAX_ITEMS", "0"},
 		{"batch max items negative", "ARNAKOFF_BATCH_MAX_ITEMS", "-1"},
 		{"batch max items over the ceiling", "ARNAKOFF_BATCH_MAX_ITEMS", "1001"},
+		{"instances not a number", "ARNAKOFF_INSTANCES", "two"},
+		{"empty instances", "ARNAKOFF_INSTANCES", ""},
+		{"instances zero", "ARNAKOFF_INSTANCES", "0"},
+		{"instances over the ceiling", "ARNAKOFF_INSTANCES", "8"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -16,7 +16,7 @@ import (
 func TestRegistriesAreTheThreeRegistriesOnly(t *testing.T) {
 	t.Parallel()
 
-	regs, err := live.Registries()
+	regs, err := live.Registries(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,6 +31,14 @@ func TestRegistriesAreTheThreeRegistriesOnly(t *testing.T) {
 	}
 	if len(regs.Blacklists)+len(regs.Whitelists)+len(regs.Numbering) != 0 {
 		t.Errorf("Registries holds lists: %+v", regs)
+	}
+}
+
+func TestRegistriesRejectsNoInstance(t *testing.T) {
+	t.Parallel()
+
+	if _, err := live.Registries(0); err == nil {
+		t.Error("Registries(0) error = nil, want an error")
 	}
 }
 

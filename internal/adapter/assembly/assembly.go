@@ -26,10 +26,11 @@ type Service struct {
 }
 
 // Live returns the service of the lists opts turns on, their snapshots
-// read from st, and of the live registries, each check configured by
-// checkOpts. Nothing is fetched until a check asks.
-func Live(opts catalog.Options, st app.SnapshotStore, checkOpts ...app.CheckOption) (Service, error) {
-	regs, err := live.Registries()
+// read from st, and of the live registries of one of instances processes
+// running at once, each check configured by checkOpts. Nothing is fetched
+// until a check asks.
+func Live(opts catalog.Options, st app.SnapshotStore, instances int, checkOpts ...app.CheckOption) (Service, error) {
+	regs, err := live.Registries(instances)
 	if err != nil {
 		return Service{}, err
 	}

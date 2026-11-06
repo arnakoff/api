@@ -64,7 +64,7 @@ Offres (prix choisis par le propriétaire, sans étude de marché) :
 
 Sans engagement de durée : abonnement mensuel, résiliable à tout moment. Les délais de support sont visés, non garantis ; les périodes de fermeture sont annoncées à l'avance. Aucune offre ne comporte d'engagement de disponibilité chiffré : il viendra dans une nouvelle ADR, une fois la disponibilité mesurée (#72), avec ses exclusions (maintenance, pannes des sources amont, mode dégradé) et ses crédits en cas de manquement.
 
-Le débit vendu est celui de l'API. Il ne garantit pas le débit des registres interrogés à la demande (RDAP, SIRENE, BODACC), qui ont leurs propres limites : SIRENE est limité à 7 requêtes par seconde par instance (`internal/adapter/registry/sirene`), soit 420 par minute, moins qu'une seule clé Pro (#336).
+Le débit vendu est celui de l'API. Il ne garantit pas le débit des registres interrogés à la demande (RDAP, SIRENE, BODACC), qui ont leurs propres limites : SIRENE est limité à 7 requêtes par seconde pour l'ensemble des instances (`internal/adapter/registry/sirene`, #336), soit 420 par minute, moins qu'une seule clé Pro.
 
 Limites de cette décision :
 

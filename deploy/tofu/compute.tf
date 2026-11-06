@@ -10,6 +10,12 @@ resource "scaleway_container_namespace" "main" {
   description = "arnakoff/api"
 }
 
+locals {
+  # The most api instances at once, also told to the API: each keeps to its
+  # share of the registries' limits per IP address (#336).
+  api_max_scale = 2
+}
+
 resource "scaleway_container" "api" {
   name         = "api"
   namespace_id = scaleway_container_namespace.main.id
@@ -23,7 +29,7 @@ resource "scaleway_container" "api" {
   cpu_limit          = 250
   memory_limit_bytes = 512000000
   min_scale          = 1
-  max_scale          = 2
+  max_scale          = local.api_max_scale
   timeout            = 30
 
   https_connections_only         = true
@@ -59,6 +65,7 @@ resource "scaleway_container" "api" {
     ARNAKOFF_CLIENT_IP_HEADER = "X-Real-IP"
     ARNAKOFF_DATABASE_CA      = scaleway_rdb_instance.main.certificate
     ARNAKOFF_DEMO_ORIGIN      = var.demo_origin
+    ARNAKOFF_INSTANCES        = tostring(local.api_max_scale)
     ARNAKOFF_SNAPSHOT_BUCKET  = scaleway_object_bucket.snapshots.name
     ARNAKOFF_SMTP_ADDR        = local.smtp_addr
     ARNAKOFF_SMTP_USERNAME    = local.smtp_username

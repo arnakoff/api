@@ -29,7 +29,7 @@ func emptyStore(t *testing.T) *store.Disk {
 // snapshot in service, and of the live registries.
 func newService(t *testing.T, opts catalog.Options) assembly.Service {
 	t.Helper()
-	svc, err := assembly.Live(opts, emptyStore(t))
+	svc, err := assembly.Live(opts, emptyStore(t), 1)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -43,7 +43,7 @@ func run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	svc, err := assembly.Live(catalog.Options{ACPR: cfg.SourceACPR}, disk, app.WithTimeout(checkTimeout))
+	svc, err := assembly.Live(catalog.Options{ACPR: cfg.SourceACPR}, disk, cfg.Instances, app.WithTimeout(checkTimeout))
 	if err != nil {
 		return err
 	}

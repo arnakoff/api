@@ -22,17 +22,19 @@ const BaseURL = "https://recherche-entreprises.api.gouv.fr"
 
 // MaxRequestsPerSecond is the API's published limit per IP address: "au
 // maximum 7 requêtes par seconde" (https://recherche-entreprises.api.gouv.fr/docs/,
-// checked on 30/10/2026). It is a ceiling, not a guaranteed rate: the API
-// may also answer 429 with a Retry-After, which the client heeds.
+// checked on 30/10/2026 and 06/11/2026). It is a ceiling, not a guaranteed
+// rate: the API may also answer 429 with a Retry-After, which the client
+// heeds. Instances that may share one outgoing address share it (New).
 const MaxRequestsPerSecond rate.Limit = 7
 
 // answerTTL is how long an answer is served from the cache, a choice: a
 // company's name, creation date and head office state change rarely.
 const answerTTL = 24 * time.Hour
 
-// maxRateWait bounds the wait for the request rate, a choice: about seven
-// requests queued ahead. Beyond it the lookup fails rather than pile up,
-// and a cache load does not see the caller's deadline.
+// maxRateWait bounds the wait for the request rate, a choice: a second of
+// requests queued ahead, seven for a single instance. Beyond it the lookup
+// fails rather than pile up, and a cache load does not see the caller's
+// deadline.
 const maxRateWait = time.Second
 
 // perPage is the number of results asked for. A SIREN search is direct,
@@ -67,8 +69,13 @@ type Client struct {
 }
 
 // New returns a Client that queries the API at baseURL with get, at most
-// MaxRequestsPerSecond.
-func New(get Getter, baseURL string) (*Client, error) {
+// its share of MaxRequestsPerSecond among instances, the most processes
+// querying the API at once: the platform does not tell whether they share
+// one outgoing IP address, so together they keep to the limit of one.
+func New(get Getter, baseURL string, instances int) (*Client, error) {
+	if instances < 1 {
+		return nil, fmt.Errorf("sirene instances %d: %w", instances, errNoInstance)
+	}
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("sirene base URL: %w", err)
@@ -85,7 +92,7 @@ func New(get Getter, baseURL string) (*Client, error) {
 		search:   u.JoinPath("search").String(),
 		host:     u.Host,
 		answers:  answers,
-		limiter:  rate.NewLimiter(MaxRequestsPerSecond, 1),
+		limiter:  rate.NewLimiter(MaxRequestsPerSecond/rate.Limit(instances), 1),
 		throttle: throttle.New(time.Now),
 	}, nil
 }

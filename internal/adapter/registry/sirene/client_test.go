@@ -70,7 +70,7 @@ func (u *upstream) received() []url.Values {
 // client returns a Client of u with no request rate limit.
 func (u *upstream) client(t *testing.T) *Client {
 	t.Helper()
-	c, err := New(httpclienttest.NewClient(t, u.srv, httpclient.Config{}), u.srv.URL)
+	c, err := New(httpclienttest.NewClient(t, u.srv, httpclient.Config{}), u.srv.URL, 1)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -201,14 +201,33 @@ func TestLookupKeepsToTheRequestRate(t *testing.T) {
 	}
 }
 
-func TestDefaultRequestRate(t *testing.T) {
+func TestRequestRateIsSharedAmongInstances(t *testing.T) {
 	t.Parallel()
-	c, err := New(nil, BaseURL)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		instances int
+		want      rate.Limit
+	}{
+		{1, MaxRequestsPerSecond},
+		{2, MaxRequestsPerSecond / 2},
+		{7, 1},
 	}
-	if l := c.Limiter(); l.Limit() != MaxRequestsPerSecond || l.Burst() != 1 {
-		t.Errorf("limiter = %v per second, burst %d; want %v, burst 1", l.Limit(), l.Burst(), MaxRequestsPerSecond)
+	for _, tt := range tests {
+		c, err := New(nil, BaseURL, tt.instances)
+		if err != nil {
+			t.Fatalf("New(%d instances) error = %v", tt.instances, err)
+		}
+		if l := c.Limiter(); l.Limit() != tt.want || l.Burst() != 1 {
+			t.Errorf("New(%d instances) limiter = %v per second, burst %d; want %v, burst 1", tt.instances, l.Limit(), l.Burst(), tt.want)
+		}
+	}
+}
+
+func TestNewRejectsNoInstance(t *testing.T) {
+	t.Parallel()
+	for _, n := range []int{0, -1} {
+		if _, err := New(nil, BaseURL, n); err == nil {
+			t.Errorf("New(%d instances) error = nil, want an error", n)
+		}
 	}
 }
 
