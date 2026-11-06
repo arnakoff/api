@@ -42,7 +42,7 @@ const (
 	// per hour to every address together, as the owner set it (#245,
 	// 06/11/2026): a flood that solves Turnstile from many client addresses
 	// spends at most 720 a day of the 10,000 emails a month of Scaleway
-	// Transactional Email.
+	// Transactional Email. It is shared among the instances (KeyRequest.Share).
 	DefaultRateLimitKeyRequestGlobal = 30
 )
 
@@ -79,6 +79,18 @@ type KeyRequest struct {
 // Enabled reports whether the key requests are on.
 func (k KeyRequest) Enabled() bool {
 	return k.SMTPAddr != ""
+}
+
+// Share returns k with the mail limits split among instances processes
+// running at once, each counting in its own memory: together they mail no
+// more than the configured hourly figures (#344). Each share is at least
+// one. The per-minute limit of a client address is left whole, as every
+// other per-address limit.
+func (k KeyRequest) Share(instances int) KeyRequest {
+	n := max(instances, 1)
+	k.RateLimitAddress = max(k.RateLimitAddress/n, 1)
+	k.RateLimitGlobal = max(k.RateLimitGlobal/n, 1)
+	return k
 }
 
 // parseKeyRequest sets *k from its variables, read with lookup. A server
