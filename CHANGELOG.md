@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.2](https://github.com/arnakoff/api/compare/v0.60.1...v0.60.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **platform:** retry the idempotent scaleway calls of the rotate job ([#327](https://github.com/arnakoff/api/issues/327)) ([a35291c](https://github.com/arnakoff/api/commit/a35291cfc64777c5ea4b1491dca2f9ef1a29c38c)), closes [#312](https://github.com/arnakoff/api/issues/312)
+
 ## [0.60.1](https://github.com/arnakoff/api/compare/v0.60.0...v0.60.1) (2026-11-05)
 
 
