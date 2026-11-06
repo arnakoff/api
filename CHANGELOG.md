@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.62.1](https://github.com/arnakoff/api/compare/v0.62.0...v0.62.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **registry:** keep every instance together within the SIRENE rate limit ([#337](https://github.com/arnakoff/api/issues/337)) ([7d6986b](https://github.com/arnakoff/api/commit/7d6986b6bcf30cf58cdd2bb188784e92c0f86729)), closes [#336](https://github.com/arnakoff/api/issues/336)
+
 ## [0.62.0](https://github.com/arnakoff/api/compare/v0.61.0...v0.62.0) (2026-11-06)
 
 
