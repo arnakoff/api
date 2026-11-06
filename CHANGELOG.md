@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/arnakoff/api/compare/v0.64.1...v1.0.0) (2026-11-06)
+
+
+### Miscellaneous Chores
+
+* release 1.0.0 ([#365](https://github.com/arnakoff/api/issues/365)) ([f0a82e0](https://github.com/arnakoff/api/commit/f0a82e056d90336c9baab47a0f56eb75aa2ff973))
+
 ## [0.64.1](https://github.com/arnakoff/api/compare/v0.64.0...v0.64.1) (2026-11-06)
 
 
