@@ -142,6 +142,9 @@ func FuzzParseEmail(f *testing.F) {
 	for _, s := range []string{
 		"contact@exemple.fr", "Jean <Jean.Dupont@Exemple.FR>", `"a@b"@exemple.fr`, "élodie@bücher.de",
 		"contact@exemple.fr#x", "contact@[192.0.2.10]", "a@b@c.fr", "@exemple.fr", "",
+		// Longer once the domain is in A-labels (#345).
+		strings.Repeat("a", 64) + "@" + strings.Repeat("aé.", 20) + "fr",
+		strings.Repeat("a", 64) + "@" + strings.Repeat("aé.", 25) + "fr",
 	} {
 		f.Add(s)
 	}
@@ -186,5 +189,40 @@ func BenchmarkParseEmail(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func TestParseEmailRejectsAnAddressTooLongOnceNormalised(t *testing.T) {
+	t.Parallel()
+	// 167 octets as written; the A-label domain makes it 317 (#345).
+	s := strings.Repeat("a", 64) + "@" + strings.Repeat("aé.", 25) + "fr"
+	if _, err := domain.ParseEmail(s); !errors.Is(err, domain.ErrInvalidEmail) {
+		t.Errorf("ParseEmail(%d octets, longer once normalised) error = %v, want ErrInvalidEmail", len(s), err)
+	}
+}
+
+func TestParseEmailCountsTheQuotesOfTheLocalPart(t *testing.T) {
+	t.Parallel()
+	local := strings.Repeat("a", 30) + " " + strings.Repeat("a", 29) // 60 octets, quoted by String
+	host := func(n int) string {                                     // a domain of n octets ending in .fr
+		labels := []string{}
+		for n > 3 {
+			l := min(63, n-3-1)
+			labels = append(labels, strings.Repeat("b", l))
+			n -= l + 1
+		}
+		return strings.Join(labels, ".") + ".fr"
+	}
+	tooLong := `"` + local + `"@` + host(193) // 254 written, 256 once quoted
+	if _, err := domain.ParseEmail(tooLong); !errors.Is(err, domain.ErrInvalidEmail) {
+		t.Errorf("ParseEmail(quoted, %d octets) error = %v, want ErrInvalidEmail", len(tooLong), err)
+	}
+	fits := `"` + local + `"@` + host(191) // 254 once quoted
+	e, err := domain.ParseEmail(fits)
+	if err != nil {
+		t.Fatalf("ParseEmail(quoted, 254 octets) error = %v", err)
+	}
+	if again, err := domain.ParseEmail(e.String()); err != nil || again != e {
+		t.Errorf("ParseEmail(%q) = %v, %v; want %v", e.String(), again, err, e)
 	}
 }
