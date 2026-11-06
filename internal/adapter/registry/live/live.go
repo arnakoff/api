@@ -14,9 +14,11 @@ import (
 	"github.com/arnakoff/api/internal/platform/httpclient"
 )
 
-// Registries returns the RDAP, SIRENE and BODACC clients; the lists are
-// left to the caller. Nothing is fetched until a check asks.
-func Registries() (app.Registries, error) {
+// Registries returns the RDAP, SIRENE and BODACC clients of one of
+// instances processes running at once, each keeping to its share of the
+// registries' limits per IP address; the lists are left to the caller.
+// Nothing is fetched until a check asks.
+func Registries(instances int) (app.Registries, error) {
 	domains, err := domainRegistry()
 	if err != nil {
 		return app.Registries{}, err
@@ -25,7 +27,7 @@ func Registries() (app.Registries, error) {
 	if err != nil {
 		return app.Registries{}, err
 	}
-	companies, err := sirene.New(sc, sirene.BaseURL)
+	companies, err := sirene.New(sc, sirene.BaseURL, instances)
 	if err != nil {
 		return app.Registries{}, err
 	}

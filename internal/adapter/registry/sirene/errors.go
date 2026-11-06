@@ -22,4 +22,7 @@ var (
 	// ErrResponse means the API's answer is not a search result that can be
 	// read.
 	ErrResponse = errors.New("invalid SIRENE search response")
+
+	// errNoInstance means New was given fewer than one instance.
+	errNoInstance = errors.New("at least one instance is needed")
 )

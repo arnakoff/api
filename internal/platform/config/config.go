@@ -32,6 +32,8 @@ const (
 
 	EnvBatchMaxItems = "ARNAKOFF_BATCH_MAX_ITEMS"
 
+	EnvInstances = "ARNAKOFF_INSTANCES"
+
 	EnvDatabaseURL  = "ARNAKOFF_DATABASE_URL"
 	EnvDatabaseCA   = "ARNAKOFF_DATABASE_CA"
 	EnvAPIKeySecret = "ARNAKOFF_API_KEY_SECRET" //nolint:gosec // G101: the name of a variable, not its value.
@@ -68,6 +70,18 @@ const (
 	// MaxBatchMaxItems is the highest value Load accepts: beyond, one
 	// request would weigh like a thousand checks.
 	MaxBatchMaxItems = 1000
+)
+
+// Bounds of ARNAKOFF_INSTANCES.
+const (
+	// DefaultInstances is one process: a single API, or a command run by
+	// hand.
+	DefaultInstances = 1
+
+	// MaxInstances is the highest value Load accepts: beyond, each process
+	// would get less than one SIRENE request a second, and a limit shared
+	// among them would serve better (#336).
+	MaxInstances = 7
 )
 
 // MinLogKeyBytes is the shortest log key Load accepts, once hex-decoded:
@@ -110,6 +124,12 @@ type Config struct {
 	// BatchMaxItems is the most items POST /v1/check/batch accepts, from 1
 	// to MaxBatchMaxItems.
 	BatchMaxItems int
+
+	// Instances is the most processes of the API running at once, from 1
+	// to MaxInstances. The registries limit requests per IP address, and the
+	// platform does not tell whether the processes share one: each keeps to
+	// its share of the limit.
+	Instances int
 
 	// DatabaseURL is the PostgreSQL connection string of the API key store;
 	// nil when unset or empty. RequireKeyStore tells whether it is set.
@@ -197,6 +217,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		parse(lookup, EnvAlertWebhook, "", &cfg.AlertWebhook, parseWebhook),
 		parse(lookup, EnvProblemBaseURL, DefaultProblemBaseURL, &cfg.ProblemBaseURL, parseProblemBase),
 		parse(lookup, EnvBatchMaxItems, strconv.Itoa(DefaultBatchMaxItems), &cfg.BatchMaxItems, parseBatchMaxItems),
+		parse(lookup, EnvInstances, strconv.Itoa(DefaultInstances), &cfg.Instances, parseInstances),
 		parse(lookup, EnvDatabaseURL, "", &cfg.DatabaseURL, parseOptionalSecret),
 		parse(lookup, EnvDatabaseCA, "", &cfg.DatabaseCA, parseOptionalPEM),
 		parse(lookup, EnvAPIKeySecret, "", &cfg.APIKeySecret, parseOptionalKey),
@@ -330,6 +351,9 @@ func parseHTTPS(s string) (*url.URL, error) {
 
 // parseBatchMaxItems accepts a decimal number from 1 to MaxBatchMaxItems.
 var parseBatchMaxItems = intFrom1To(MaxBatchMaxItems)
+
+// parseInstances accepts a decimal number from 1 to MaxInstances.
+var parseInstances = intFrom1To(MaxInstances)
 
 // intFrom1To returns a parser accepting a decimal number from 1 to most.
 func intFrom1To(most int) func(string) (int, error) {

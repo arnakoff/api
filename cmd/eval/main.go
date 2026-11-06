@@ -88,7 +88,7 @@ func registries(opts options, tape *replay.Tape, snaps listing.Snapshots) (app.R
 	var online app.Registries
 	if !opts.offline {
 		var err error
-		if online, err = live.Registries(); err != nil {
+		if online, err = live.Registries(config.DefaultInstances); err != nil {
 			return app.Registries{}, err
 		}
 	}
