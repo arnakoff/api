@@ -49,7 +49,28 @@ func ParseEmail(s string) (Email, error) {
 	if err != nil {
 		return Email{}, ErrInvalidEmail
 	}
-	return Email{local: local, domain: d}, nil
+	e := Email{local: local, domain: d}
+	if !e.fits() {
+		return Email{}, ErrInvalidEmail
+	}
+	return e, nil
+}
+
+// fits reports whether the address String returns is within
+// maxAddressLength. The A-label domain and a quoted local part can make it
+// longer than the address as written, so the limit is checked on this
+// form: every address ParseEmail accepts reads back (#345). Quoting at
+// most doubles the local part and adds two quotes, so String is only
+// built near the limit.
+func (e Email) fits() bool {
+	plain := len(e.local) + 1 + len(e.domain.String())
+	if plain > maxAddressLength {
+		return false
+	}
+	if plain+len(e.local)+2 <= maxAddressLength {
+		return true
+	}
+	return len(e.String()) <= maxAddressLength
 }
 
 // String returns the address, such as "Jean.Dupont@exemple.fr", with the
