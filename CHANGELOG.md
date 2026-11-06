@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.63.0](https://github.com/arnakoff/api/compare/v0.62.2...v0.63.0) (2026-11-06)
+
+
+### Features
+
+* **app:** sign each key-store backup and verify the signature on restore ([#356](https://github.com/arnakoff/api/issues/356)) ([4790be4](https://github.com/arnakoff/api/commit/4790be428c1805a8e8212b6fc7596d647fa3ab4e)), closes [#355](https://github.com/arnakoff/api/issues/355)
+
 ## [0.62.2](https://github.com/arnakoff/api/compare/v0.62.1...v0.62.2) (2026-11-06)
 
 
