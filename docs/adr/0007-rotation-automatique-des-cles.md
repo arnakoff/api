@@ -1,7 +1,7 @@
 # 0007 — Rotation automatique des clés Scaleway
 
 - **Statut** : accepté
-- **Date** : 05/11/2026
+- **Date** : 05/11/2026 ; projet séparé ajouté le 06/11/2026 (#340)
 
 ## Contexte
 
@@ -123,3 +123,15 @@ Ensuite, le propriétaire n'agit que sur alerte.
 - Les secrets GitHub `API_SNAPSHOT_BUCKET_*` et `SYNC_SNAPSHOT_BUCKET_*` disparaissent une fois #308 en production.
 - Les rotations manuelles de #238 (03/12/2026) et #254 (15/01/2027) restent nécessaires si #308 n'est pas en production à ces dates.
 - Cette décision précise l'ADR 0005 (Secrets, Clé de la CI) : la rotation n'y est plus manuelle.
+
+## Addendum du 06/11/2026 : un projet à part pour le job (#340)
+
+L'audit du 06/11/2026 (#340, point 2) a relevé que `ci-deploy` détient `ContainerRegistryFullAccess`, `ContainersFullAccess` et `ServerlessJobsFullAccess` sur le projet de production (ADR 0005), où tournait le job `rotate`. Le détenteur de cette clé pouvait pousser une image et modifier la définition du job (image, environnement, commande), donc lancer son propre code avec `IAMApplicationManager` sur toute l'organisation et la clé privée de la GitHub App, ou faire créer une clé pour n'importe quelle application. La liste fermée d'applications du code, lue dans l'environnement du job, ne l'en empêchait pas.
+
+Décision du propriétaire (06/11/2026) : le job, ses secrets et son image passent dans un projet Scaleway à part, `arnakoff-rotate`, dans la même organisation, où `ci-deploy` n'a aucun droit.
+
+- Son image vient d'un registre de ce projet : le propriétaire y copie une version signée, vérifiée par cosign comme dans Deploy, et l'épingle par digest dans OpenTofu (`rotate_image`). Le déploiement ne met plus le job à jour.
+- Ses secrets (sa clé, la clé privée de l'App, une copie de `ARNAKOFF_LOG_KEY`) sont dans ce projet : `ci-deploy`, dont le droit d'écriture dans Secret Manager porte sur le projet de production, ne peut plus les réécrire.
+- L'application `arnakoff-rotate` garde `IAMApplicationManager` sur l'organisation, et ses droits sur les conteneurs et les secrets du projet de production ; elle reçoit l'écriture dans Secret Manager de son propre projet, pour sa clé.
+- Le reste de la décision ne change pas. Un dépôt GitHub à part n'est pas nécessaire : l'image reste construite et signée par ce dépôt, et c'est son épinglage par le propriétaire qui la soustrait à `ci-deploy`.
+

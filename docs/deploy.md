@@ -90,7 +90,6 @@ gh variable set SCW_CONTAINER_ID --env production --body "$(tofu output -raw con
 gh variable set SCW_CONTAINER_ENDPOINT --env production --body "$(tofu output -raw container_endpoint)"
 gh variable set SCW_JOB_DEFINITION_ID --env production --body "$(tofu output -raw job_definition_id)"
 gh variable set SCW_SYNC_SECRET_IDS --env production --body "$(tofu output -raw sync_secret_ids)"
-gh variable set SCW_ROTATE_JOB_DEFINITION_ID --env production --body "$(tofu output -raw rotate_job_definition_id)"
 ```
 
 URL de la base, par le réseau privé, avec `verify-full` (le certificat de l'instance est passé au conteneur par `ARNAKOFF_DATABASE_CA`) :
@@ -325,12 +324,31 @@ Noter le « Client ID » (page de l'App) et l'identifiant d'installation (le nom
 
 ### 2. Infrastructure
 
+Le job, ses secrets et son image sont dans un projet à part, `arnakoff-rotate`, où `ci-deploy` n'a aucun droit : `ci-deploy` peut pousser des images et modifier les jobs du projet de production, et y aurait sinon lancé son propre code avec le droit du job sur toute l'organisation (#340, point 2). Le déploiement ne touche plus au job ; le propriétaire copie une image signée dans le registre du projet et l'épingle par digest.
+
 ```sh
 export TF_VAR_github_app_client_id=<Client ID>
 export TF_VAR_github_app_installation_id=<identifiant d'installation>
-tofu apply -var image=rg.fr-par.scw.cloud/arnakoff/api:<version qui contient cmd/rotate>
-gh variable set SCW_ROTATE_JOB_DEFINITION_ID --env production --body "$(tofu output -raw rotate_job_definition_id)"
+tofu apply   # sans TF_VAR_rotate_image : le projet et son registre, pas encore le job
 ```
+
+Copier l'image d'une version signée (la même vérification que Deploy) :
+
+```sh
+VERSION=<version>; IMAGE=ghcr.io/arnakoff/api; ROTATE="$(tofu output -raw rotate_registry)/api"
+identity="https://github.com/arnakoff/api/.github/workflows/image.yml@refs/tags/v${VERSION}"
+issuer=https://token.actions.githubusercontent.com
+index="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest)"
+cosign verify "${IMAGE}@${index}" --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
+amd64="$(docker buildx imagetools inspect "${IMAGE}@${index}" --raw | jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest')"
+cosign verify "${IMAGE}@${amd64}" --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
+scw config get secret-key | tail -n 1 | docker login "${ROTATE%/api}" -u nologin --password-stdin
+docker buildx imagetools create --tag "${ROTATE}:${VERSION}" "${IMAGE}@${amd64}"
+export TF_VAR_rotate_image="${ROTATE}@${amd64}"   # le manifeste garde son digest
+tofu apply
+```
+
+`TF_VAR_rotate_image` se garde ensuite avec les autres variables : un `tofu apply` sans elle supprimerait le job. Changer l'image du job (une version qui touche `cmd/rotate` ou une dépendance de sécurité) refait ces commandes ; les autres versions ne le concernent pas.
 
 L'apply oublie les clés des buckets sans les détruire (blocs `removed`) : elles restent en service jusqu'à ce que le job les remplace.
 
@@ -341,6 +359,10 @@ Dans `deploy/tofu`, le terminal de l'étape 2 :
 ```sh
 umask 077
 ids="$(tofu output -raw rotate_secret_ids)"
+# Copie de ARNAKOFF_LOG_KEY de l'API : un job ne lit que les secrets de son projet.
+read -rs logkey && printf %s "$logkey" > log && unset logkey
+scw secret version create secret-id="$(jq -r .ARNAKOFF_LOG_KEY <<< "$ids")" data=@log disable-previous=true -o json > /dev/null
+rm log
 # Première clé du job, 89 jours comme celles qu'il crée.
 scw iam api-key create application-id="$(tofu output -raw rotate_application_id)" \
   default-project-id="$(scw config get default-project-id | tail -n 1)" \
@@ -360,7 +382,7 @@ Puis, dans la console Scaleway, Audit Trail → Alertes : activer `ApiKeyCreated
 
 ### 4. Mise en service
 
-1. Lancer un passage : `scw jobs definition start <SCW_ROTATE_JOB_DEFINITION_ID>`, le suivre avec `scw jobs run list`, lire son journal dans Cockpit (Serverless Jobs). Chaque cible donne une ligne `key rotation` : `rotated`, la nouvelle clé (identifiant d'accès et expiration), les clés supprimées.
+1. Lancer un passage : `scw jobs definition start "$(tofu output -raw rotate_job_definition_id)"`, le suivre avec `scw jobs run list`, lire son journal dans Cockpit (Serverless Jobs). Chaque cible donne une ligne `key rotation` : `rotated`, la nouvelle clé (identifiant d'accès et expiration), les clés supprimées.
 2. Une clé n'est remplacée qu'à 30 jours : le premier passage peut ne rien faire. Après chaque première rotation réelle, vérifier :
    - `api` : `/readyz` répond 200 et `GET /v1/sources` montre des données fraîches ;
    - `sync` : le passage suivant du job réussit ;
@@ -369,6 +391,10 @@ Puis, dans la console Scaleway, Audit Trail → Alertes : activer `ApiKeyCreated
 4. Fermer #254 et #238.
 
 À noter dans #308 au premier passage qui remplace une clé : le temps qu'une nouvelle clé met à lire le bucket (le job essaie 6 fois, à une minute d'écart), et que le passage suivant démarre bien avec la nouvelle clé du job.
+
+### Passage au projet séparé (#340, une fois)
+
+Pour un job déjà en service dans le projet de production : l'`apply` de l'étape 2 crée le projet `arnakoff-rotate`, y recrée le job et ses quatre secrets, puis détruit les anciens (un secret ne change pas de projet). Avant, garder la clé privée de l'App (`app.pem`, ou en générer une nouvelle dans les réglages de l'App) ; après, refaire l'amorçage de l'étape 3, qui écrit une nouvelle première clé du job et la copie de `ARNAKOFF_LOG_KEY`, puis supprimer l'ancienne clé du job (`scw iam api-key list application-id="$(tofu output -raw rotate_application_id)"`, puis `scw iam api-key delete`) et la variable devenue inutile : `gh variable delete SCW_ROTATE_JOB_DEFINITION_ID --env production`. Enfin lancer un passage (étape 4).
 
 ### En cas d'échec
 

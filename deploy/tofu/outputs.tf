@@ -36,9 +36,14 @@ output "job_definition_id" {
   value       = split("/", scaleway_job_definition.sync.id)[1]
 }
 
+output "rotate_registry" {
+  description = "Registry namespace of the rotate job, where the owner copies its image (docs/deploy.md)."
+  value       = scaleway_registry_namespace.rotate.endpoint
+}
+
 output "rotate_job_definition_id" {
-  description = "GitHub variable SCW_ROTATE_JOB_DEFINITION_ID of the environment production: the rotate job definition's UUID."
-  value       = split("/", scaleway_job_definition.rotate.id)[1]
+  description = "UUID of the rotate job definition, in project arnakoff-rotate, to start a run by hand (docs/deploy.md)."
+  value       = try(split("/", scaleway_job_definition.rotate[0].id)[1], "")
 }
 
 output "rotate_application_id" {

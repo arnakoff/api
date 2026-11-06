@@ -6,6 +6,25 @@
 # them all, and a key in this state would be recreated by the next apply
 # once the job had deleted it. Its first key is written by hand once
 # (docs/deploy.md, « Rotation automatique des clés »).
+#
+# The job, its secrets and its image live in a project of their own, where
+# ci-deploy has no right: ci-deploy may push images and update jobs in the
+# production project, and could otherwise run its own code with the
+# organization-wide right of this job (#340, point 2). The owner copies a
+# signed image to this project's registry and pins it by digest.
+
+resource "scaleway_account_project" "rotate" {
+  name            = "arnakoff-rotate"
+  description     = "rotate job only (ADR 0007): no right for ci-deploy here"
+  organization_id = data.scaleway_account_project.current.organization_id
+}
+
+resource "scaleway_registry_namespace" "rotate" {
+  name        = "arnakoff-rotate"
+  description = "image of the rotate job, copied by the owner (docs/deploy.md)"
+  project_id  = scaleway_account_project.rotate.id
+  is_public   = false
+}
 
 resource "scaleway_iam_application" "rotate" {
   name        = "arnakoff-rotate"
@@ -32,15 +51,22 @@ resource "scaleway_iam_policy" "rotate" {
     project_ids          = [data.scaleway_account_project.current.id]
     permission_set_names = ["ContainersFullAccess", "SecretManagerSecretCreate", "SecretManagerSecretWrite"]
   }
+  # Its own key, rewritten at each rotation.
+  rule {
+    project_ids          = [scaleway_account_project.rotate.id]
+    permission_set_names = ["SecretManagerSecretCreate", "SecretManagerSecretWrite"]
+  }
 }
 
 # Secrets only the job reads: its own key, one secret per half, which it
 # rewrites at each rotation, and the private key of the GitHub App, written
-# by the owner. ARNAKOFF_LOG_KEY is the one of the sync job.
+# by the owner. ARNAKOFF_LOG_KEY is a copy of the one of the API, written by
+# the owner: a job reads secrets of its own project only.
 resource "scaleway_secret" "rotate" {
   for_each = toset([
-    "ARNAKOFF_ROTATE_ACCESS_KEY", "ARNAKOFF_ROTATE_SECRET_KEY", "ARNAKOFF_GITHUB_APP_PRIVATE_KEY",
+    "ARNAKOFF_ROTATE_ACCESS_KEY", "ARNAKOFF_ROTATE_SECRET_KEY", "ARNAKOFF_GITHUB_APP_PRIVATE_KEY", "ARNAKOFF_LOG_KEY",
   ])
+  project_id  = scaleway_account_project.rotate.id
   name        = "rotate-${lower(replace(each.key, "_", "-"))}"
   description = "${each.key} of the rotate job, written at the bootstrap (docs/deploy.md), then by the job for its key"
 }
@@ -61,16 +87,21 @@ locals {
   rotate_secret_ids = { for k, s in scaleway_secret.rotate : k => split("/", s.id)[1] }
   sync_secret_ids   = { for k, s in scaleway_secret.sync : k => split("/", s.id)[1] }
 
-  rotate_secrets = merge(
-    { for k, s in scaleway_secret.rotate : k => s.id },
-    { ARNAKOFF_LOG_KEY = scaleway_secret.sync["ARNAKOFF_LOG_KEY"].id },
-  )
+  rotate_secrets = { for k, s in scaleway_secret.rotate : k => s.id }
+}
+
+# No job until the owner has copied its image (docs/deploy.md).
+moved {
+  from = scaleway_job_definition.rotate
+  to   = scaleway_job_definition.rotate[0]
 }
 
 resource "scaleway_job_definition" "rotate" {
-  name      = "rotate"
-  image_uri = var.image
-  cpu_limit = 250
+  count      = var.rotate_image == "" ? 0 : 1
+  name       = "rotate"
+  project_id = scaleway_account_project.rotate.id
+  image_uri  = var.rotate_image
+  cpu_limit  = 250
   # In MB and MiB (scaleway_job_definition documentation).
   memory_limit           = 512
   local_storage_capacity = 1024
@@ -118,9 +149,6 @@ resource "scaleway_job_definition" "rotate" {
 
   depends_on = [scaleway_secret_version.rotate_placeholder]
 
-  lifecycle {
-    ignore_changes = [image_uri]
-  }
 }
 
 # The bucket keys belong to the rotate job now: forgotten by OpenTofu, kept
