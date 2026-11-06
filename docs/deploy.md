@@ -371,13 +371,20 @@ Choix du propriétaire (#72, 04/11/2026) : les métriques et les journaux que Co
 
   Elles comptent les lignes de journal : la métrique `serverless_container_requests_per_second` vaut 0 au trafic actuel (relevé du 05/11/2026), et sa part de 5xx serait toujours vide. Le fournisseur OpenTofu n'a pas de ressource pour ces règles : le propriétaire les envoie avec sa clé Scaleway, à chaque changement du fichier (API Loki de Cockpit, `cockpit/api-cli/create-alerts-programmatically`) :
 
+  L'envoi remplace tout le groupe `arnakoff` : il part donc du fichier de `origin/main`, quelle que soit la branche du clone. Dans Git Bash :
+
   ```sh
+  cd /d/projects/arnakoff
+  git fetch -q origin
   export SCW_PROFILE=arnakoff
   LOGS="$(scw cockpit data-source list -o json | tail -n 1 | jq -r '.[] | select(.name == "Scaleway Logs") | .url')"
-  curl -fsS -X POST -H "X-Auth-Token: $(scw config get secret-key | tail -n 1)" -H "Content-Type: application/yaml" \
-    --data-binary @deploy/cockpit/logs-alerts.yaml "$LOGS/loki/api/v1/rules/arnakoff"
-  curl -fsS -H "X-Auth-Token: $(scw config get secret-key | tail -n 1)" "$LOGS/loki/api/v1/rules/arnakoff"   # relire les règles envoyées
+  git show origin/main:deploy/cockpit/logs-alerts.yaml | grep "alert:"   # les règles qui vont partir
+  git show origin/main:deploy/cockpit/logs-alerts.yaml | curl -fsS -X POST -H "X-Auth-Token: $(scw config get secret-key | tail -n 1)" \
+    -H "Content-Type: application/yaml" --data-binary @- "$LOGS/loki/api/v1/rules/arnakoff"
+  curl -fsS -H "X-Auth-Token: $(scw config get secret-key | tail -n 1)" "$LOGS/loki/api/v1/rules/arnakoff" | grep "alert:"   # les mêmes, relues
   ```
+
+  L'envoi répond `{"status":"success",…}`. `curl: option --data-binary: error encountered when reading a file` veut dire que le fichier n'a pas été lu : rien n'est envoyé, les règles d'avant restent en place.
 
   Coût d'une règle d'alerte personnalisée « à vérifier » : la page de tarification de Cockpit n'en parle pas (`cockpit/reference-content/cockpit-pricing`, relevé du 05/11/2026).
 - **Sonde externe** (`.github/workflows/probe.yml`) : toutes les 15 minutes, `GET /readyz` doit répondre 200, et chaque source téléchargée de `GET /v1/sources` doit être `ok` avec des données de moins de 24 heures (quatre synchronisations manquées). Un échec est l'alerte : GitHub prévient par e-mail, selon ses réglages de notification Actions, l'utilisateur qui a créé le workflow ou modifié son `cron` en dernier. GitHub peut retarder une exécution planifiée, et désactive la planification d'un dépôt public après 60 jours sans activité : la réactiver dans Actions → Probe. Lancement à la main : Actions → Probe → Run workflow.
