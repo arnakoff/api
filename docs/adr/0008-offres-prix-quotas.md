@@ -50,28 +50,42 @@ Retenu : par minute seulement.
 - **Paliers fixes** mensuels (option A).
 - **Quota par minute seulement**, par clé, selon le niveau de la clé ; pas de quota mensuel. Le prix achète un débit, pas un volume.
 - Quota atteint : refus `429` avec `Retry-After` (comportement actuel), jamais de dépassement facturé.
-- Changement d'offre : immédiat, au prorata calculé par Stripe.
-- Impayé : délai de grâce, puis retour au niveau gratuit ; la clé n'est jamais supprimée.
+- Passage à une offre supérieure : immédiat, au prorata calculé par Stripe. Passage à une offre inférieure et résiliation : à la fin du mois payé.
+- Impayé : délai de grâce de 14 jours, puis retour au niveau gratuit ; la clé n'est jamais supprimée.
+- Une clé sans abonnement actif a le niveau gratuit.
 
 Offres (prix choisis par le propriétaire, sans étude de marché) :
 
 | Offre | Prix HT / mois | Requêtes / minute | Éléments par lot | Engagement de service | Support |
 |---|---|---|---|---|---|
 | Gratuite | 0 € | 60 | 50 | aucun | issues GitHub |
-| Pro | 29 € | 600 | 200 | aucun, au mieux | e-mail, réponse sous 2 jours ouvrés |
-| Entreprise | 149 € | 3 000 | 1 000 | disponibilité mensuelle chiffrée, au plus celle garantie par Scaleway (à vérifier) | e-mail, réponse sous 1 jour ouvré |
+| Pro | 29 € | 600 | 200 | aucun, au mieux | e-mail, réponse visée sous 2 jours ouvrés |
+| Entreprise | 99 € | 3 000 | 1 000 | aucun, au mieux | e-mail, réponse visée sous 1 jour ouvré |
 
-Sans engagement de durée : abonnement mensuel, résiliable à tout moment, effet à la fin du mois payé.
+Sans engagement de durée : abonnement mensuel, résiliable à tout moment. Les délais de support sont visés, non garantis ; les périodes de fermeture sont annoncées à l'avance. Aucune offre ne comporte d'engagement de disponibilité chiffré : il viendra dans une nouvelle ADR, une fois la disponibilité mesurée (#72), avec ses exclusions (maintenance, pannes des sources amont, mode dégradé) et ses crédits en cas de manquement.
+
+Le débit vendu est celui de l'API. Il ne garantit pas le débit des registres interrogés à la demande (RDAP, SIRENE, BODACC), qui ont leurs propres limites : SIRENE est limité à 7 requêtes par seconde par instance (`internal/adapter/registry/sirene`), soit 420 par minute, moins qu'une seule clé Pro (#336).
 
 Limites de cette décision :
 
-- la limite par minute s'applique à chaque instance (ADR 0004) : avec n instances, une clé peut obtenir jusqu'à n fois son débit ; acceptable tant que le nombre d'instances reste faible ;
-- sans quota mensuel, le coût d'une clé Entreprise au maximum (3 000 / minute en continu) n'est pas borné par le prix : coût d'hébergement et charge des registres amont (SIRENE limité à 7 requêtes / seconde) à mesurer avant la mise en vente ;
+- la limite par minute s'applique à chaque instance (ADR 0004) : la production en lance jusqu'à 2 (`max_scale = 2`, `deploy/tofu/compute.tf`), une clé peut donc obtenir jusqu'à deux fois son débit, soit 6 000 requêtes par minute pour une clé Entreprise. Une limite partagée entre instances fera l'objet d'une nouvelle ADR si cet écart pose problème ;
+- sans quota mensuel, le coût d'une clé au maximum de son débit n'est pas borné par le prix (environ 26 millions de requêtes sur 30 jours pour Pro, 130 millions pour Entreprise) : coût d'hébergement à mesurer avant la mise en vente ;
+- une personne peut demander plusieurs clés gratuites avec plusieurs adresses e-mail : à surveiller, un plafond par compte se décidera sur les usages observés ;
 - aucune offre payante n'est vendue avant que le cadre juridique et fiscal de la vente soit réglé et les CGV validées par un juriste ; la facturation Stripe (#81) attend ces deux points.
+
+## Questions pour le juriste des CGV
+
+- Structure juridique nécessaire pour vendre, et mention des prix (HT ou TTC) selon le régime de TVA.
+- Vente réservée aux professionnels, ou ouverte aux consommateurs avec leur droit de rétractation.
+- Limitation de responsabilité : les signaux rapportent des données publiées par des tiers et ne garantissent jamais qu'une entité est sûre.
+- Revente ou redistribution des résultats par un client.
+- Suspension et révocation d'une clé (abus, impayé).
+- Délais de support visés et absence d'engagement de disponibilité.
 
 ## Conséquences
 
-- #82 ajoute le niveau de clé, stocké avec la clé (ADR 0004), et la correspondance offre Stripe → niveau ; la limite par minute et la taille de lot de chaque niveau, aujourd'hui une seule valeur pour toutes les clés, deviennent sa configuration. Aucun compteur mensuel n'est nécessaire.
+- Modifie l'ADR 0004 : elle prévoyait des compteurs de quota par période en base ; aucun n'est nécessaire, la limite par minute en mémoire suffit.
+- #82 ajoute le niveau de clé, stocké avec la clé en base (ADR 0004) et mis à jour par les webhooks Stripe, qui en sont la seule source ; la correspondance offre Stripe → niveau ; la limite par minute et la taille de lot de chaque niveau, aujourd'hui une seule valeur pour toutes les clés, deviennent sa configuration, chaque taille de lot restant inférieure ou égale à la limite par minute du niveau. Le prorata exact de Stripe est vérifié dans sa documentation par #82.
 - `api/openapi.yaml` décrit les niveaux et les en-têtes `RateLimit` / `RateLimit-Policy` par niveau (`/api-change`).
 - `arnakoff/web` publie la page des tarifs et les CGV.
 - Le registre des traitements (`arnakoff/conformite`) ajoute la facturation : Stripe comme sous-traitant, données de facturation et leur durée de conservation (obligation comptable, à vérifier).
