@@ -47,3 +47,17 @@ rules:
     annotations:
       summary: "backup : la sauvegarde des clés a échoué"
       description: "Le conteneur backup a journalisé « backup failed » ou « cannot start » dans les 15 dernières minutes. Journaux : Cockpit, conteneur backup."
+
+  # The global hourly cap on login links was reached (#245): every key
+  # request is answered 503 until the cap refills. Either real demand
+  # outgrew ARNAKOFF_RATE_LIMIT_KEY_REQUEST_GLOBAL, or a flood that solves
+  # Turnstile is spending the Transactional Email quota of the project.
+  - alert: LoginLinkCapReached
+    expr: |
+      sum(count_over_time({resource_name=~".+-api"} | json | line_format "{{.message}}" | json | msg="login link cap reached" [15m])) > 0
+    for: 0m
+    labels:
+      severity: warning
+    annotations:
+      summary: "api : plafond horaire des liens de connexion atteint"
+      description: "Le conteneur api a refusé des demandes de clé dans les 15 dernières minutes : plafond global d'envoi de liens atteint (ARNAKOFF_RATE_LIMIT_KEY_REQUEST_GLOBAL). Journaux : Cockpit, conteneur api, msg=login link cap reached."

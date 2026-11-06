@@ -180,6 +180,7 @@ func newKeyRequests(cfg config.Config, keys postgres.KeyServices, verifier httpa
 		Origin: cfg.Demo.Origin, Verifier: verifier,
 		Limit:        ratelimit.PerMinute(k.RateLimit, clock.System{}.Now),
 		AddressLimit: ratelimit.PerHour(k.RateLimitAddress, clock.System{}.Now),
+		GlobalLimit:  ratelimit.PerHour(k.RateLimitGlobal, clock.System{}.Now),
 	}
 	if !k.Enabled() {
 		return opts, nil

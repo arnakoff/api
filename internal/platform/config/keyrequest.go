@@ -18,6 +18,7 @@ const (
 	EnvLoginLinkURL               = "ARNAKOFF_LOGIN_LINK_URL"
 	EnvRateLimitKeyRequest        = "ARNAKOFF_RATE_LIMIT_KEY_REQUEST"
 	EnvRateLimitKeyRequestAddress = "ARNAKOFF_RATE_LIMIT_KEY_REQUEST_ADDRESS"
+	EnvRateLimitKeyRequestGlobal  = "ARNAKOFF_RATE_LIMIT_KEY_REQUEST_GLOBAL"
 )
 
 // Defaults of the key requests.
@@ -36,6 +37,13 @@ const (
 	// DefaultRateLimitKeyRequestAddress is the number of login links an
 	// email address may receive per hour.
 	DefaultRateLimitKeyRequestAddress = 3
+
+	// DefaultRateLimitKeyRequestGlobal is the number of login links mailed
+	// per hour to every address together, as the owner set it (#245,
+	// 06/11/2026): a flood that solves Turnstile from many client addresses
+	// spends at most 720 a day of the 10,000 emails a month of Scaleway
+	// Transactional Email.
+	DefaultRateLimitKeyRequestGlobal = 30
 )
 
 // KeyRequest configures the free API keys requested by login link (#59).
@@ -62,6 +70,10 @@ type KeyRequest struct {
 	// RateLimitAddress is the number of login links per hour an email
 	// address may receive, from 1 to MaxRateLimit.
 	RateLimitAddress int
+
+	// RateLimitGlobal is the number of login links per hour mailed to
+	// every address together, from 1 to MaxRateLimit.
+	RateLimitGlobal int
 }
 
 // Enabled reports whether the key requests are on.
@@ -81,6 +93,7 @@ func parseKeyRequest(lookup func(string) (string, bool), k *KeyRequest, d *Demo)
 		parse(lookup, EnvLoginLinkURL, DefaultLoginLinkURL, &k.LinkURL, parseLinkURL),
 		parse(lookup, EnvRateLimitKeyRequest, strconv.Itoa(DefaultRateLimitKeyRequest), &k.RateLimit, parseRateLimit),
 		parse(lookup, EnvRateLimitKeyRequestAddress, strconv.Itoa(DefaultRateLimitKeyRequestAddress), &k.RateLimitAddress, parseRateLimit),
+		parse(lookup, EnvRateLimitKeyRequestGlobal, strconv.Itoa(DefaultRateLimitKeyRequestGlobal), &k.RateLimitGlobal, parseRateLimit),
 	)
 	if err != nil || !k.Enabled() {
 		return err
