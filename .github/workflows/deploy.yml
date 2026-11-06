@@ -147,15 +147,9 @@ jobs:
           JOB_ID: ${{ vars.SCW_JOB_DEFINITION_ID }}
           AMD64: ${{ steps.image.outputs.amd64 }}
         run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
-      # The rotate job (deploy/tofu/rotate.tf, ADR 0007), once
-      # SCW_ROTATE_JOB_DEFINITION_ID is set: the rotate_job_definition_id
-      # output of deploy/tofu.
-      - name: Deploy the rotate job
-        if: vars.SCW_ROTATE_JOB_DEFINITION_ID != ''
-        env:
-          JOB_ID: ${{ vars.SCW_ROTATE_JOB_DEFINITION_ID }}
-          AMD64: ${{ steps.image.outputs.amd64 }}
-        run: scw jobs definition update "$JOB_ID" image-uri="${TARGET}@${AMD64}" -o json > /dev/null
+      # The rotate job is not deployed here: it lives in a project where
+      # ci-deploy has no right, its image pinned by digest by the owner
+      # (deploy/tofu/rotate.tf, #340).
       # The bucket keys and the SMTP password of the container are the
       # rotate job's (ADR 0007, #308, #295): this update must keep them. The containers/v1 API of the scw
       # CLI replaces the whole table of secrets (in the cassettes of the

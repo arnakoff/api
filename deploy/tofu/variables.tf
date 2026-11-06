@@ -173,6 +173,17 @@ variable "image" {
   type        = string
 }
 
+variable "rotate_image" {
+  description = "Image of the rotate job in its own registry, pinned by digest: rg.fr-par.scw.cloud/arnakoff-rotate/api@sha256:…, copied by the owner from a signed release (docs/deploy.md). ci-deploy cannot push there (#340). Empty: no job yet, the first apply creates its project and registry."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.rotate_image == "" || can(regex("^rg[.]fr-par[.]scw[.]cloud/arnakoff-rotate/api@sha256:[0-9a-f]{64}$", var.rotate_image))
+    error_message = "rotate_image must be rg.fr-par.scw.cloud/arnakoff-rotate/api@sha256:<64 hex digits>, pinned by digest."
+  }
+}
+
 variable "api_hostname" {
   description = "Custom domain of the API, once its CNAME points at the container's default endpoint. Empty: none, only before that CNAME exists (docs/deploy.md, steps 4 and 8)."
   type        = string
