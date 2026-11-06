@@ -23,7 +23,7 @@ func Registries(instances int) (app.Registries, error) {
 	if err != nil {
 		return app.Registries{}, err
 	}
-	sc, err := httpclient.New(httpclient.Config{AllowedHosts: sirene.Hosts()})
+	sc, err := httpclient.New(sirene.HTTPConfig())
 	if err != nil {
 		return app.Registries{}, err
 	}
