@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.62.0](https://github.com/arnakoff/api/compare/v0.61.0...v0.62.0) (2026-11-06)
+
+
+### Features
+
+* **httpapi:** let the site read GET /v1/sources ([#333](https://github.com/arnakoff/api/issues/333)) ([2b3b34e](https://github.com/arnakoff/api/commit/2b3b34e49c5cdf976be9fe79f3edbd5726b9c36f)), closes [#332](https://github.com/arnakoff/api/issues/332)
+
 ## [0.61.0](https://github.com/arnakoff/api/compare/v0.60.2...v0.61.0) (2026-11-06)
 
 
