@@ -7,6 +7,7 @@
 package backupseal
 
 import (
+	"crypto/sha512"
 	"errors"
 	"fmt"
 	"io"
@@ -22,11 +23,20 @@ var ErrRecipient = errors.New("backup recipient must be one age public key")
 // app.BackupSealer.
 type Sealer struct {
 	recipient age.Recipient
+	signer    *Signer
 }
 
+// ErrNoSigner means a Sealer was asked for without a Signer: every backup
+// is signed.
+var ErrNoSigner = errors.New("backup sealer needs a signer")
+
 // New returns a Sealer for recipient, one native age public key, such as
-// the "age1pq1…" printed by age-keygen -pq, or ErrRecipient.
-func New(recipient string) (*Sealer, error) {
+// the "age1pq1…" printed by age-keygen -pq, or ErrRecipient. Every dump it
+// seals is signed by signer.
+func New(recipient string, signer *Signer) (*Sealer, error) {
+	if signer == nil {
+		return nil, ErrNoSigner
+	}
 	rs, err := age.ParseRecipients(strings.NewReader(recipient))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrRecipient, err)
@@ -34,15 +44,15 @@ func New(recipient string) (*Sealer, error) {
 	if len(rs) != 1 {
 		return nil, fmt.Errorf("%w: %d keys", ErrRecipient, len(rs))
 	}
-	return &Sealer{recipient: rs[0]}, nil
+	return &Sealer{recipient: rs[0], signer: signer}, nil
 }
 
 // Seal returns a WriteCloser encrypting what is written to it into w; Close
-// writes the last chunk.
+// appends the signature of what was written, then writes the last chunk.
 func (s *Sealer) Seal(w io.Writer) (io.WriteCloser, error) {
 	wc, err := age.Encrypt(w, s.recipient)
 	if err != nil {
 		return nil, fmt.Errorf("age: %w", err)
 	}
-	return wc, nil
+	return &signingWriter{sealed: wc, digest: sha512.New(), signer: s.signer}, nil
 }

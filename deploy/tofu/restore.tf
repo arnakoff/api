@@ -77,7 +77,8 @@ resource "scaleway_container" "restore" {
   }
 
   environment_variables = {
-    ARNAKOFF_DATABASE_CA = scaleway_rdb_instance.main.certificate
+    ARNAKOFF_DATABASE_CA        = scaleway_rdb_instance.main.certificate
+    ARNAKOFF_RESTORE_VERIFY_KEY = var.backup_verify_key
   }
   secret_environment_variables = {
     ARNAKOFF_DATABASE_URL     = "${local.admin_database_server}/${local.restore_database}?sslmode=verify-full"

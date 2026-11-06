@@ -14,6 +14,7 @@ const (
 	EnvBackupBucketAccessKey = "ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY"
 	EnvBackupBucketSecretKey = "ARNAKOFF_BACKUP_BUCKET_SECRET_KEY" //nolint:gosec // G101: the name of a variable, not its value.
 	EnvBackupRecipient       = "ARNAKOFF_BACKUP_RECIPIENT"
+	EnvBackupSigningKey      = "ARNAKOFF_BACKUP_SIGNING_KEY"
 )
 
 // Backup is where admin backup keeps the sealed copies of the key store:
@@ -31,6 +32,11 @@ type Backup struct {
 	// Recipient is the age public key the backups are sealed for. It is
 	// public: no Secret. Its format is checked where it is used.
 	Recipient string
+
+	// SigningKey is the hex seed of the Ed25519 key that signs each dump,
+	// so that a restore can tell it was made by this job (#340, point 3).
+	// It is a Secret; its format is checked where it is used.
+	SigningKey Secret
 }
 
 // RequireBackup returns an error, wrapping ErrInvalid and naming each
@@ -44,6 +50,9 @@ func (c Config) RequireBackup() error {
 	if c.Backup.Recipient == "" {
 		errs = append(errs, fmt.Errorf("%w: %s: required, the age public key of the owner", ErrInvalid, EnvBackupRecipient))
 	}
+	if len(c.Backup.SigningKey) == 0 {
+		errs = append(errs, fmt.Errorf("%w: %s: required, the key that signs each dump", ErrInvalid, EnvBackupSigningKey))
+	}
 	return errors.Join(errs...)
 }
 
@@ -54,5 +63,6 @@ func parseBackup(lookup func(string) (string, bool), b *Backup) error {
 		parseBucket(lookup, [3]string{EnvBackupBucket, EnvBackupBucketAccessKey, EnvBackupBucketSecretKey},
 			&b.Bucket, &b.AccessKey, &b.SecretKey),
 		parse(lookup, EnvBackupRecipient, "", &b.Recipient, parseAny),
+		parse(lookup, EnvBackupSigningKey, "", &b.SigningKey, parseOptionalSecret),
 	)
 }

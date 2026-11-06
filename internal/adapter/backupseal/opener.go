@@ -20,12 +20,17 @@ var ErrIdentity = errors.New("restore identity must be one age private key")
 // app.KeyDumpOpener.
 type Opener struct {
 	identity age.Identity
+	verifier *Verifier
 }
 
 // NewOpener returns an Opener for identity, one native age private key,
 // such as the "AGE-SECRET-KEY-PQ-1…" printed by age-keygen -pq, or
-// ErrIdentity. The error never quotes identity.
-func NewOpener(identity string) (*Opener, error) {
+// ErrIdentity, whose dumps verifier checks. The error never quotes
+// identity.
+func NewOpener(identity string, verifier *Verifier) (*Opener, error) {
+	if verifier == nil {
+		return nil, ErrSignature
+	}
 	ids, err := age.ParseIdentities(strings.NewReader(identity))
 	if err != nil {
 		return nil, ErrIdentity
@@ -33,11 +38,13 @@ func NewOpener(identity string) (*Opener, error) {
 	if len(ids) != 1 {
 		return nil, fmt.Errorf("%w: %d keys", ErrIdentity, len(ids))
 	}
-	return &Opener{identity: ids[0]}, nil
+	return &Opener{identity: ids[0], verifier: verifier}, nil
 }
 
-// OpenDump decrypts sealed whole: age authenticates every chunk and the
-// end of the file, so a dump altered or cut short fails here.
+// OpenDump decrypts sealed whole and returns its tar once the signature is
+// verified: age authenticates every chunk and the end of the file, so a
+// dump altered or cut short fails here, and the signature proves the
+// backup job made it, which age cannot.
 func (o *Opener) OpenDump(sealed []byte) ([]byte, error) {
 	r, err := age.Decrypt(bytes.NewReader(sealed), o.identity)
 	if err != nil {
@@ -48,5 +55,10 @@ func (o *Opener) OpenDump(sealed []byte) ([]byte, error) {
 		clear(dump)
 		return nil, fmt.Errorf("age: %w", err)
 	}
-	return dump, nil
+	tar, err := o.verifier.OpenDump(dump)
+	if err != nil {
+		clear(dump)
+		return nil, err
+	}
+	return tar, nil
 }

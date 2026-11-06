@@ -15,6 +15,7 @@ const (
 	awsAccessKey = "AKIAXXXXXXXXXXXXXXXX"
 	awsSecretKey = "aws-test-secret-key"
 	recipient    = "age1pq1example"
+	signingKey   = "5ec2e7a1d0c0ffee5ec2e7a1d0c0ffee5ec2e7a1d0c0ffee5ec2e7a1d0c0ffee"
 )
 
 // backupVars are a complete backup configuration.
@@ -26,6 +27,7 @@ func backupVars() map[string]string {
 		"ARNAKOFF_BACKUP_BUCKET_ACCESS_KEY": awsAccessKey,
 		"ARNAKOFF_BACKUP_BUCKET_SECRET_KEY": awsSecretKey,
 		"ARNAKOFF_BACKUP_RECIPIENT":         recipient,
+		"ARNAKOFF_BACKUP_SIGNING_KEY":       signingKey,
 	}
 }
 
@@ -40,17 +42,18 @@ func TestLoadReadsTheBackup(t *testing.T) {
 	}
 	b := cfg.Backup
 	if b.Bucket != "arnakoff-backups" || b.Recipient != recipient ||
-		string(b.AccessKey.Bytes()) != awsAccessKey || string(b.SecretKey.Bytes()) != awsSecretKey {
+		string(b.AccessKey.Bytes()) != awsAccessKey || string(b.SecretKey.Bytes()) != awsSecretKey ||
+		string(b.SigningKey.Bytes()) != signingKey {
 		t.Errorf("Backup = %+v, want arnakoff-backups with its keys and recipient", b)
 	}
-	if s := fmt.Sprintf("%v %+v", b, cfg); strings.Contains(s, awsAccessKey) || strings.Contains(s, awsSecretKey) {
+	if s := fmt.Sprintf("%v %+v", b, cfg); strings.Contains(s, awsAccessKey) || strings.Contains(s, awsSecretKey) || strings.Contains(s, signingKey) {
 		t.Errorf("formatted config shows a bucket key: %s", s)
 	}
 }
 
 func TestRequireBackupNeedsEveryVariable(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"ARNAKOFF_DATABASE_URL", "ARNAKOFF_BACKUP_BUCKET", "ARNAKOFF_BACKUP_RECIPIENT"} {
+	for _, name := range []string{"ARNAKOFF_DATABASE_URL", "ARNAKOFF_BACKUP_BUCKET", "ARNAKOFF_BACKUP_RECIPIENT", "ARNAKOFF_BACKUP_SIGNING_KEY"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			vars := backupVars()

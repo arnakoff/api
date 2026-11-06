@@ -22,7 +22,11 @@ func Backup(ctx context.Context, cfg config.Config) (*app.Backup, func(), error)
 		return nil, nil, err
 	}
 	b := cfg.Backup
-	sealer, err := backupseal.New(b.Recipient)
+	signer, err := backupseal.NewSigner(string(b.SigningKey.Bytes()))
+	if err != nil {
+		return nil, nil, err
+	}
+	sealer, err := backupseal.New(b.Recipient, signer)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -218,6 +218,16 @@ Choix du propriétaire (05/11/2026) : une copie quotidienne de la table `api_key
 
    Pour un essai sans attendre la nuit : `tofu apply -var backup_schedule="<minute> <heure> * * *"` (heure de Paris), puis `tofu apply` sans cette variable pour revenir à 03:40.
 
+6. **Signature des sauvegardes** (#340, point 3) : age chiffre pour une clé publique et n'authentifie pas l'expéditeur ; quiconque détient la clé d'ajout du bucket pourrait déposer un faux dump sous `keys/`. Le conteneur `backup` signe donc chaque dump avec une clé Ed25519 qu'il est seul à détenir, et la restauration refuse un dump que la clé publique ne vérifie pas. Une fois, sur la machine du propriétaire, avant la première version qui l'apporte :
+
+   ```sh
+   openssl genpkey -algorithm ed25519 -outform DER -out ~/.arnakoff/backup-signing.der
+   tail -c 32 ~/.arnakoff/backup-signing.der | xxd -p -c 32 | gh secret set BACKUP_SIGNING_KEY --env production   # graine privée
+   openssl pkey -inform DER -in ~/.arnakoff/backup-signing.der -pubout -outform DER | tail -c 32 | xxd -p -c 32       # clé publique, TF_VAR_backup_verify_key
+   ```
+
+   La clé publique (64 chiffres hexadécimaux) se garde avec les autres variables d'OpenTofu (`export TF_VAR_backup_verify_key=…`, exigée par chaque `tofu apply` de `deploy/tofu`) ; la graine privée reste dans `~/.arnakoff/` et le secret GitHub. Le déploiement suivant la donne au conteneur `backup`. Les dumps faits avant cette version ne sont pas signés et la restauration les refuse : pendant les 30 jours où ils restent sous `keys/`, la sauvegarde gérée de Scaleway (7 jours) couvre les pertes récentes.
+
 ### Restauration
 
 `admin restore` charge un dump dans une base **vide** : il migre le schéma jusqu'à la version du dump, charge les lignes en une seule transaction, recale la séquence des identifiants, puis applique les migrations suivantes ; il refuse une base qui contient déjà des clés ou un schéma plus récent que le dump.
@@ -276,6 +286,7 @@ rm ../../restore-key.txt && unset TF_VAR_restore_log_key TF_VAR_restore_identity
 - **Contrôle** : le conteneur passe `ready`, et ses journaux (`scw container container logs "$(tofu output -raw restore_container_id)"`, ou Cockpit) montrent `step done` avec `step=restore`. Un échec laisse le conteneur non prêt et journalise `step failed` avec la cause : URL expirée ou refusée (`unexpected HTTP status 403 Forbidden`), mauvaise clé (`age: identity did not match any of the recipients`), base non vide (`restore target is not an empty key store`). Après correction, `tofu apply -var restore=true` avec les nouvelles valeurs relance le conteneur.
 - **Base visée** : `restore_database`, `arnakoff` par défaut, la base de l'API. Avec un autre nom, une base d'exercice est créée à côté, avec les droits du rôle des migrations, et supprimée par le `tofu apply` sans `restore`. La restauration refuse une base qui contient déjà des clés : un exercice sur `arnakoff` en service échoue sans rien toucher.
 - **Après une vraie restauration** (Scaleway perdu) : étapes 1 à 5 sur le nouveau projet, puis cette procédure à la place de l'étape 6 (elle applique les migrations), le `tofu apply` sans `restore` qui étend les droits des rôles `arnakoff_api` et `arnakoff_backup` aux tables restaurées, puis l'étape 7, avec l'ancien `ARNAKOFF_API_KEY_SECRET`.
+- **Signature** : le conteneur `restore` vérifie la signature du dump avec `TF_VAR_backup_verify_key` avant de charger quoi que ce soit, et `admin restore -file` avec `ARNAKOFF_RESTORE_VERIFY_KEY`. Un dump non signé, ou signé par une autre clé, est refusé (`dump signature missing or invalid`) : il ne vient pas du conteneur `backup`.
 - **Révocations faites après la sauvegarde** (#346) : la restauration remet chaque clé dans l'état où la sauvegarde l'a trouvée, et l'ancien `ARNAKOFF_API_KEY_SECRET` vérifie à nouveau les mêmes clés. Une clé révoquée depuis redevient donc valide : l'ancienne clé d'un compte qui en a demandé une nouvelle (une fuite, souvent), ou une clé révoquée par `admin key revoke`. Aucun journal n'en garde la trace hors de la base ; avant de rouvrir l'API au trafic :
   1. relever la date de la sauvegarde restaurée (le nom de l'objet sous `keys/`, en UTC) ;
   2. relever les adresses qui ont reçu un lien de connexion depuis cette date, dans la console Scaleway, Transactional Email → Emails (chaque nouvelle clé d'un compte passe par un tel lien), et celles des comptes dont une clé a été révoquée à la main depuis (registre du propriétaire) ;

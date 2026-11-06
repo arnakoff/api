@@ -112,15 +112,11 @@ func runRestore(ctx context.Context, cfg config.Config, file, listen string) err
 	if listen != "" {
 		return serveKeyRestore(ctx, cfg, listen)
 	}
-	if err := cfg.RequireDatabase(); err != nil {
-		return err
-	}
-	f, err := os.Open(file) //nolint:gosec // G304: the dump the operator names.
+	restore, err := assembly.FileRestore(cfg, file)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }() // Read only.
-	if err := postgres.Restore(ctx, string(cfg.DatabaseURL.Bytes()), f, postgres.WithCA([]byte(cfg.DatabaseCA))); err != nil {
+	if err := restore.Run(ctx); err != nil {
 		return err
 	}
 	slog.InfoContext(ctx, "dump restored and schema migrated")
