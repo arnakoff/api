@@ -308,7 +308,11 @@ paths:
       operationId: listSources
       tags: [référence]
       summary: Lister les sources
-      description: Les sources consultées, leur licence et l'état de leurs données en service.
+      description: |
+        Les sources consultées, leur licence et l'état de leurs données en service.
+
+        CORS : seule l'origine du site est autorisée, sans cookie ni identifiant : sa page d'état
+        lit cette route.
       responses:
         '200':
           description: Les sources.
