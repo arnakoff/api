@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.61.0](https://github.com/arnakoff/api/compare/v0.60.2...v0.61.0) (2026-11-06)
+
+
+### Features
+
+* **httpapi:** cap the login links mailed per hour to every address ([#329](https://github.com/arnakoff/api/issues/329)) ([18038f6](https://github.com/arnakoff/api/commit/18038f6b6905d0e606d48995585e17486eb5190b)), closes [#245](https://github.com/arnakoff/api/issues/245)
+
 ## [0.60.2](https://github.com/arnakoff/api/compare/v0.60.1...v0.60.2) (2026-11-06)
 
 
