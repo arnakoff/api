@@ -12,14 +12,42 @@ import (
 // a library that builds its own requests, such as an S3 SDK. It keeps the
 // rules of Get: req must be HTTPS on an allowed host, or ErrURLNotAllowed
 // is returned without sending anything; a redirect elsewhere is refused;
-// Config.Timeout bounds the whole exchange, body included; reading more
-// than Config.MaxBodyBytes of the body fails with ErrBodyTooLarge. It does
-// not retry and leaves the User-Agent of req. The caller closes the body.
+// Config.Timeout bounds each exchange, body included; reading more than
+// Config.MaxBodyBytes of the body fails with ErrBodyTooLarge. It leaves
+// the User-Agent of req. The caller closes the body.
+//
+// It does not retry unless Config.RetryDo is set. Then a 429 or 5xx answer
+// to an idempotent request (RFC 9110, section 9.2.2) whose body can be sent
+// again (none, or http.Request.GetBody) is retried as Get does, the pauses
+// bounded by the context of req; the last answer is returned as is. A POST
+// or a PATCH is sent once: a retry could repeat what the first one did.
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	if !c.hosts.allows(req.URL) {
 		return nil, ErrURLNotAllowed
 	}
-	//nolint:gosec // G704: the host is checked against the allowlist above; redirects by checkRedirect.
+	for attempt := 1; ; attempt++ {
+		resp, err := c.doOnce(req)
+		if err != nil {
+			return nil, err
+		}
+		delay, ok := c.retryDoAfter(req, resp, attempt)
+		if !ok {
+			return resp, nil
+		}
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, drainBytes))
+		_ = resp.Body.Close() // The answer is dropped; a close error changes nothing.
+		if err := c.wait(req.Context(), delay); err != nil {
+			return nil, fmt.Errorf("wait before retry: %w", err)
+		}
+		if req, err = rewind(req); err != nil {
+			return nil, err
+		}
+	}
+}
+
+// doOnce sends req once and caps the body of the answer.
+func (c *Client) doOnce(req *http.Request) (*http.Response, error) {
+	//nolint:gosec // G704: Do checks the host against the allowlist; redirects by checkRedirect.
 	resp, err := c.raw.Do(req)
 	if err != nil {
 		return nil, withoutURL(err)

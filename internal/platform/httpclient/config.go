@@ -67,6 +67,12 @@ type Config struct {
 	// the retries rather than hammer the upstream sooner than it asked.
 	MaxBackoff time.Duration
 
+	// RetryDo makes Do retry a 429 or 5xx answer as Get does, for an
+	// idempotent request whose body can be sent again. Off by default: a
+	// library that retries by itself, such as an S3 SDK, keeps Do without
+	// retry.
+	RetryDo bool
+
 	// RootCAs are the trusted certificate authorities; nil means the
 	// system pool.
 	RootCAs *x509.CertPool
