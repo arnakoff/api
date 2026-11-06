@@ -93,3 +93,26 @@ func TestLoadRejectsInvalidKeyRequests(t *testing.T) {
 		}
 	}
 }
+
+func TestKeyRequestShareSplitsMailLimitsAmongInstances(t *testing.T) {
+	t.Parallel()
+	k := config.KeyRequest{RateLimit: 5, RateLimitAddress: 3, RateLimitGlobal: 30}
+	tests := []struct {
+		instances, address, global int
+	}{
+		{1, 3, 30},
+		{2, 1, 15},
+		{7, 1, 4},
+	}
+	for _, tt := range tests {
+		got := k.Share(tt.instances)
+		if got.RateLimitAddress != tt.address || got.RateLimitGlobal != tt.global {
+			t.Errorf("Share(%d) = %d per address, %d in all; want %d and %d",
+				tt.instances, got.RateLimitAddress, got.RateLimitGlobal, tt.address, tt.global)
+		}
+		if got.RateLimit != k.RateLimit {
+			t.Errorf("Share(%d).RateLimit = %d, want %d: a client address is limited by each process",
+				tt.instances, got.RateLimit, k.RateLimit)
+		}
+	}
+}

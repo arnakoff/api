@@ -175,7 +175,7 @@ func newDemo(cfg config.Demo) (httpapi.DemoOptions, error) {
 // link request proven with verifier: without a requester when they are
 // off, so that the routes answer 503.
 func newKeyRequests(cfg config.Config, keys postgres.KeyServices, verifier httpapi.ChallengeVerifier) (httpapi.KeyRequestOptions, error) {
-	k := cfg.KeyRequest
+	k := cfg.KeyRequest.Share(cfg.Instances)
 	opts := httpapi.KeyRequestOptions{
 		Origin: cfg.Demo.Origin, Verifier: verifier,
 		Limit:        ratelimit.PerMinute(k.RateLimit, clock.System{}.Now),
