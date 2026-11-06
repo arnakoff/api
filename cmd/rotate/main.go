@@ -60,7 +60,14 @@ func run(ctx context.Context, cfg config.Config) error {
 // newRotation wires the rotation of the keys of api, sync, mail,
 // ci-deploy and the job itself, each client allowed its own host only.
 func newRotation(cfg config.Rotate) (*app.RotateCredentials, error) {
-	clients, err := hostClients(scaleway.Host, objectstore.Host, githubapp.Host)
+	clients, err := hostClients(
+		// The Scaleway SDK does not retry: Do does, for its idempotent
+		// calls (#312). The S3 SDK of the bucket check retries by itself,
+		// and the GitHub App calls go through Send, which retries.
+		httpclient.Config{AllowedHosts: []string{scaleway.Host}, RetryDo: true},
+		httpclient.Config{AllowedHosts: []string{objectstore.Host}},
+		httpclient.Config{AllowedHosts: []string{githubapp.Host}},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -151,16 +158,16 @@ func mailTarget(cfg config.Rotate, cloud *scw.Client) (app.CredentialTarget, err
 	return app.CredentialTarget{Name: "mail", Application: cfg.Apps.Mail, Installers: []app.CredentialInstaller{check, password}}, nil
 }
 
-// hostClients returns an outbound client per host, each allowed its own
-// host only, with the default timeouts, size limit and retries.
-func hostClients(hosts ...string) (map[string]*httpclient.Client, error) {
-	clients := make(map[string]*httpclient.Client, len(hosts))
-	for _, h := range hosts {
-		c, err := httpclient.New(httpclient.Config{AllowedHosts: []string{h}})
+// hostClients returns an outbound client per config, keyed by its one
+// allowed host, with the default timeouts, size limit and retries.
+func hostClients(cfgs ...httpclient.Config) (map[string]*httpclient.Client, error) {
+	clients := make(map[string]*httpclient.Client, len(cfgs))
+	for _, cfg := range cfgs {
+		c, err := httpclient.New(cfg)
 		if err != nil {
 			return nil, err
 		}
-		clients[h] = c
+		clients[cfg.AllowedHosts[0]] = c
 	}
 	return clients, nil
 }

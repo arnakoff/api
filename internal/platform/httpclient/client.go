@@ -35,6 +35,7 @@ type Client struct {
 	timeout   time.Duration
 	maxBody   int64
 	retry     retryPolicy
+	retryDo   bool
 	wait      func(ctx context.Context, d time.Duration) error
 	now       func() time.Time
 }
@@ -55,6 +56,7 @@ func New(cfg Config) (*Client, error) {
 		timeout:   cfg.Timeout,
 		maxBody:   cfg.MaxBodyBytes,
 		retry:     retryPolicy{attempts: cfg.Attempts, base: cfg.BaseBackoff, max: cfg.MaxBackoff},
+		retryDo:   cfg.RetryDo,
 		wait:      clock.System{}.Sleep,
 		now:       clock.System{}.Now,
 	}
